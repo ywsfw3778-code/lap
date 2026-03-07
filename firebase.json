@@ -5,7 +5,10 @@
       "firebase.json",
       ".firebaserc",
       ".github/**",
-      "**/.*",
+      ".git/**",
+      "**/.git/**",
+      "**/*.bat",
+      "**/*.md",
       "**/node_modules/**"
     ]
   }
