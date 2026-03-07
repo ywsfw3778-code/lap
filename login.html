@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab Members — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#07070f;--sidebar:#0b0b18;--surface:#10101e;--surface2:#16162a;
+    --border:#ffffff0c;--border2:#ffffff18;
+    --accent:#5b6af0;--accent2:#818cf8;--accent-glow:#5b6af040;
+    --text:#dde1ff;--muted:#4a4f7a;--online:#34d399;
+    --logo-font:'Outfit',sans-serif;--crt:none;
+  }
+  body.theme-steins{
+    --bg:#020c02;--surface:#051405;--surface2:#071a07;
+    --border:#00ff4115;--border2:#00ff4128;
+    --accent:#00ff41;--accent2:#39ff14;--accent-glow:#00ff4140;
+    --text:#c8ffc8;--muted:#3a6b3a;
+    --logo-font:'VT323',monospace;
+    --crt:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
+  }
+  body.theme-crimson{
+    --bg:#0f0608;--surface:#1a080b;--surface2:#220c10;
+    --border:#ff173515;--border2:#ff173528;
+    --accent:#ff1735;--accent2:#ff6b7a;--accent-glow:#ff173540;
+    --text:#ffd6da;--muted:#6b3a3e;
+    --logo-font:'Outfit',sans-serif;--crt:none;
+  }
+  body.theme-amber{
+    --bg:#0d0900;--surface:#181000;--surface2:#201500;
+    --border:#ffb30015;--border2:#ffb30028;
+    --accent:#ffb300;--accent2:#ffd54f;--accent-glow:#ffb30040;
+    --text:#fff3cc;--muted:#6b5200;
+    --logo-font:'Outfit',sans-serif;--crt:none;
+  }
+  body.theme-cyan{
+    --bg:#00080f;--surface:#001219;--surface2:#001a24;
+    --border:#00d4ff15;--border2:#00d4ff28;
+    --accent:#00d4ff;--accent2:#67e8f9;--accent-glow:#00d4ff40;
+    --text:#ccf5ff;--muted:#1a5566;
+    --logo-font:'Share Tech Mono',monospace;--crt:none;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:'IBM Plex Sans Arabic',sans-serif;
+    background:var(--bg);color:var(--text);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    position:relative;overflow:hidden;transition:background .4s,color .4s;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;
+    background:
+      radial-gradient(ellipse at 25% 40%, var(--accent-glow) 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 70%, var(--accent-glow) 0%, transparent 50%);
+    pointer-events:none;transition:background .4s;
+  }
+  body::after{
+    content:'';position:fixed;inset:0;
+    background:var(--crt);pointer-events:none;z-index:9999;
+  }
+
+  /* floating particles bg */
+  .particles{position:fixed;inset:0;pointer-events:none;z-index:0;}
+  .particle{
+    position:absolute;width:2px;height:2px;
+    background:var(--accent);border-radius:50%;opacity:0;
+    animation:float linear infinite;
+  }
+  @keyframes float{
+    0%{transform:translateY(100vh) scale(0);opacity:0;}
+    10%{opacity:.6;}
+    90%{opacity:.3;}
+    100%{transform:translateY(-10vh) scale(1);opacity:0;}
+  }
+
+  /* THEME SWITCHER top-left */
+  .theme-switcher{
+    position:fixed;top:18px;left:18px;
+    display:flex;gap:7px;z-index:100;
+  }
+  .ts-dot{
+    width:22px;height:22px;border-radius:50%;
+    cursor:pointer;border:2px solid transparent;
+    transition:all .2s;
+  }
+  .ts-dot:hover,.ts-dot.active{border-color:white;transform:scale(1.15);}
+  .ts-amloud{background:linear-gradient(135deg,#5b6af0,#818cf8);}
+  .ts-steins{background:linear-gradient(135deg,#00ff41,#39ff14);box-shadow:0 0 8px #00ff4166;}
+  .ts-crimson{background:linear-gradient(135deg,#ff1735,#ff6b7a);}
+  .ts-amber{background:linear-gradient(135deg,#ffb300,#ffd54f);}
+  .ts-cyan{background:linear-gradient(135deg,#00d4ff,#67e8f9);}
+
+  /* CARD */
+  .card{
+    position:relative;z-index:10;
+    background:var(--surface);
+    border:1px solid var(--border2);
+    border-radius:24px;
+    padding:44px 40px;
+    width:400px;max-width:92vw;
+    box-shadow:0 0 60px var(--accent-glow), 0 30px 80px rgba(0,0,0,.6);
+    animation:cardIn .5s cubic-bezier(.16,1,.3,1);
+    transition:background .4s,border-color .4s,box-shadow .4s;
+  }
+  @keyframes cardIn{
+    from{opacity:0;transform:translateY(24px) scale(.97);}
+    to{opacity:1;transform:translateY(0) scale(1);}
+  }
+
+  /* Logo area */
+  .logo-area{text-align:center;margin-bottom:36px;}
+  .logo-icon{
+    width:64px;height:64px;margin:0 auto 14px;
+    background:var(--surface2);
+    border:1px solid var(--border2);
+    border-radius:18px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:28px;
+    box-shadow:0 0 20px var(--accent-glow);
+    transition:background .4s;
+  }
+  .logo-text{
+    font-family:var(--logo-font);
+    font-size:28px;font-weight:600;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 8px var(--accent-glow));
+    letter-spacing:1px;margin-bottom:6px;
+    transition:font-family .1s;
+  }
+  body.theme-steins .logo-text{font-size:34px;letter-spacing:3px;}
+  .logo-sub{font-size:13px;color:var(--muted);}
+
+  /* Welcome text */
+  .welcome-title{font-size:20px;font-weight:600;text-align:center;margin-bottom:6px;}
+  .welcome-sub{font-size:13px;color:var(--muted);text-align:center;margin-bottom:28px;line-height:1.5;}
+
+  /* Google btn */
+  .google-btn{
+    width:100%;padding:13px 20px;
+    background:var(--surface2);
+    border:1px solid var(--border2);
+    border-radius:13px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    color:var(--text);font-family:inherit;font-size:14px;font-weight:500;
+    transition:all .2s;
+    box-shadow:0 2px 12px rgba(0,0,0,.2);
+  }
+  .google-btn:hover{
+    border-color:var(--accent);
+    box-shadow:0 0 20px var(--accent-glow), 0 4px 20px rgba(0,0,0,.3);
+    transform:translateY(-1px);
+  }
+  .google-btn:active{transform:translateY(0);}
+  .google-icon{
+    width:22px;height:22px;flex-shrink:0;
+  }
+
+  .divider{
+    display:flex;align-items:center;gap:12px;
+    margin:22px 0;
+  }
+  .divider-line{flex:1;height:1px;background:var(--border);}
+  .divider-text{font-size:11px;color:var(--muted);}
+
+  /* Email form */
+  .input-group{margin-bottom:14px;}
+  .input-label{font-size:12px;color:var(--muted);margin-bottom:6px;display:block;}
+  .input-field{
+    width:100%;background:var(--surface2);
+    border:1px solid var(--border2);
+    border-radius:11px;padding:11px 14px;
+    color:var(--text);font-family:inherit;font-size:13px;
+    outline:none;transition:border-color .2s,box-shadow .2s;
+    direction:ltr;
+  }
+  .input-field:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+  .input-field::placeholder{color:var(--muted);}
+
+  .submit-btn{
+    width:100%;padding:12px;
+    background:transparent;
+    border:1px solid var(--accent);
+    border-radius:11px;cursor:pointer;
+    color:var(--accent);font-family:inherit;font-size:14px;font-weight:600;
+    transition:all .2s;
+    box-shadow:0 0 12px var(--accent-glow);
+    margin-top:4px;
+  }
+  .submit-btn:hover{background:var(--accent);color:var(--bg);box-shadow:0 0 24px var(--accent);}
+  .submit-btn:active{transform:scale(.98);}
+
+  .toggle-form{
+    text-align:center;margin-top:16px;
+    font-size:12px;color:var(--muted);
+  }
+  .toggle-form a{color:var(--accent);cursor:pointer;text-decoration:none;}
+  .toggle-form a:hover{text-decoration:underline;}
+
+  .terms{
+    text-align:center;margin-top:20px;
+    font-size:11px;color:var(--muted);line-height:1.6;
+  }
+  .terms a{color:var(--accent);cursor:pointer;}
+
+  /* loading state */
+  .btn-loading{position:relative;pointer-events:none;opacity:.8;}
+  .btn-loading::after{
+    content:'';
+    position:absolute;right:16px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;
+    border:2px solid var(--border2);border-top-color:var(--accent);
+    border-radius:50%;animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:translateY(-50%) rotate(360deg);}}
+
+  /* toast */
+  .toast{
+    position:fixed;bottom:24px;right:50%;transform:translateX(50%);
+    background:var(--surface);border:1px solid var(--border2);
+    border-radius:12px;padding:12px 20px;font-size:13px;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);
+    opacity:0;transition:opacity .3s;pointer-events:none;z-index:1000;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1;}
+  .toast.success{border-color:var(--online);color:var(--online);}
+  .toast.error{border-color:#ff4444;color:#ff8888;}
+
+  /* tabs */
+  .tabs{display:flex;gap:0;margin-bottom:20px;background:var(--surface2);border-radius:10px;padding:3px;}
+  .tab{
+    flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;
+    cursor:pointer;border-radius:8px;color:var(--muted);transition:all .2s;
+  }
+  .tab.active{background:var(--surface);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.2);}
+</style>
+</head>
+<body id="appBody">
+
+<!-- particles -->
+<div class="particles" id="particles"></div>
+
+<!-- theme switcher -->
+<div class="theme-switcher">
+  <div class="ts-dot ts-amloud active" id="dot-amloud" onclick="setTheme('amloud')" title="Amloud"></div>
+  <div class="ts-dot ts-steins" id="dot-steins" onclick="setTheme('steins')" title="Steins;Gate"></div>
+  <div class="ts-dot ts-crimson" id="dot-crimson" onclick="setTheme('crimson')" title="Crimson"></div>
+  <div class="ts-dot ts-amber" id="dot-amber" onclick="setTheme('amber')" title="Amber"></div>
+  <div class="ts-dot ts-cyan" id="dot-cyan" onclick="setTheme('cyan')" title="Cyan"></div>
+</div>
+
+<!-- CARD -->
+<div class="card">
+  <div class="logo-area">
+    <div class="logo-icon">🧪</div>
+    <div class="logo-text" id="logoText">Lab Members</div>
+    <div class="logo-sub">Future Gadget Lab — Communication System</div>
+  </div>
+
+  <div class="welcome-title">أهلاً بيك 👋</div>
+  <div class="welcome-sub">سجّل دخولك عشان تتواصل مع أعضاء المعمل</div>
+
+  <!-- Google -->
+  <button class="google-btn" id="googleBtn" onclick="handleGoogle()">
+    <svg class="google-icon" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+    متابعة بحساب Google
+  </button>
+
+  <div class="divider">
+    <div class="divider-line"></div>
+    <div class="divider-text">أو بالإيميل</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs">
+    <div class="tab active" id="tab-login" onclick="switchTab('login')">تسجيل الدخول</div>
+    <div class="tab" id="tab-register" onclick="switchTab('register')">إنشاء حساب</div>
+  </div>
+
+  <!-- login form -->
+  <div id="loginForm">
+    <div class="input-group">
+      <label class="input-label">الإيميل</label>
+      <input class="input-field" type="email" placeholder="example@gmail.com" id="loginEmail">
+    </div>
+    <div class="input-group">
+      <label class="input-label">الباسورد</label>
+      <input class="input-field" type="password" placeholder="••••••••" id="loginPass">
+    </div>
+    <button class="submit-btn" onclick="handleLogin()">دخول</button>
+    <div class="toggle-form">نسيت الباسورد؟ <a onclick="handleReset()">استعادة</a></div>
+  </div>
+
+  <!-- register form -->
+  <div id="registerForm" style="display:none;">
+    <div class="input-group">
+      <label class="input-label">الاسم</label>
+      <input class="input-field" type="text" placeholder="اسمك" id="regName" style="direction:rtl;">
+    </div>
+    <div class="input-group">
+      <label class="input-label">الإيميل</label>
+      <input class="input-field" type="email" placeholder="example@gmail.com" id="regEmail">
+    </div>
+    <div class="input-group">
+      <label class="input-label">الباسورد</label>
+      <input class="input-field" type="password" placeholder="8 أحرف على الأقل" id="regPass">
+    </div>
+    <button class="submit-btn" onclick="handleRegister()">إنشاء حساب</button>
+  </div>
+
+  <div class="terms">
+    بالدخول، أنت موافق على <a>شروط الاستخدام</a> و<a>سياسة الخصوصية</a>
+  </div>
+</div>
+
+<!-- toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const SUPABASE_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* particles */
+const pEl = document.getElementById('particles');
+for(let i=0;i<25;i++){
+  const p=document.createElement('div');p.className='particle';
+  p.style.cssText=`left:${Math.random()*100}%;width:${Math.random()*3+1}px;height:${Math.random()*3+1}px;animation-duration:${Math.random()*15+8}s;animation-delay:${Math.random()*10}s;`;
+  pEl.appendChild(p);
+}
+
+/* check if already logged in */
+const { data: { session } } = await supabase.auth.getSession();
+if(session) window.location.href = 'chat-prototype.html';
+
+/* theme */
+window.setTheme = function(name){
+  document.getElementById('appBody').className='theme-'+name;
+  document.querySelectorAll('.ts-dot').forEach(d=>d.classList.remove('active'));
+  document.getElementById('dot-'+name).classList.add('active');
+  localStorage.setItem('lm-theme',name);
+  document.getElementById('logoText').style.fontSize = name==='steins' ? '34px' : '';
+}
+const saved = localStorage.getItem('lm-theme')||'amloud';
+window.setTheme(saved);
+
+/* tabs */
+window.switchTab = function(tab){
+  document.getElementById('tab-login').classList.toggle('active',tab==='login');
+  document.getElementById('tab-register').classList.toggle('active',tab==='register');
+  document.getElementById('loginForm').style.display=tab==='login'?'block':'none';
+  document.getElementById('registerForm').style.display=tab==='register'?'block':'none';
+}
+
+/* toast */
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+function setLoading(btn, loading, originalHTML){
+  if(loading){ btn.classList.add('btn-loading'); btn.disabled=true; }
+  else { btn.classList.remove('btn-loading'); btn.disabled=false; if(originalHTML) btn.innerHTML=originalHTML; }
+}
+
+/* LOGIN */
+window.handleLogin = async function(){
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if(!email||!pass){ showToast('اكتب الإيميل والباسورد','error'); return; }
+  const btn = document.querySelector('#loginForm .submit-btn');
+  setLoading(btn, true);
+  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  setLoading(btn, false);
+  if(error){ showToast('❌ '+error.message,'error'); return; }
+  showToast('✅ أهلاً بيك!');
+  setTimeout(()=> window.location.href='chat-prototype.html', 1000);
+}
+
+/* REGISTER */
+window.handleRegister = async function(){
+  const name  = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass  = document.getElementById('regPass').value;
+  if(!name||!email||!pass){ showToast('اكمل كل البيانات','error'); return; }
+  if(pass.length<8){ showToast('الباسورد 8 أحرف على الأقل','error'); return; }
+  const btn = document.querySelector('#registerForm .submit-btn');
+  setLoading(btn, true);
+  const { error } = await supabase.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
+  setLoading(btn, false);
+  if(error){ showToast('❌ '+error.message,'error'); return; }
+  showToast('✅ تم إنشاء الحساب! افتح إيميلك وأكد التسجيل');
+}
+
+/* RESET PASSWORD */
+window.handleReset = async function(){
+  const email = document.getElementById('loginEmail').value.trim();
+  if(!email){ showToast('اكتب الإيميل الأول','error'); return; }
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if(error){ showToast('❌ '+error.message,'error'); return; }
+  showToast('✅ اتبعت رسالة استعادة على إيميلك');
+}
+
+/* Google — شيلنا الزرار لأنه بيحتاج domain مسجل */
+document.getElementById('googleBtn').style.display='none';
+document.querySelector('.divider').style.display='none';
+</script>
+</body>
+</html>
