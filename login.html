@@ -355,9 +355,13 @@ for(let i=0;i<25;i++){
   pEl.appendChild(p);
 }
 
-/* check if already logged in */
-const { data: { session } } = await supabase.auth.getSession();
-if(session) window.location.href = 'chat-prototype_1.html';
+/* check if already logged in (safe) */
+try {
+  const { data: { session } } = await supabase.auth.getSession();
+  if(session) window.location.href = 'chat-prototype_1.html';
+} catch (e) {
+  console.warn('session check skipped:', e?.message || e);
+}
 
 /* theme */
 window.setTheme = function(name){
@@ -544,12 +548,17 @@ window.handleReset = async function(){
   showToast(tr('okReset'));
 }
 
-/* Google hidden: needs configured OAuth redirect domain */
-document.getElementById('googleBtn').style.display='none';
-document.querySelector('.divider').style.display='none';
+window.handleGoogle = async function(){
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/chat-prototype_1.html' }
+  });
+  if(error){ showToast('❌ '+error.message,'error'); }
+};
 </script>
 </body>
 </html>
+
 
 
 
