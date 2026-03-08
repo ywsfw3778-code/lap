@@ -23,7 +23,7 @@ body.theme-black{--bg:#050505;--sidebar:#0b0b0b;--surface:#111111;--surface2:#18
 
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;position:relative;transition:background .3s,color .3s;}
-body::after{content:'?';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
+body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
 
 /* SIDEBAR */
 .sidebar{width:290px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
@@ -45,7 +45,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .contact{display:flex;align-items:center;gap:11px;padding:9px 12px;cursor:pointer;border-radius:10px;margin:2px 7px;transition:all .15s;position:relative;}
 .contact:hover{background:var(--surface);}
 .contact.active{background:var(--surface2);border:1px solid var(--border2);}
-.contact.active::before{content:'?';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:3px;height:22px;background:var(--accent);border-radius:99px;box-shadow:0 0 8px var(--accent);}
+.contact.active::before{content:'';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:3px;height:22px;background:var(--accent);border-radius:99px;box-shadow:0 0 8px var(--accent);}
 .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex-shrink:0;position:relative;}
 .avatar-dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--sidebar);}
 .dot-online{background:var(--online);}
@@ -148,7 +148,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .theme-card{border:1px solid var(--border2);border-radius:12px;padding:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
 .theme-card:hover{border-color:var(--accent);transform:translateY(-2px);}
 .theme-card.selected{border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow);}
-.theme-card.selected::after{content:'?';position:absolute;top:8px;left:8px;width:18px;height:18px;background:var(--accent);color:var(--bg);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.theme-card.selected::after{content:'✓';position:absolute;top:8px;left:8px;width:18px;height:18px;background:var(--accent);color:var(--bg);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 .tp{height:44px;border-radius:8px;margin-bottom:8px;display:flex;overflow:hidden;position:relative;}
 .tp-s{width:35%;height:100%;}
 .tp-m{flex:1;height:100%;}
@@ -169,7 +169,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .toggle-desc{font-size:11px;color:var(--muted);margin-top:2px;}
 .toggle{width:40px;height:22px;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;cursor:pointer;position:relative;transition:all .25s;flex-shrink:0;}
 .toggle.on{background:var(--accent);border-color:var(--accent);}
-.toggle::after{content:'?';position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--muted);border-radius:50%;transition:all .25s;}
+.toggle::after{content:'';position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--muted);border-radius:50%;transition:all .25s;}
 .toggle.on::after{right:20px;background:var(--bg);} 
 .lang-opt{display:flex;gap:6px;} 
 .lang-opt-btn{padding:6px 10px;border:1px solid var(--border2);background:var(--surface);color:var(--text);border-radius:8px;cursor:pointer;font-size:11px;} 
@@ -264,20 +264,20 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
     <div class="header-actions">
-      <div class="icon-btn" onclick="openSearchPanel()" title="??? ?? ????">??</div>
-      <div class="icon-btn" onclick="openSettings()">??</div>
+      <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
+      <div class="icon-btn" onclick="openSettings()">⚙️</div>
     </div>
   </div>
   <div class="search-box">
-    <input type="text" placeholder="????..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
-    <span class="search-icon">??</span>
+    <input type="text" placeholder="ابحث..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
+    <span class="search-icon">🔍</span>
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
   <div class="profile-bar" onclick="openProfile()">
     <div class="profile-av" id="myAvatar">?</div>
     <div class="profile-info">
-      <div class="profile-name" id="myName">???? ???????...</div>
+      <div class="profile-name" id="myName">جارِ التحميل...</div>
       <div class="profile-email" id="myEmail">—</div>
     </div>
     <div class="profile-dot"></div>
@@ -288,26 +288,26 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="chat-area">
   <div class="chat-header">
     <div class="chat-user">
-      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">??</div>
+      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">💬</div>
       <div>
-        <div class="chat-user-name" id="headerName">????? ??????</div>
+        <div class="chat-user-name" id="headerName">اختر محادثة</div>
         <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
       </div>
     </div>
     <div class="chat-actions">
-      <div class="icon-btn">??</div>
-      <div class="icon-btn">??</div>
-      <div class="icon-btn">?</div>
+      <div class="icon-btn">📞</div>
+      <div class="icon-btn">📹</div>
+      <div class="icon-btn">⋮</div>
     </div>
   </div>
   <div class="messages" id="messages"></div>
   <div class="input-area">
     <div class="input-wrap">
-      <button class="emoji-btn" onclick="addEmoji()">??</button>
-      <input type="text" id="msgInput" placeholder="???? ?????..." onkeydown="handleKey(event)">
-      <button class="attach-btn">??</button>
+      <button class="emoji-btn" onclick="addEmoji()">😊</button>
+      <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
+      <button class="attach-btn">📎</button>
     </div>
-    <button class="send-btn" onclick="sendMessage()">?</button>
+    <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
 </div>
 
@@ -315,39 +315,39 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
   <div class="panel">
     <div class="panel-top">
-      <div class="panel-title" id="settingsTitle">?? ?????????</div>
+      <div class="panel-title" id="settingsTitle">⚙️ الإعدادات</div>
       <div class="panel-close" onclick="closeSettings()">?</div>
     </div>
-    <div class="panel-sub" id="settingsSub">??? ??? ???????</div>
+    <div class="panel-sub" id="settingsSub">خصص شكل التطبيق</div>
     <div class="section-title" id="settingsThemeTitle">// THEME</div>
     <div class="theme-grid">
       <div class="theme-card selected" id="tc-amloud" onclick="setTheme('amloud')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amloud ??</div><div class="theme-desc">???? + ????</div>
+        <div class="theme-name">Amloud 🌑</div><div class="theme-desc">أسود + كحلي</div>
       </div>
       <div class="theme-card" id="tc-steins" onclick="setTheme('steins')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Steins;Gate ??</div><div class="theme-desc">???? ????</div>
+        <div class="theme-name">Steins;Gate 📟</div><div class="theme-desc">أخضر نيون</div>
       </div>
       <div class="theme-card" id="tc-crimson" onclick="setTheme('crimson')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Crimson ??</div><div class="theme-desc">???? ????</div>
+        <div class="theme-name">Crimson 🔴</div><div class="theme-desc">أحمر داكن</div>
       </div>
       <div class="theme-card" id="tc-amber" onclick="setTheme('amber')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amber ??</div><div class="theme-desc">???? ????</div>
+        <div class="theme-name">Amber 🟡</div><div class="theme-desc">ذهبي دافئ</div>
       </div>
       <div class="theme-card" id="tc-cyan" onclick="setTheme('cyan')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Cyan ??</div><div class="theme-desc">????? ???</div>
+        <div class="theme-name">Cyan 🔵</div><div class="theme-desc">سماوي تيك</div>
       </div>
       <div class="theme-card" id="tc-white" onclick="setTheme('white')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">White ?</div><div class="theme-desc">???? ?????</div>
+        <div class="theme-name">White ⚪</div><div class="theme-desc">فاتح ونظيف</div>
       </div>
       <div class="theme-card" id="tc-black" onclick="setTheme('black')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Black ?</div><div class="theme-desc">???? ?????</div>
+        <div class="theme-name">Black ⚫</div><div class="theme-desc">أسود أحادي</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -382,7 +382,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
     <div class="profile-body">
       <div class="profile-pname" id="profileName">—</div>
       <div class="profile-pemail" id="profileEmail">—</div>
-      <div class="profile-row"><span class="picon">??</span><span id="profileEmail2">—</span></div>
+      <div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
       <div class="profile-edit">
         <div class="profile-edit-label">Edit profile</div>
@@ -391,11 +391,11 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
         <div class="profile-hint" id="usernameHint">username: 3-20 chars (letters/numbers/_), unique</div>
         <button class="pbtn" id="saveProfileBtn" onclick="saveProfile()">Save Changes</button>
       </div>
-      <div class="profile-row"><span class="picon">??</span><span>???? ????</span></div>
-      <div class="profile-row"><span class="picon">??</span><span>Lab Member</span></div>
+      <div class="profile-row"><span class="picon">🟢</span><span>متصل الآن</span></div>
+      <div class="profile-row"><span class="picon">🧪</span><span>Lab Member</span></div>
       <div class="profile-acts">
-        <button class="pbtn" onclick="closeProfile()">?????</button>
-        <button class="pbtn danger" onclick="handleLogout()">???? ??</button>
+        <button class="pbtn" onclick="closeProfile()">إغلاق</button>
+        <button class="pbtn danger" onclick="handleLogout()">خروج 🚪</button>
       </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
@@ -408,16 +408,16 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="searchOverlay" onclick="if(event.target===this)closeSearchPanel()">
   <div class="panel">
     <div class="panel-top">
-      <div class="panel-title">?? ???? ?? ????</div>
+      <div class="panel-title">🔎 ابحث عن صديق</div>
       <div class="panel-close" onclick="closeSearchPanel()">?</div>
     </div>
-    <div class="panel-sub">???? ???????? ?? ?????</div>
+    <div class="panel-sub">ابحث بالإيميل أو الاسم</div>
     <div class="search-input-wrap">
       <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')searchFriends()">
-      <button class="search-go" onclick="searchFriends()">???</button>
+      <button class="search-go" onclick="searchFriends()">بحث</button>
     </div>
     <div class="search-results" id="searchResults">
-      <div class="s-empty">???? ????? ??</div>
+      <div class="s-empty">ابدأ البحث 👆</div>
     </div>
   </div>
 </div>
@@ -595,6 +595,7 @@ window.startChat = (id,name,bg,textColor) => {
     window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:textColor,online:false,preview:window.t('startChatPreview'),time:'',unread:0});
   closeSearchPanel();
   selectContact(id);
+  saveLocalChatState();
   renderContacts();
 };
 </script>
@@ -610,6 +611,37 @@ let sidebarSearchResults=[];
 const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
 let messagePollTimer = null;
+
+function getChatStateKey(){
+  const me = getCurrentUser();
+  return me ? `lm-chat-state-${me.id}` : 'lm-chat-state-guest';
+}
+
+function saveLocalChatState(){
+  try{
+    const payload = { contacts, conversations };
+    localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
+  }catch(_e){}
+}
+
+function loadLocalChatState(){
+  try{
+    const rawState = localStorage.getItem(getChatStateKey());
+    if(!rawState) return;
+    const parsed = JSON.parse(rawState);
+    if(Array.isArray(parsed?.contacts)){
+      parsed.contacts.forEach(c => {
+        if(!c || !c.id) return;
+        if(!contacts.find(x => x.id === c.id)) contacts.push(c);
+      });
+    }
+    if(parsed?.conversations && typeof parsed.conversations === 'object'){
+      Object.keys(parsed.conversations).forEach(k => {
+        if(!conversations[k] && Array.isArray(parsed.conversations[k])) conversations[k] = parsed.conversations[k];
+      });
+    }
+  }catch(_e){}
+}
 
 // THEME
 function setTheme(t){
@@ -627,33 +659,33 @@ const saved=localStorage.getItem('lm-theme')||'amloud';
 setTheme(saved);
 const langPack = {
   ar: {
-    searchPh:'????...', members:'// ???????', headerDefault:'????? ??????', online:'???? ????',
-    msgPh:'???? ?????...', settingsTitle:'?? ?????????', settingsSub:'??? ??? ???????',
-    themeTitle:'// ?????', optionsTitle:'// ??????', lblCrt:'CRT Scanlines', descCrt:'????? ???? ?????',
-    lblNotify:'?????????', descNotify:'??? ??? ?????? ?????', lblEnterSend:'Enter ???????',
-    descEnterSend:'???? Enter ??? ?? ???????', langLabel:'?????', langDesc:'???? ??? ??????? ???????',
-    profileEdit:'????? ????? ??????', profileSave:'??? ?????????', profileClose:'?????', profileLogout:'????',
-    searchPanelTitle:'?? ???? ?? ????', searchPanelSub:'???? ???????? ?? ?????', searchBtn:'???',
-    searchStart:'???? ????? ??', searchLoading:'???? ?????... ?', searchEmpty:'?? ???? ?? ??', mainSearchTitle:'???? ?? ??? ????? ??????', mainSearchPlaceholder:'???? ????? ?? ???????', mainSearchBtn:'???', mainSearchHint:'???? ??? ????? ?? ????? ???????',
-    chatBtn:'??????', startChatPreview:'???? ????????...', emptyContacts:'???? ?? ??? ?? ????? ???????',
-    emptyNoUser:'?? ???? ??', chooseConv:'?? ???? ??? ????? ?? ??? ?????? ???????', today:'?????', now:'??????',
-    saveNameReq:'???? ?????', saveUserRule:'????????? ???? ???? 3-20 ???/??? ?? _ ???',
-    saveUserTaken:'????????? ?????? ??????? ???? ???? ?????', saveDone:'? ?? ??? ????????',
-    saveBtnBusy:'???? ?????...'
+    searchPh:'ابحث...', members:'// الأعضاء', headerDefault:'اختر محادثة', online:'متصل الآن',
+    msgPh:'اكتب رسالة...', settingsTitle:'⚙️ الإعدادات', settingsSub:'خصص شكل التطبيق',
+    themeTitle:'// الثيمات', optionsTitle:'// الخيارات', lblCrt:'CRT Scanlines', descCrt:'تأثير الشاشة القديمة',
+    lblNotify:'الإشعارات', descNotify:'صوت عند وصول رسالة', lblEnterSend:'الإرسال بـ Enter',
+    descEnterSend:'اضغط Enter بدل زر الإرسال', langLabel:'اللغة', langDesc:'تغيير لغة التطبيق',
+    profileEdit:'تعديل الملف الشخصي', profileSave:'حفظ التغييرات', profileClose:'إغلاق', profileLogout:'خروج',
+    searchPanelTitle:'🔎 ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
+    searchStart:'ابدأ البحث 👆', searchLoading:'جارِ البحث...', searchEmpty:'لا يوجد مستخدمون', mainSearchTitle:'ابحث عن شخص لبدء المحادثة', mainSearchPlaceholder:'اكتب الاسم أو الإيميل', mainSearchBtn:'بحث', mainSearchHint:'اكتب الاسم في الحقل بالأعلى',
+    chatBtn:'محادثة', startChatPreview:'ابدأ المحادثة...', emptyContacts:'ابحث عن أشخاص بالأعلى',
+    emptyNoUser:'لا يوجد مستخدم', chooseConv:'اكتب اسمًا في بحث القائمة الجانبية', today:'اليوم', now:'الآن',
+    saveNameReq:'اكتب اسمك', saveUserRule:'اليوزرنيم 3-20 حرف (حروف/أرقام/_)',
+    saveUserTaken:'اسم المستخدم مستخدم بالفعل', saveDone:'✅ تم حفظ الملف',
+    saveBtnBusy:'جارِ الحفظ...'
   },
   en: {
     searchPh:'Search...', members:'// MEMBERS', headerDefault:'Select a chat', online:'Online',
-    msgPh:'Type a message...', settingsTitle:'?? Settings', settingsSub:'Customize app appearance',
+    msgPh:'Type a message...', settingsTitle:'⚙️ Settings', settingsSub:'Customize app appearance',
     themeTitle:'// THEME', optionsTitle:'// OPTIONS', lblCrt:'CRT Scanlines', descCrt:'Classic screen effect',
     lblNotify:'Notifications', descNotify:'Sound on new message', lblEnterSend:'Enter to send',
     descEnterSend:'Press Enter instead of send button', langLabel:'Language', langDesc:'Change app language',
     profileEdit:'Edit profile', profileSave:'Save Changes', profileClose:'Close', profileLogout:'Logout',
-    searchPanelTitle:'?? Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
-    searchStart:'Start searching ??', searchLoading:'Searching... ?', searchEmpty:'No users found ??', mainSearchTitle:'Find someone to start chatting', mainSearchPlaceholder:'Type name or email', mainSearchBtn:'Search', mainSearchHint:'Type a name in the field above',
+    searchPanelTitle:'🔎 Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
+    searchStart:'Start searching 👆', searchLoading:'Searching...', searchEmpty:'No users found', mainSearchTitle:'Find someone to start chatting', mainSearchPlaceholder:'Type name or email', mainSearchBtn:'Search', mainSearchHint:'Type a name in the field above',
     chatBtn:'Chat', startChatPreview:'Start chatting...', emptyContacts:'Search for people above',
-    emptyNoUser:'No users found', chooseConv:'?? Type a name in the sidebar search', today:'Today', now:'Now',
+    emptyNoUser:'No users found', chooseConv:'Type a name in the sidebar search', today:'Today', now:'Now',
     saveNameReq:'Enter your name', saveUserRule:'Username must be 3-20 chars (letters/numbers/_)',
-    saveUserTaken:'Username already taken', saveDone:'? Profile saved', saveBtnBusy:'Saving...'
+    saveUserTaken:'Username already taken', saveDone:'✅ Profile saved', saveBtnBusy:'Saving...'
   }
 };
 let appLang = localStorage.getItem('lm-lang') || 'ar';
@@ -700,23 +732,23 @@ function applyLanguage(){
   const searchSub = qs('#searchOverlay .panel-sub'); if(searchSub) searchSub.textContent = t('searchPanelSub');
   const searchGo = qs('#searchOverlay .search-go'); if(searchGo) searchGo.textContent = t('searchBtn');
   const searchStart = qs('#searchResults .s-empty'); if(searchStart) searchStart.textContent = t('searchStart');
-  const tcA = qs('#tc-amloud .theme-name'); if(tcA) tcA.textContent = appLang === 'ar' ? 'Amloud ??' : 'Amloud ??';
-  const tdA = qs('#tc-amloud .theme-desc'); if(tdA) tdA.textContent = appLang === 'ar' ? '???? + ????' : 'Black + Navy';
-  const tcS = qs('#tc-steins .theme-name'); if(tcS) tcS.textContent = 'Steins;Gate ??';
-  const tdS = qs('#tc-steins .theme-desc'); if(tdS) tdS.textContent = appLang === 'ar' ? '???? ????' : 'Neon Green';
-  const tcC = qs('#tc-crimson .theme-name'); if(tcC) tcC.textContent = 'Crimson ??';
-  const tdC = qs('#tc-crimson .theme-desc'); if(tdC) tdC.textContent = appLang === 'ar' ? '???? ????' : 'Dark Red';
-  const tcAm = qs('#tc-amber .theme-name'); if(tcAm) tcAm.textContent = 'Amber ??';
-  const tdAm = qs('#tc-amber .theme-desc'); if(tdAm) tdAm.textContent = appLang === 'ar' ? '???? ????' : 'Warm Gold';
-  const tcCy = qs('#tc-cyan .theme-name'); if(tcCy) tcCy.textContent = 'Cyan ??';
-  const tdCy = qs('#tc-cyan .theme-desc'); if(tdCy) tdCy.textContent = appLang === 'ar' ? '????? ???' : 'Tech Cyan';
-  const tcW = qs('#tc-white .theme-name'); if(tcW) tcW.textContent = 'White ?';
-  const tdW = qs('#tc-white .theme-desc'); if(tdW) tdW.textContent = appLang === 'ar' ? '???? ?????' : 'Light & Clean';
-  const tcB = qs('#tc-black .theme-name'); if(tcB) tcB.textContent = 'Black ?';
-  const tdB = qs('#tc-black .theme-desc'); if(tdB) tdB.textContent = appLang === 'ar' ? '???? ?????' : 'Monochrome Black';
+  const tcA = qs('#tc-amloud .theme-name'); if(tcA) tcA.textContent = 'Amloud 🌑';
+  const tdA = qs('#tc-amloud .theme-desc'); if(tdA) tdA.textContent = appLang === 'ar' ? 'أسود + كحلي' : 'Black + Navy';
+  const tcS = qs('#tc-steins .theme-name'); if(tcS) tcS.textContent = 'Steins;Gate 📟';
+  const tdS = qs('#tc-steins .theme-desc'); if(tdS) tdS.textContent = appLang === 'ar' ? 'أخضر نيون' : 'Neon Green';
+  const tcC = qs('#tc-crimson .theme-name'); if(tcC) tcC.textContent = 'Crimson 🔴';
+  const tdC = qs('#tc-crimson .theme-desc'); if(tdC) tdC.textContent = appLang === 'ar' ? 'أحمر داكن' : 'Dark Red';
+  const tcAm = qs('#tc-amber .theme-name'); if(tcAm) tcAm.textContent = 'Amber 🟡';
+  const tdAm = qs('#tc-amber .theme-desc'); if(tdAm) tdAm.textContent = appLang === 'ar' ? 'ذهبي دافئ' : 'Warm Gold';
+  const tcCy = qs('#tc-cyan .theme-name'); if(tcCy) tcCy.textContent = 'Cyan 🔵';
+  const tdCy = qs('#tc-cyan .theme-desc'); if(tdCy) tdCy.textContent = appLang === 'ar' ? 'سماوي تيك' : 'Tech Cyan';
+  const tcW = qs('#tc-white .theme-name'); if(tcW) tcW.textContent = 'White ⚪';
+  const tdW = qs('#tc-white .theme-desc'); if(tdW) tdW.textContent = appLang === 'ar' ? 'فاتح ونظيف' : 'Light & Clean';
+  const tcB = qs('#tc-black .theme-name'); if(tcB) tcB.textContent = 'Black ⚫';
+  const tdB = qs('#tc-black .theme-desc'); if(tdB) tdB.textContent = appLang === 'ar' ? 'أسود أحادي' : 'Monochrome Black';
   const profileRows = document.querySelectorAll('#profileOverlay .profile-row span:last-child');
   if(profileRows[2]) profileRows[2].textContent = t('online');
-  if(profileRows[3]) profileRows[3].textContent = appLang === 'ar' ? '??? ?? ??????' : 'Lab Member';
+  if(profileRows[3]) profileRows[3].textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
 }
 
 // PANELS
@@ -763,6 +795,7 @@ async function loadMessagesForContact(contactId){
     c.time = t('now');
   }
 
+  saveLocalChatState();
   renderContacts();
   if(activeContact && activeContact.id === contactId) renderMessages();
 }
@@ -865,6 +898,7 @@ async function loadInboxContacts(){
     c._lastInboxAt = stamp;
   }
 
+  saveLocalChatState();
   renderContacts();
 }
 // CONTACTS
@@ -886,6 +920,7 @@ function selectContact(id){
   document.getElementById('headerName').textContent=activeContact.name;
   renderContacts();
   renderMessages();
+  saveLocalChatState();
   loadMessagesForContact(id);
 }
 function renderSidebarSearchResults(results){
@@ -993,7 +1028,7 @@ function renderMessages(){
     while(j<msgs.length&&msgs[j].out===isOut){
       const r=document.createElement('div');r.className='msg-row';
       const last=j===msgs.length-1||msgs[j+1]?.out!==isOut;
-      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?' <span class="tick">??</span>':''}</div>`:''}</div>`;
+      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?' <span class="tick">✓✓</span>':''}</div>`:''}</div>`;
       g.appendChild(r);j++;
     }
     el.appendChild(g);i=j;
@@ -1032,10 +1067,12 @@ async function sendMessage(){
 
   await loadMessagesForContact(activeContact.id);
   await loadInboxContacts();
+  saveLocalChatState();
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
-function addEmoji(){const e=["??","??","??","??","??","??","??","??"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
+function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
 
+loadLocalChatState();
 startMessagePolling();
 loadInboxContacts();
 window.addEventListener('beforeunload', () => { if(messagePollTimer) clearInterval(messagePollTimer); });
@@ -1044,6 +1081,10 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
