@@ -441,29 +441,34 @@ window.saveProfile = async () => {
     return;
   }
 
-  const { error: updErr } = await sb
+  // Ensure profile row exists and is updated in one call.
+  const { error: upsertErr } = await sb
     .from('profiles')
-    .update({ full_name: name, username })
-    .eq('id', me.id);
+    .upsert({ id: me.id, email: myEmail, full_name: name, username }, { onConflict: 'id' });
 
-  btn.disabled = false;
-  btn.textContent = t('profileSave');
-
-  if(updErr){
-    if(String(updErr.message || '').toLowerCase().includes('username')){
-      toast('❌ عمود username غير موجود في profiles. أضفه في Supabase أولاً.', 'error');
-    } else {
-      toast('❌ '+updErr.message, 'error');
-    }
+  if(upsertErr){
+    btn.disabled = false;
+    btn.textContent = t('profileSave');
+    toast('❌ '+upsertErr.message, 'error');
     return;
   }
 
-  await sb.auth.updateUser({ data: { full_name: name, username } });
+  const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username } });
+  if(authErr){
+    btn.disabled = false;
+    btn.textContent = t('profileSave');
+    toast('❌ '+authErr.message, 'error');
+    return;
+  }
+
   myName = name;
   myUsername = username;
   applyMyProfileUI();
-  toast(t('saveDone'));
   applyLanguage();
+
+  btn.disabled = false;
+  btn.textContent = t('profileSave');
+  toast(t('saveDone'));
 };
 
 await loadMyProfile();
@@ -549,7 +554,7 @@ const langPack = {
     searchPanelTitle:'🔎 ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
     searchStart:'ابدأ البحث 👆', searchLoading:'جاري البحث... ⏳', searchEmpty:'مش لاقي حد 🤷',
     chatBtn:'محادثة', startChatPreview:'ابدأ المحادثة...', emptyContacts:'ابحث عن شخص من البحث بالأعلى',
-    emptyNoUser:'مش لاقي حد', chooseConv:'اختار محادثة 💬', today:'اليوم', now:'دلوقتي',
+    emptyNoUser:'مش لاقي حد', chooseConv:'🔎 اكتب اسم الشخص في بحث الشريط الجانبي', today:'اليوم', now:'دلوقتي',
     saveNameReq:'اكتب الاسم', saveUserRule:'اليوزرنيم لازم يكون 3-20 حرف/رقم أو _ فقط',
     saveUserTaken:'اليوزرنيم مستخدم بالفعل، اختر واحد مختلف', saveDone:'✅ تم حفظ البيانات',
     saveBtnBusy:'جاري الحفظ...'
@@ -564,7 +569,7 @@ const langPack = {
     searchPanelTitle:'🔎 Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
     searchStart:'Start searching 👆', searchLoading:'Searching... ⏳', searchEmpty:'No users found 🤷',
     chatBtn:'Chat', startChatPreview:'Start chatting...', emptyContacts:'Search for people above',
-    emptyNoUser:'No users found', chooseConv:'Select a chat 💬', today:'Today', now:'Now',
+    emptyNoUser:'No users found', chooseConv:'🔎 Type a name in the sidebar search', today:'Today', now:'Now',
     saveNameReq:'Enter your name', saveUserRule:'Username must be 3-20 chars (letters/numbers/_)',
     saveUserTaken:'Username already taken', saveDone:'✅ Profile saved', saveBtnBusy:'Saving...'
   }
@@ -677,12 +682,25 @@ window.startChatFromSidebar = function(id){
 
 async function filterContacts(q){
   const query = (q || '').trim();
-  if(contacts.length){
-    renderContacts(query ? contacts.filter(c=>c.name.toLowerCase().includes(query.toLowerCase())) : contacts);
+  if(!query){ renderContacts(); return; }
+
+  // Always search by name/email from DB when user types in sidebar search.
+  const remote = await window.searchProfiles(query, 8);
+
+  // Keep local contacts first, then add remote users not already in list.
+  const localMatches = contacts.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+  const localIds = new Set(localMatches.map(c => c.id));
+  const mergedRemote = remote.filter(u => !localIds.has(u.id));
+
+  if(localMatches.length){
+    const enriched = localMatches.concat(mergedRemote.map(u => ({
+      id:u.id,name:u.name,init:u.init,color:u.color,text:u.text,online:false,preview:u.email,time:'',unread:0
+    })));
+    renderContacts(enriched);
     return;
   }
-  if(!query){ renderContacts(); return; }
-  sidebarSearchResults = await window.searchProfiles(query, 8);
+
+  sidebarSearchResults = remote;
   renderSidebarSearchResults(sidebarSearchResults);
 }
 
@@ -725,6 +743,9 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
 
 
 
