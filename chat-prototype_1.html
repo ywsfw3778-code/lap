@@ -794,7 +794,7 @@ async function loadInboxContacts(){
   const { data, error } = await sbClient
     .from('messages')
     .select('sender_id,receiver_id,body,created_at')
-    .or(sender_id.eq.,receiver_id.eq.)
+    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -1025,6 +1025,7 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
 
 
 
