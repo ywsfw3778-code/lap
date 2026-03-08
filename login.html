@@ -270,13 +270,13 @@
 <!-- CARD -->
 <div class="card">
   <div class="logo-area">
-    <div class="logo-icon">ðŸ§ª</div>
+    <div class="logo-icon">🧪</div>
     <div class="logo-text" id="logoText">Lab Members</div>
-    <div class="logo-sub">Future Gadget Lab â€” Communication System</div>
+    <div class="logo-sub">Future Gadget Lab - Communication System</div>
   </div>
 
-  <div class="welcome-title">Ø£Ù‡Ù„Ø§Ù‹ Ø¨ÙŠÙƒ ðŸ‘‹</div>
-  <div class="welcome-sub">Ø³Ø¬Ù‘Ù„ Ø¯Ø®ÙˆÙ„Ùƒ Ø¹Ø´Ø§Ù† ØªØªÙˆØ§ØµÙ„ Ù…Ø¹ Ø£Ø¹Ø¶Ø§Ø¡ Ø§Ù„Ù…Ø¹Ù…Ù„</div>
+  <div class="welcome-title">أهلا بك 👋</div>
+  <div class="welcome-sub">سجل دخولك عشان تتواصل مع أعضاء المعمل</div>
 
   <!-- Google -->
   <button class="google-btn" id="googleBtn" onclick="handleGoogle()">
@@ -286,54 +286,54 @@
       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
     </svg>
-    Ù…ØªØ§Ø¨Ø¹Ø© Ø¨Ø­Ø³Ø§Ø¨ Google
+    متابعة بحساب Google
   </button>
 
   <div class="divider">
     <div class="divider-line"></div>
-    <div class="divider-text">Ø£Ùˆ Ø¨Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„</div>
+    <div class="divider-text">أو بالإيميل</div>
     <div class="divider-line"></div>
   </div>
 
   <!-- tabs -->
   <div class="tabs">
-    <div class="tab active" id="tab-login" onclick="switchTab('login')">ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„</div>
-    <div class="tab" id="tab-register" onclick="switchTab('register')">Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨</div>
+    <div class="tab active" id="tab-login" onclick="switchTab('login')">تسجيل الدخول</div>
+    <div class="tab" id="tab-register" onclick="switchTab('register')">إنشاء حساب</div>
   </div>
 
   <!-- login form -->
   <div id="loginForm">
     <div class="input-group">
-      <label class="input-label">Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„</label>
+      <label class="input-label">الإيميل</label>
       <input class="input-field" type="email" placeholder="example@gmail.com" id="loginEmail">
     </div>
     <div class="input-group">
-      <label class="input-label">Ø§Ù„Ø¨Ø§Ø³ÙˆØ±Ø¯</label>
-      <input class="input-field" type="password" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" id="loginPass">
+      <label class="input-label">الباسورد</label>
+      <input class="input-field" type="password" placeholder="••••••••" id="loginPass">
     </div>
-    <button class="submit-btn" onclick="handleLogin()">Ø¯Ø®ÙˆÙ„</button>
-    <div class="toggle-form">Ù†Ø³ÙŠØª Ø§Ù„Ø¨Ø§Ø³ÙˆØ±Ø¯ØŸ <a onclick="handleReset()">Ø§Ø³ØªØ¹Ø§Ø¯Ø©</a></div>
+    <button class="submit-btn" onclick="handleLogin()">دخول</button>
+    <div class="toggle-form">نسيت الباسورد؟ <a onclick="handleReset()">استعادة</a></div>
   </div>
 
   <!-- register form -->
   <div id="registerForm" style="display:none;">
     <div class="input-group">
-      <label class="input-label">Ø§Ù„Ø§Ø³Ù…</label>
-      <input class="input-field" type="text" placeholder="Ø§Ø³Ù…Ùƒ" id="regName" style="direction:rtl;">
+      <label class="input-label">الاسم</label>
+      <input class="input-field" type="text" placeholder="اسمك" id="regName" style="direction:rtl;">
     </div>
     <div class="input-group">
-      <label class="input-label">Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„</label>
+      <label class="input-label">الإيميل</label>
       <input class="input-field" type="email" placeholder="example@gmail.com" id="regEmail">
     </div>
     <div class="input-group">
-      <label class="input-label">Ø§Ù„Ø¨Ø§Ø³ÙˆØ±Ø¯</label>
-      <input class="input-field" type="password" placeholder="8 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„" id="regPass">
+      <label class="input-label">الباسورد</label>
+      <input class="input-field" type="password" placeholder="8 أحرف على الأقل" id="regPass">
     </div>
-    <button class="submit-btn" onclick="handleRegister()">Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨</button>
+    <button class="submit-btn" onclick="handleRegister()">إنشاء حساب</button>
   </div>
 
   <div class="terms">
-    Ø¨Ø§Ù„Ø¯Ø®ÙˆÙ„ØŒ Ø£Ù†Øª Ù…ÙˆØ§ÙÙ‚ Ø¹Ù„Ù‰ <a>Ø´Ø±ÙˆØ· Ø§Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…</a> Ùˆ<a>Ø³ÙŠØ§Ø³Ø© Ø§Ù„Ø®ØµÙˆØµÙŠØ©</a>
+    بالدخول، أنت موافق على <a>شروط الاستخدام</a> و<a>سياسة الخصوصية</a>
   </div>
 </div>
 
@@ -544,7 +544,7 @@ window.handleReset = async function(){
   showToast(tr('okReset'));
 }
 
-/* Google â€” Ø´ÙŠÙ„Ù†Ø§ Ø§Ù„Ø²Ø±Ø§Ø± Ù„Ø£Ù†Ù‡ Ø¨ÙŠØ­ØªØ§Ø¬ domain Ù…Ø³Ø¬Ù„ */
+/* Google hidden: needs configured OAuth redirect domain */
 document.getElementById('googleBtn').style.display='none';
 document.querySelector('.divider').style.display='none';
 </script>
