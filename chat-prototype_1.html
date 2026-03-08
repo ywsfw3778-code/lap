@@ -21,7 +21,7 @@ body.theme-cyan{--bg:#00080f;--sidebar:#000d14;--surface:#001219;--surface2:#001
 
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;position:relative;transition:background .3s,color .3s;}
-body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
+body::after{content:'✓';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
 
 /* SIDEBAR */
 .sidebar{width:290px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
@@ -43,7 +43,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .contact{display:flex;align-items:center;gap:11px;padding:9px 12px;cursor:pointer;border-radius:10px;margin:2px 7px;transition:all .15s;position:relative;}
 .contact:hover{background:var(--surface);}
 .contact.active{background:var(--surface2);border:1px solid var(--border2);}
-.contact.active::before{content:'';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:3px;height:22px;background:var(--accent);border-radius:99px;box-shadow:0 0 8px var(--accent);}
+.contact.active::before{content:'✓';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:3px;height:22px;background:var(--accent);border-radius:99px;box-shadow:0 0 8px var(--accent);}
 .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex-shrink:0;position:relative;}
 .avatar-dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--sidebar);}
 .dot-online{background:var(--online);}
@@ -132,7 +132,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .theme-card{border:1px solid var(--border2);border-radius:12px;padding:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
 .theme-card:hover{border-color:var(--accent);transform:translateY(-2px);}
 .theme-card.selected{border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow);}
-.theme-card.selected::after{content:'âœ“';position:absolute;top:8px;left:8px;width:18px;height:18px;background:var(--accent);color:var(--bg);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.theme-card.selected::after{content:'✓';position:absolute;top:8px;left:8px;width:18px;height:18px;background:var(--accent);color:var(--bg);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 .tp{height:44px;border-radius:8px;margin-bottom:8px;display:flex;overflow:hidden;position:relative;}
 .tp-s{width:35%;height:100%;}
 .tp-m{flex:1;height:100%;}
@@ -151,7 +151,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .toggle-desc{font-size:11px;color:var(--muted);margin-top:2px;}
 .toggle{width:40px;height:22px;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;cursor:pointer;position:relative;transition:all .25s;flex-shrink:0;}
 .toggle.on{background:var(--accent);border-color:var(--accent);}
-.toggle::after{content:'';position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--muted);border-radius:50%;transition:all .25s;}
+.toggle::after{content:'✓';position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--muted);border-radius:50%;transition:all .25s;}
 .toggle.on::after{right:20px;background:var(--bg);} 
 .lang-opt{display:flex;gap:6px;} 
 .lang-opt-btn{padding:6px 10px;border:1px solid var(--border2);background:var(--surface);color:var(--text);border-radius:8px;cursor:pointer;font-size:11px;} 
@@ -208,21 +208,21 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
     <div class="header-actions">
-      <div class="icon-btn" onclick="openSearchPanel()" title="Ø¨Ø­Ø« Ø¹Ù† ØµØ¯ÙŠÙ‚">ðŸ”Ž</div>
-      <div class="icon-btn" onclick="openSettings()">âš™ï¸</div>
+      <div class="icon-btn" onclick="openSearchPanel()" title="بحث عن صديق">🔎</div>
+      <div class="icon-btn" onclick="openSettings()">⚙️</div>
     </div>
   </div>
   <div class="search-box">
-    <input type="text" placeholder="Ø§Ø¨Ø­Ø«..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
-    <span class="search-icon">ðŸ”</span>
+    <input type="text" placeholder="ابحث..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
+    <span class="search-icon">🔍</span>
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
   <div class="profile-bar" onclick="openProfile()">
-    <div class="profile-av" id="myAvatar">ØŸ</div>
+    <div class="profile-av" id="myAvatar">?</div>
     <div class="profile-info">
-      <div class="profile-name" id="myName">Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...</div>
-      <div class="profile-email" id="myEmail">â€”</div>
+      <div class="profile-name" id="myName">جاري التحميل...</div>
+      <div class="profile-email" id="myEmail">—</div>
     </div>
     <div class="profile-dot"></div>
   </div>
@@ -232,26 +232,26 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="chat-area">
   <div class="chat-header">
     <div class="chat-user">
-      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">ðŸ’¬</div>
+      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">💬</div>
       <div>
-        <div class="chat-user-name" id="headerName">Ø§Ø®ØªØ§Ø± Ù…Ø­Ø§Ø¯Ø«Ø©</div>
+        <div class="chat-user-name" id="headerName">اختار محادثة</div>
         <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
       </div>
     </div>
     <div class="chat-actions">
-      <div class="icon-btn">ðŸ“ž</div>
-      <div class="icon-btn">ðŸ“¹</div>
-      <div class="icon-btn">â‹®</div>
+      <div class="icon-btn">📞</div>
+      <div class="icon-btn">📹</div>
+      <div class="icon-btn">⋮</div>
     </div>
   </div>
   <div class="messages" id="messages"></div>
   <div class="input-area">
     <div class="input-wrap">
-      <button class="emoji-btn" onclick="addEmoji()">ðŸ˜Š</button>
-      <input type="text" id="msgInput" placeholder="Ø§ÙƒØªØ¨ Ø±Ø³Ø§Ù„Ø©..." onkeydown="handleKey(event)">
-      <button class="attach-btn">ðŸ“Ž</button>
+      <button class="emoji-btn" onclick="addEmoji()">😊</button>
+      <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
+      <button class="attach-btn">📎</button>
     </div>
-    <button class="send-btn" onclick="sendMessage()">âž¤</button>
+    <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
 </div>
 
@@ -260,30 +260,30 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
   <div class="panel">
     <div class="panel-top">
       <div class="panel-title" id="settingsTitle">⚙️ الإعدادات</div>
-      <div class="panel-close" onclick="closeSettings()">âœ•</div>
+      <div class="panel-close" onclick="closeSettings()">✕</div>
     </div>
     <div class="panel-sub" id="settingsSub">خصص شكل التطبيق</div>
     <div class="section-title" id="settingsThemeTitle">// THEME</div>
     <div class="theme-grid">
       <div class="theme-card selected" id="tc-amloud" onclick="setTheme('amloud')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amloud ðŸŒ‘</div><div class="theme-desc">Ø£Ø³ÙˆØ¯ + ÙƒØ­Ù„ÙŠ</div>
+        <div class="theme-name">Amloud 🌑</div><div class="theme-desc">أسود + كحلي</div>
       </div>
       <div class="theme-card" id="tc-steins" onclick="setTheme('steins')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Steins;Gate ðŸ“Ÿ</div><div class="theme-desc">Ø£Ø®Ø¶Ø± Ù†ÙŠÙˆÙ†</div>
+        <div class="theme-name">Steins;Gate 📟</div><div class="theme-desc">أخضر نيون</div>
       </div>
       <div class="theme-card" id="tc-crimson" onclick="setTheme('crimson')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Crimson ðŸ”´</div><div class="theme-desc">Ø£Ø­Ù…Ø± Ø¯Ø§ÙƒÙ†</div>
+        <div class="theme-name">Crimson 🔴</div><div class="theme-desc">أحمر داكن</div>
       </div>
       <div class="theme-card" id="tc-amber" onclick="setTheme('amber')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amber ðŸŸ¡</div><div class="theme-desc">Ø°Ù‡Ø¨ÙŠ Ø¯Ø§ÙÙŠ</div>
+        <div class="theme-name">Amber 🟡</div><div class="theme-desc">ذهبي دافئ</div>
       </div>
       <div class="theme-card" id="tc-cyan" onclick="setTheme('cyan')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Cyan ðŸ”µ</div><div class="theme-desc">Ø³Ù…Ø§ÙˆÙŠ ØªÙŠÙƒ</div>
+        <div class="theme-name">Cyan 🔵</div><div class="theme-desc">سماوي تيك</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -314,11 +314,11 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="profileOverlay" onclick="if(event.target===this)closeProfile()">
   <div class="panel">
     <div class="profile-cover"></div>
-    <div class="profile-panel-av" id="profileAv">ØŸ</div>
+    <div class="profile-panel-av" id="profileAv">?</div>
     <div class="profile-body">
-      <div class="profile-pname" id="profileName">â€”</div>
-      <div class="profile-pemail" id="profileEmail">â€”</div>
-      <div class="profile-row"><span class="picon">ðŸ“§</span><span id="profileEmail2">â€”</span></div>
+      <div class="profile-pname" id="profileName">—</div>
+      <div class="profile-pemail" id="profileEmail">—</div>
+      <div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
       <div class="profile-edit">
         <div class="profile-edit-label">Edit profile</div>
@@ -327,15 +327,15 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
         <div class="profile-hint" id="usernameHint">username: 3-20 chars (letters/numbers/_), unique</div>
         <button class="pbtn" id="saveProfileBtn" onclick="saveProfile()">Save Changes</button>
       </div>
-      <div class="profile-row"><span class="picon">ðŸŸ¢</span><span>Ù…ØªØµÙ„ Ø§Ù„Ø¢Ù†</span></div>
-      <div class="profile-row"><span class="picon">ðŸ§ª</span><span>Lab Member</span></div>
+      <div class="profile-row"><span class="picon">🟢</span><span>متصل الآن</span></div>
+      <div class="profile-row"><span class="picon">🧪</span><span>Lab Member</span></div>
       <div class="profile-acts">
-        <button class="pbtn" onclick="closeProfile()">Ø¥ØºÙ„Ø§Ù‚</button>
-        <button class="pbtn danger" onclick="handleLogout()">Ø®Ø±ÙˆØ¬ ðŸšª</button>
+        <button class="pbtn" onclick="closeProfile()">إغلاق</button>
+        <button class="pbtn danger" onclick="handleLogout()">خروج 🚪</button>
       </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
-      <div class="panel-close" onclick="closeProfile()">âœ•</div>
+      <div class="panel-close" onclick="closeProfile()">✕</div>
     </div>
   </div>
 </div>
@@ -344,16 +344,16 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="searchOverlay" onclick="if(event.target===this)closeSearchPanel()">
   <div class="panel">
     <div class="panel-top">
-      <div class="panel-title">ðŸ”Ž Ø§Ø¨Ø­Ø« Ø¹Ù† ØµØ¯ÙŠÙ‚</div>
-      <div class="panel-close" onclick="closeSearchPanel()">âœ•</div>
+      <div class="panel-title">🔎 ابحث عن صديق</div>
+      <div class="panel-close" onclick="closeSearchPanel()">✕</div>
     </div>
-    <div class="panel-sub">Ø§Ø¨Ø­Ø« Ø¨Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„ Ø£Ùˆ Ø§Ù„Ø§Ø³Ù…</div>
+    <div class="panel-sub">ابحث بالإيميل أو الاسم</div>
     <div class="search-input-wrap">
       <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')searchFriends()">
-      <button class="search-go" onclick="searchFriends()">Ø¨Ø­Ø«</button>
+      <button class="search-go" onclick="searchFriends()">بحث</button>
     </div>
     <div class="search-results" id="searchResults">
-      <div class="s-empty">Ø§Ø¨Ø¯Ø£ Ø§Ù„Ø¨Ø­Ø« ðŸ‘†</div>
+      <div class="s-empty">ابدأ البحث 👆</div>
     </div>
   </div>
 </div>
@@ -496,7 +496,7 @@ window.searchFriends = async () => {
   if(!q) return;
   document.getElementById('searchResults').innerHTML=`<div class="s-empty">${t('searchLoading')}</div>`;
   const results = await window.searchProfiles(q, 8);
-  if(!results.length){ document.getElementById('searchResults').innerHTML=`<div class="s-empty">${t('searchEmpty')}</div>`; return; }
+  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+t('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
@@ -718,13 +718,17 @@ function sendMessage(){
   renderMessages();renderContacts();
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
-function addEmoji(){const e=['ðŸ˜Š','â¤ï¸','ðŸ‘','ðŸ”¥','ðŸ˜‚','ðŸ™','ðŸ’€','ðŸ«¡'];document.getElementById('msgInput').value+=e[Math.floor(Math.random()*e.length)];document.getElementById('msgInput').focus();}
+function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
 
 applyLanguage();
 renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
