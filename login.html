@@ -392,7 +392,9 @@ const i18n = {
     okLogin: '✅ أهلا بك!',
     errAllFields: 'اكمل كل البيانات',
     errPassLen: 'الباسورد 8 أحرف على الأقل',
-    okRegister: '✅ تم إنشاء الحساب! افتح إيميلك وأكد التسجيل',
+    okRegister: '✅ تم إنشاء الحساب!',
+    okRegisterPending: '✅ تم إنشاء الحساب! افحص الإيميل لتأكيد الحساب ثم سجل دخول',
+    okRegisterAuto: '✅ تم إنشاء الحساب وجاري تسجيل الدخول...',
     errEmailFirst: 'اكتب الإيميل الأول',
     okReset: '✅ اتبعت رسالة استعادة على إيميلك'
   },
@@ -418,7 +420,9 @@ const i18n = {
     okLogin: '✅ Welcome back!',
     errAllFields: 'Please fill in all fields',
     errPassLen: 'Password must be at least 8 characters',
-    okRegister: '✅ Account created! Check your email to confirm',
+    okRegister: '✅ Account created!',
+    okRegisterPending: '✅ Account created! Check your email to confirm, then sign in',
+    okRegisterAuto: '✅ Account created. Signing you in...',
     errEmailFirst: 'Enter your email first',
     okReset: '✅ Recovery email sent'
   }
@@ -505,12 +509,30 @@ window.handleRegister = async function(){
   const pass  = document.getElementById('regPass').value;
   if(!name||!email||!pass){ showToast(tr('errAllFields'),'error'); return; }
   if(pass.length<8){ showToast(tr('errPassLen'),'error'); return; }
+
   const btn = document.querySelector('#registerForm .submit-btn');
   setLoading(btn, true);
-  const { error } = await supabase.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { full_name: name } }
+  });
+
   setLoading(btn, false);
   if(error){ showToast('❌ '+error.message,'error'); return; }
-  showToast(tr('okRegister'));
+
+  // If email confirmation is disabled, Supabase returns a session and we can log in immediately.
+  if(data?.session){
+    showToast(tr('okRegisterAuto'));
+    setTimeout(()=> window.location.href='chat-prototype_1.html', 1000);
+    return;
+  }
+
+  // If confirmation is required, guide user to login tab and prefill email.
+  showToast(tr('okRegisterPending'));
+  document.getElementById('loginEmail').value = email;
+  window.switchTab('login');
 }
 
 /* RESET PASSWORD */
@@ -528,6 +550,8 @@ document.querySelector('.divider').style.display='none';
 </script>
 </body>
 </html>
+
+
 
 
 
