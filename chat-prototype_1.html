@@ -607,8 +607,8 @@ let crtOn=false;
 const contacts=window._contacts;
 const conversations=window._convos;
 let sidebarSearchResults=[];
-const sbClient = window.sb;
-const currentUser = window.me;
+const getSbClient = () => window.sb || null;
+const getCurrentUser = () => window.me || null;
 let messagePollTimer = null;
 
 // THEME
@@ -733,6 +733,8 @@ function formatChatTime(input){
 }
 
 async function loadMessagesForContact(contactId){
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
   if(!sbClient || !currentUser || !contactId) return;
   const { data, error } = await sbClient
     .from('messages')
@@ -789,6 +791,8 @@ function colorFromId(id){
 }
 
 async function loadInboxContacts(){
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
   if(!sbClient || !currentUser) return;
 
   const { data, error } = await sbClient
@@ -997,6 +1001,8 @@ function renderMessages(){
   el.scrollTop=el.scrollHeight;
 }
 async function sendMessage(){
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
   if(!activeContact || !sbClient || !currentUser) return;
   const inp=document.getElementById('msgInput');
   const txt=inp.value.trim();
@@ -1038,6 +1044,7 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
 
 
 
