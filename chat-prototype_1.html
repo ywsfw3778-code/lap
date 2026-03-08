@@ -929,7 +929,7 @@ async function loadMessagesForContact(contactId){
 
   const rows = (data || []).map(m => ({
     out: m.sender_id === currentUser.id,
-    text: (m.body || m.content || m.text || m.message || '').replace(/\n/g, ' ').trim(),
+    text: (m.body || m.content || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
     time: formatChatTime(m.created_at),
     read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
   }));
