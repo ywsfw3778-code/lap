@@ -611,6 +611,8 @@ let sidebarSearchResults=[];
 const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
 let messagePollTimer = null;
+let presenceChannel = null;
+const onlineUserIds = new Set();
 
 function getChatStateKey(){
   const me = getCurrentUser();
@@ -659,7 +661,7 @@ const saved=localStorage.getItem('lm-theme')||'amloud';
 setTheme(saved);
 const langPack = {
   ar: {
-    searchPh:'ابحث...', members:'// الأعضاء', headerDefault:'اختر محادثة', online:'متصل الآن',
+    searchPh:'ابحث...', members:'// الأعضاء', headerDefault:'اختر محادثة', online:'متصل الآن', offline:'غير متصل',
     msgPh:'اكتب رسالة...', settingsTitle:'⚙️ الإعدادات', settingsSub:'خصص شكل التطبيق',
     themeTitle:'// الثيمات', optionsTitle:'// الخيارات', lblCrt:'CRT Scanlines', descCrt:'تأثير الشاشة القديمة',
     lblNotify:'الإشعارات', descNotify:'صوت عند وصول رسالة', lblEnterSend:'الإرسال بـ Enter',
@@ -674,7 +676,7 @@ const langPack = {
     saveBtnBusy:'جارِ الحفظ...'
   },
   en: {
-    searchPh:'Search...', members:'// MEMBERS', headerDefault:'Select a chat', online:'Online',
+    searchPh:'Search...', members:'// MEMBERS', headerDefault:'Select a chat', online:'Online', offline:'Offline',
     msgPh:'Type a message...', settingsTitle:'⚙️ Settings', settingsSub:'Customize app appearance',
     themeTitle:'// THEME', optionsTitle:'// OPTIONS', lblCrt:'CRT Scanlines', descCrt:'Classic screen effect',
     lblNotify:'Notifications', descNotify:'Sound on new message', lblEnterSend:'Enter to send',
@@ -706,7 +708,7 @@ function applyLanguage(){
   if(byId('sidebarSearchInput')) byId('sidebarSearchInput').placeholder = t('searchPh');
   if(qs('.section-label')) qs('.section-label').textContent = t('members');
   if(byId('headerName') && !activeContact) byId('headerName').textContent = t('headerDefault');
-  if(qs('.chat-user-status')) qs('.chat-user-status').innerHTML = `<span class="status-pulse"></span> ${t('online')}`;
+  updateHeaderPresence();
   if(byId('msgInput')) byId('msgInput').placeholder = t('msgPh');
   if(byId('settingsTitle')) byId('settingsTitle').textContent = t('settingsTitle');
   if(byId('settingsSub')) byId('settingsSub').textContent = t('settingsSub');
@@ -758,6 +760,53 @@ function openProfile(){document.getElementById('profileOverlay').classList.add('
 function closeProfile(){document.getElementById('profileOverlay').classList.remove('open');}
 function openSearchPanel(){document.getElementById('searchOverlay').classList.add('open');}
 function closeSearchPanel(){document.getElementById('searchOverlay').classList.remove('open');}
+
+function updateHeaderPresence(){
+  const st = document.querySelector('.chat-user-status');
+  if(!st) return;
+  if(!activeContact){
+    st.innerHTML = `<span class="status-pulse"></span> ${t('online')}`;
+    return;
+  }
+  const isOn = onlineUserIds.has(activeContact.id);
+  st.innerHTML = `<span class="status-pulse"></span> ${isOn ? t('online') : t('offline')}`;
+}
+
+function applyPresenceToContacts(){
+  contacts.forEach(c => { c.online = onlineUserIds.has(c.id); });
+  updateHeaderPresence();
+  renderContacts();
+}
+
+function initPresence(){
+  const sbClient = getSbClient();
+  const me = getCurrentUser();
+  if(!sbClient || !me) return;
+
+  if(presenceChannel){
+    try { sbClient.removeChannel(presenceChannel); } catch(_e){}
+    presenceChannel = null;
+  }
+
+  presenceChannel = sbClient.channel('online-users', {
+    config: { presence: { key: me.id } }
+  });
+
+  presenceChannel
+    .on('presence', { event: 'sync' }, () => {
+      const state = presenceChannel.presenceState();
+      onlineUserIds.clear();
+      Object.keys(state).forEach((uid) => {
+        if((state[uid] || []).length) onlineUserIds.add(uid);
+      });
+      applyPresenceToContacts();
+    })
+    .subscribe(async (status) => {
+      if(status === 'SUBSCRIBED'){
+        try { await presenceChannel.track({ online_at: new Date().toISOString() }); } catch(_e){}
+      }
+    });
+}
 
 function formatChatTime(input){
   const d = new Date(input || Date.now());
@@ -918,6 +967,7 @@ function selectContact(id){
   const av=document.getElementById('headerAvatar');
   av.style.background=activeContact.color;av.style.color=activeContact.text;av.textContent=activeContact.init;
   document.getElementById('headerName').textContent=activeContact.name;
+  updateHeaderPresence();
   renderContacts();
   renderMessages();
   saveLocalChatState();
@@ -1075,7 +1125,15 @@ function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀",
 loadLocalChatState();
 startMessagePolling();
 loadInboxContacts();
-window.addEventListener('beforeunload', () => { if(messagePollTimer) clearInterval(messagePollTimer); });
+initPresence();
+window.addEventListener('beforeunload', async () => {
+  if(messagePollTimer) clearInterval(messagePollTimer);
+  const sbClient = getSbClient();
+  if(presenceChannel && sbClient){
+    try { await presenceChannel.untrack(); } catch(_e){}
+    try { sbClient.removeChannel(presenceChannel); } catch(_e){}
+  }
+});
 applyLanguage();
 renderContacts();renderMessages();
 </script>
