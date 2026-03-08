@@ -152,7 +152,10 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .toggle{width:40px;height:22px;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;cursor:pointer;position:relative;transition:all .25s;flex-shrink:0;}
 .toggle.on{background:var(--accent);border-color:var(--accent);}
 .toggle::after{content:'';position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--muted);border-radius:50%;transition:all .25s;}
-.toggle.on::after{right:20px;background:var(--bg);}
+.toggle.on::after{right:20px;background:var(--bg);} 
+.lang-opt{display:flex;gap:6px;} 
+.lang-opt-btn{padding:6px 10px;border:1px solid var(--border2);background:var(--surface);color:var(--text);border-radius:8px;cursor:pointer;font-size:11px;} 
+.lang-opt-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);} 
 
 /* PROFILE PANEL */
 .profile-cover{height:70px;background:linear-gradient(135deg,var(--accent-glow),var(--surface2));border-radius:12px 12px 0 0;position:relative;margin:-28px -28px 0;}
@@ -256,11 +259,11 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
   <div class="panel">
     <div class="panel-top">
-      <div class="panel-title">âš™ï¸ Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª</div>
+      <div class="panel-title" id="settingsTitle">⚙️ الإعدادات</div>
       <div class="panel-close" onclick="closeSettings()">âœ•</div>
     </div>
-    <div class="panel-sub">Ø®ØµÙ‘Øµ Ø´ÙƒÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚</div>
-    <div class="section-title">// THEME</div>
+    <div class="panel-sub" id="settingsSub">خصص شكل التطبيق</div>
+    <div class="section-title" id="settingsThemeTitle">// THEME</div>
     <div class="theme-grid">
       <div class="theme-card selected" id="tc-amloud" onclick="setTheme('amloud')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
@@ -284,18 +287,25 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
       </div>
     </div>
     <div class="divider"></div>
-    <div class="section-title">// OPTIONS</div>
+        <div class="section-title" id="settingsOptionsTitle">// OPTIONS</div>
     <div class="toggle-row">
-      <div><div class="toggle-label">CRT Scanlines</div><div class="toggle-desc">ØªØ£Ø«ÙŠØ± Ø´Ø§Ø´Ø© Ù‚Ø¯ÙŠÙ…Ø©</div></div>
+      <div><div class="toggle-label" id="lblCrt">CRT Scanlines</div><div class="toggle-desc" id="descCrt">Classic screen effect</div></div>
       <div class="toggle" id="crtToggle" onclick="toggleCRT()"></div>
     </div>
     <div class="toggle-row">
-      <div><div class="toggle-label">Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª</div><div class="toggle-desc">ØµÙˆØª Ø¹Ù†Ø¯ Ø§Ø³ØªÙ„Ø§Ù… Ø±Ø³Ø§Ù„Ø©</div></div>
+      <div><div class="toggle-label" id="lblNotify">Notifications</div><div class="toggle-desc" id="descNotify">Sound on new message</div></div>
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
     </div>
     <div class="toggle-row">
-      <div><div class="toggle-label">Enter Ù„Ù„Ø¥Ø±Ø³Ø§Ù„</div><div class="toggle-desc">Ø§Ø¶ØºØ· Enter Ø¨Ø¯Ù„ Ø²Ø± Ø§Ù„Ø¥Ø±Ø³Ø§Ù„</div></div>
+      <div><div class="toggle-label" id="lblEnterSend">Enter to send</div><div class="toggle-desc" id="descEnterSend">Press Enter instead of send button</div></div>
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+    </div>
+    <div class="toggle-row">
+      <div><div class="toggle-label" id="langLabel">Language</div><div class="toggle-desc" id="langDesc">Change app language</div></div>
+      <div class="lang-opt">
+        <button class="lang-opt-btn" id="lang-ar-opt" onclick="setAppLang('ar')">AR</button>
+        <button class="lang-opt-btn" id="lang-en-opt" onclick="setAppLang('en')">EN</button>
+      </div>
     </div>
   </div>
 </div>
@@ -403,14 +413,14 @@ window.saveProfile = async () => {
   const btn = document.getElementById('saveProfileBtn');
   const name = document.getElementById('editName').value.trim();
   const username = normalizeUsername(document.getElementById('editUsername').value);
-  if(!name){ toast('اكتب الاسم', 'error'); return; }
+  if(!name){ toast(t('saveNameReq'), 'error'); return; }
   if(!/^[a-z0-9_]{3,20}$/.test(username)){
-    toast('اليوزرنيم لازم يكون 3-20 حرف/رقم أو _ فقط', 'error');
+    toast(t('saveUserRule'), 'error');
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = 'Saving...';
+  btn.textContent = t('saveBtnBusy');
 
   const { data: taken, error: takenErr } = await sb
     .from('profiles')
@@ -420,14 +430,14 @@ window.saveProfile = async () => {
     .limit(1);
   if(takenErr){
     btn.disabled = false;
-    btn.textContent = 'Save Changes';
+    btn.textContent = t('profileSave');
     toast('❌ '+takenErr.message, 'error');
     return;
   }
   if(taken && taken.length){
     btn.disabled = false;
-    btn.textContent = 'Save Changes';
-    toast('اليوزرنيم مستخدم بالفعل، اختر واحد مختلف', 'error');
+    btn.textContent = t('profileSave');
+    toast(t('saveUserTaken'), 'error');
     return;
   }
 
@@ -437,7 +447,7 @@ window.saveProfile = async () => {
     .eq('id', me.id);
 
   btn.disabled = false;
-  btn.textContent = 'Save Changes';
+  btn.textContent = t('profileSave');
 
   if(updErr){
     if(String(updErr.message || '').toLowerCase().includes('username')){
@@ -452,7 +462,8 @@ window.saveProfile = async () => {
   myName = name;
   myUsername = username;
   applyMyProfileUI();
-  toast('✅ تم حفظ البيانات');
+  toast(t('saveDone'));
+  applyLanguage();
 };
 
 await loadMyProfile();
@@ -483,21 +494,21 @@ window.searchProfiles = async (q, limit = 8) => {
 window.searchFriends = async () => {
   const q = document.getElementById('friendInput').value.trim();
   if(!q) return;
-  document.getElementById('searchResults').innerHTML='<div class="s-empty">جاري البحث... ⏳</div>';
+  document.getElementById('searchResults').innerHTML=`<div class="s-empty">${t('searchLoading')}</div>`;
   const results = await window.searchProfiles(q, 8);
-  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">مش لاقي حد 🤷</div>'; return; }
+  if(!results.length){ document.getElementById('searchResults').innerHTML=`<div class="s-empty">${t('searchEmpty')}</div>`; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
       <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn" onclick="window.startChat('${u.id}','${u.name}','${u.color}','${u.text}')">محادثة</button>
+      <button class="add-btn" onclick="window.startChat('${u.id}','${u.name}','${u.color}','${u.text}')">${t('chatBtn')}</button>
     </div>`;
   }).join('');
 };
 
 window.startChat = (id,name,bg,t) => {
   if(!window._contacts.find(c=>c.id===id))
-    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:t,online:false,preview:'Ø§Ø¨Ø¯Ø£ Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø©...',time:'',unread:0});
+    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:t,online:false,preview:t('startChatPreview'),time:'',unread:0});
   closeSearchPanel();
   selectContact(id);
   renderContacts();
@@ -527,6 +538,95 @@ function toggleCRT(){crtOn=!crtOn;document.getElementById('crtToggle').classList
 function applyCRT(){document.getElementById('appBody').style.setProperty('--crt',crtOn?'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)':'none');}
 const saved=localStorage.getItem('lm-theme')||'amloud';
 setTheme(saved);
+const langPack = {
+  ar: {
+    searchPh:'ابحث...', members:'// الأعضاء', headerDefault:'اختار محادثة', online:'متصل الآن',
+    msgPh:'اكتب رسالة...', settingsTitle:'⚙️ الإعدادات', settingsSub:'خصص شكل التطبيق',
+    themeTitle:'// الثيم', optionsTitle:'// خيارات', lblCrt:'CRT Scanlines', descCrt:'تأثير شاشة قديمة',
+    lblNotify:'الإشعارات', descNotify:'صوت عند استلام رسالة', lblEnterSend:'Enter للإرسال',
+    descEnterSend:'اضغط Enter بدل زر الإرسال', langLabel:'اللغة', langDesc:'غيّر لغة التطبيق بالكامل',
+    profileEdit:'تعديل الملف الشخصي', profileSave:'حفظ التعديلات', profileClose:'إغلاق', profileLogout:'خروج',
+    searchPanelTitle:'🔎 ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
+    searchStart:'ابدأ البحث 👆', searchLoading:'جاري البحث... ⏳', searchEmpty:'مش لاقي حد 🤷',
+    chatBtn:'محادثة', startChatPreview:'ابدأ المحادثة...', emptyContacts:'ابحث عن شخص من البحث بالأعلى',
+    emptyNoUser:'مش لاقي حد', chooseConv:'اختار محادثة 💬', today:'اليوم', now:'دلوقتي',
+    saveNameReq:'اكتب الاسم', saveUserRule:'اليوزرنيم لازم يكون 3-20 حرف/رقم أو _ فقط',
+    saveUserTaken:'اليوزرنيم مستخدم بالفعل، اختر واحد مختلف', saveDone:'✅ تم حفظ البيانات',
+    saveBtnBusy:'جاري الحفظ...'
+  },
+  en: {
+    searchPh:'Search...', members:'// MEMBERS', headerDefault:'Select a chat', online:'Online',
+    msgPh:'Type a message...', settingsTitle:'⚙️ Settings', settingsSub:'Customize app appearance',
+    themeTitle:'// THEME', optionsTitle:'// OPTIONS', lblCrt:'CRT Scanlines', descCrt:'Classic screen effect',
+    lblNotify:'Notifications', descNotify:'Sound on new message', lblEnterSend:'Enter to send',
+    descEnterSend:'Press Enter instead of send button', langLabel:'Language', langDesc:'Change app language',
+    profileEdit:'Edit profile', profileSave:'Save Changes', profileClose:'Close', profileLogout:'Logout',
+    searchPanelTitle:'🔎 Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
+    searchStart:'Start searching 👆', searchLoading:'Searching... ⏳', searchEmpty:'No users found 🤷',
+    chatBtn:'Chat', startChatPreview:'Start chatting...', emptyContacts:'Search for people above',
+    emptyNoUser:'No users found', chooseConv:'Select a chat 💬', today:'Today', now:'Now',
+    saveNameReq:'Enter your name', saveUserRule:'Username must be 3-20 chars (letters/numbers/_)',
+    saveUserTaken:'Username already taken', saveDone:'✅ Profile saved', saveBtnBusy:'Saving...'
+  }
+};
+let appLang = localStorage.getItem('lm-lang') || 'ar';
+function t(k){ return (langPack[appLang] && langPack[appLang][k]) || langPack.ar[k] || k; }
+window.t = t;
+window.setAppLang = function(lang){
+  appLang = (lang === 'en') ? 'en' : 'ar';
+  localStorage.setItem('lm-lang', appLang);
+  applyLanguage();
+  renderContacts();
+  renderMessages();
+};
+function applyLanguage(){
+  document.documentElement.lang = appLang;
+  document.documentElement.dir = appLang === 'ar' ? 'rtl' : 'ltr';
+  const qs = s => document.querySelector(s);
+  const byId = id => document.getElementById(id);
+  if(byId('sidebarSearchInput')) byId('sidebarSearchInput').placeholder = t('searchPh');
+  if(qs('.section-label')) qs('.section-label').textContent = t('members');
+  if(byId('headerName') && !activeContact) byId('headerName').textContent = t('headerDefault');
+  if(qs('.chat-user-status')) qs('.chat-user-status').innerHTML = `<span class="status-pulse"></span> ${t('online')}`;
+  if(byId('msgInput')) byId('msgInput').placeholder = t('msgPh');
+  if(byId('settingsTitle')) byId('settingsTitle').textContent = t('settingsTitle');
+  if(byId('settingsSub')) byId('settingsSub').textContent = t('settingsSub');
+  if(byId('settingsThemeTitle')) byId('settingsThemeTitle').textContent = t('themeTitle');
+  if(byId('settingsOptionsTitle')) byId('settingsOptionsTitle').textContent = t('optionsTitle');
+  if(byId('lblCrt')) byId('lblCrt').textContent = t('lblCrt');
+  if(byId('descCrt')) byId('descCrt').textContent = t('descCrt');
+  if(byId('lblNotify')) byId('lblNotify').textContent = t('lblNotify');
+  if(byId('descNotify')) byId('descNotify').textContent = t('descNotify');
+  if(byId('lblEnterSend')) byId('lblEnterSend').textContent = t('lblEnterSend');
+  if(byId('descEnterSend')) byId('descEnterSend').textContent = t('descEnterSend');
+  if(byId('langLabel')) byId('langLabel').textContent = t('langLabel');
+  if(byId('langDesc')) byId('langDesc').textContent = t('langDesc');
+  if(byId('lang-ar-opt')) byId('lang-ar-opt').classList.toggle('active', appLang === 'ar');
+  if(byId('lang-en-opt')) byId('lang-en-opt').classList.toggle('active', appLang === 'en');
+  if(qs('.profile-edit-label')) qs('.profile-edit-label').textContent = t('profileEdit');
+  if(byId('saveProfileBtn')) byId('saveProfileBtn').textContent = t('profileSave');
+  const closeBtn = qs('#profileOverlay .profile-acts .pbtn:not(.danger)');
+  if(closeBtn) closeBtn.textContent = t('profileClose');
+  const logoutBtn = qs('#profileOverlay .profile-acts .pbtn.danger');
+  if(logoutBtn) logoutBtn.textContent = t('profileLogout');
+  const searchTitle = qs('#searchOverlay .panel-title'); if(searchTitle) searchTitle.textContent = t('searchPanelTitle');
+  const searchSub = qs('#searchOverlay .panel-sub'); if(searchSub) searchSub.textContent = t('searchPanelSub');
+  const searchGo = qs('#searchOverlay .search-go'); if(searchGo) searchGo.textContent = t('searchBtn');
+  const searchStart = qs('#searchResults .s-empty'); if(searchStart) searchStart.textContent = t('searchStart');
+  const tcA = qs('#tc-amloud .theme-name'); if(tcA) tcA.textContent = appLang === 'ar' ? 'Amloud 🌑' : 'Amloud 🌑';
+  const tdA = qs('#tc-amloud .theme-desc'); if(tdA) tdA.textContent = appLang === 'ar' ? 'أسود + كحلي' : 'Black + Navy';
+  const tcS = qs('#tc-steins .theme-name'); if(tcS) tcS.textContent = 'Steins;Gate 📟';
+  const tdS = qs('#tc-steins .theme-desc'); if(tdS) tdS.textContent = appLang === 'ar' ? 'أخضر نيون' : 'Neon Green';
+  const tcC = qs('#tc-crimson .theme-name'); if(tcC) tcC.textContent = 'Crimson 🔴';
+  const tdC = qs('#tc-crimson .theme-desc'); if(tdC) tdC.textContent = appLang === 'ar' ? 'أحمر داكن' : 'Dark Red';
+  const tcAm = qs('#tc-amber .theme-name'); if(tcAm) tcAm.textContent = 'Amber 🟡';
+  const tdAm = qs('#tc-amber .theme-desc'); if(tdAm) tdAm.textContent = appLang === 'ar' ? 'ذهبي دافئ' : 'Warm Gold';
+  const tcCy = qs('#tc-cyan .theme-name'); if(tcCy) tcCy.textContent = 'Cyan 🔵';
+  const tdCy = qs('#tc-cyan .theme-desc'); if(tdCy) tdCy.textContent = appLang === 'ar' ? 'سماوي تيك' : 'Tech Cyan';
+  const profileRows = document.querySelectorAll('#profileOverlay .profile-row span:last-child');
+  if(profileRows[2]) profileRows[2].textContent = t('online');
+  if(profileRows[3]) profileRows[3].textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
+}
 
 // PANELS
 function openSettings(){document.getElementById('settingsOverlay').classList.add('open');}
@@ -543,7 +643,7 @@ function renderContacts(list=contacts){
       <div class="avatar" style="background:${c.color};color:${c.text};">${c.init}<div class="avatar-dot ${c.online?'dot-online':'dot-offline'}"></div></div>
       <div class="contact-info"><div class="contact-name">${c.name}</div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
-    </div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">ابحث عن شخص من البحث بالأعلى</div>';
+    </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
 function selectContact(id){
   activeContact=contacts.find(c=>c.id===id);
@@ -556,7 +656,7 @@ function selectContact(id){
 function renderSidebarSearchResults(results){
   const el = document.getElementById('contacts');
   if(!results.length){
-    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">مش لاقي حد</div>';
+    el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyNoUser')}</div>`;
     return;
   }
   el.innerHTML = results.map(u => `
@@ -589,9 +689,9 @@ async function filterContacts(q){
 // MESSAGES
 function renderMessages(){
   const el=document.getElementById('messages');
-  if(!activeContact){el.innerHTML='<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">Ø§Ø®ØªØ§Ø± Ù…Ø­Ø§Ø¯Ø«Ø© ðŸ’¬</div>';return;}
+  if(!activeContact){el.innerHTML=`<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">${t('chooseConv')}</div>`;return;}
   const msgs=conversations[activeContact.id]||[];
-  el.innerHTML=`<div class="date-divider"><div class="date-line"></div><span>Ø§Ù„ÙŠÙˆÙ…</span><div class="date-line"></div></div>`;
+  el.innerHTML=`<div class="date-divider"><div class="date-line"></div><span>${t('today')}</span><div class="date-line"></div></div>`;
   let i=0;
   while(i<msgs.length){
     const isOut=msgs[i].out;
@@ -600,7 +700,7 @@ function renderMessages(){
     while(j<msgs.length&&msgs[j].out===isOut){
       const r=document.createElement('div');r.className='msg-row';
       const last=j===msgs.length-1||msgs[j+1]?.out!==isOut;
-      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?' <span class="tick">âœ“âœ“</span>':''}</div>`:''}</div>`;
+      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?' <span class="tick">✓✓</span>':''}</div>`:''}</div>`;
       g.appendChild(r);j++;
     }
     el.appendChild(g);i=j;
@@ -612,18 +712,28 @@ function sendMessage(){
   const inp=document.getElementById('msgInput');const txt=inp.value.trim();if(!txt)return;
   inp.value='';
   if(!conversations[activeContact.id])conversations[activeContact.id]=[];
-  const now=new Date();const t=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' Ù…';
-  conversations[activeContact.id].push({out:true,text:txt,time:t});
-  const c=contacts.find(c=>c.id===activeContact.id);c.preview=txt;c.time='Ø¯Ù„ÙˆÙ‚ØªÙŠ';
+  const now=new Date();const tval=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+  conversations[activeContact.id].push({out:true,text:txt,time:tval});
+  const c=contacts.find(c=>c.id===activeContact.id);c.preview=txt;c.time=t('now');
   renderMessages();renderContacts();
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
 function addEmoji(){const e=['ðŸ˜Š','â¤ï¸','ðŸ‘','ðŸ”¥','ðŸ˜‚','ðŸ™','ðŸ’€','ðŸ«¡'];document.getElementById('msgInput').value+=e[Math.floor(Math.random()*e.length)];document.getElementById('msgInput').focus();}
 
+applyLanguage();
 renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
 
 
 
