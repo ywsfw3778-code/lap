@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -132,7 +132,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .theme-card{border:1px solid var(--border2);border-radius:12px;padding:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
 .theme-card:hover{border-color:var(--accent);transform:translateY(-2px);}
 .theme-card.selected{border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow);}
-.theme-card.selected::after{content:'✓';position:absolute;top:8px;left:8px;width:18px;height:18px;background:var(--accent);color:var(--bg);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.theme-card.selected::after{content:'âœ“';position:absolute;top:8px;left:8px;width:18px;height:18px;background:var(--accent);color:var(--bg);border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 .tp{height:44px;border-radius:8px;margin-bottom:8px;display:flex;overflow:hidden;position:relative;}
 .tp-s{width:35%;height:100%;}
 .tp-m{flex:1;height:100%;}
@@ -200,21 +200,21 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
     <div class="header-actions">
-      <div class="icon-btn" onclick="openSearchPanel()" title="بحث عن صديق">🔎</div>
-      <div class="icon-btn" onclick="openSettings()">⚙️</div>
+      <div class="icon-btn" onclick="openSearchPanel()" title="Ø¨Ø­Ø« Ø¹Ù† ØµØ¯ÙŠÙ‚">ðŸ”Ž</div>
+      <div class="icon-btn" onclick="openSettings()">âš™ï¸</div>
     </div>
   </div>
   <div class="search-box">
-    <input type="text" placeholder="ابحث..." oninput="filterContacts(this.value)">
-    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Ø§Ø¨Ø­Ø«..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
+    <span class="search-icon">ðŸ”</span>
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
   <div class="profile-bar" onclick="openProfile()">
-    <div class="profile-av" id="myAvatar">؟</div>
+    <div class="profile-av" id="myAvatar">ØŸ</div>
     <div class="profile-info">
-      <div class="profile-name" id="myName">جاري التحميل...</div>
-      <div class="profile-email" id="myEmail">—</div>
+      <div class="profile-name" id="myName">Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„...</div>
+      <div class="profile-email" id="myEmail">â€”</div>
     </div>
     <div class="profile-dot"></div>
   </div>
@@ -224,26 +224,26 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="chat-area">
   <div class="chat-header">
     <div class="chat-user">
-      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">💬</div>
+      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">ðŸ’¬</div>
       <div>
-        <div class="chat-user-name" id="headerName">اختار محادثة</div>
+        <div class="chat-user-name" id="headerName">Ø§Ø®ØªØ§Ø± Ù…Ø­Ø§Ø¯Ø«Ø©</div>
         <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
       </div>
     </div>
     <div class="chat-actions">
-      <div class="icon-btn">📞</div>
-      <div class="icon-btn">📹</div>
-      <div class="icon-btn">⋮</div>
+      <div class="icon-btn">ðŸ“ž</div>
+      <div class="icon-btn">ðŸ“¹</div>
+      <div class="icon-btn">â‹®</div>
     </div>
   </div>
   <div class="messages" id="messages"></div>
   <div class="input-area">
     <div class="input-wrap">
-      <button class="emoji-btn" onclick="addEmoji()">😊</button>
-      <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
-      <button class="attach-btn">📎</button>
+      <button class="emoji-btn" onclick="addEmoji()">ðŸ˜Š</button>
+      <input type="text" id="msgInput" placeholder="Ø§ÙƒØªØ¨ Ø±Ø³Ø§Ù„Ø©..." onkeydown="handleKey(event)">
+      <button class="attach-btn">ðŸ“Ž</button>
     </div>
-    <button class="send-btn" onclick="sendMessage()">➤</button>
+    <button class="send-btn" onclick="sendMessage()">âž¤</button>
   </div>
 </div>
 
@@ -251,45 +251,45 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
   <div class="panel">
     <div class="panel-top">
-      <div class="panel-title">⚙️ الإعدادات</div>
-      <div class="panel-close" onclick="closeSettings()">✕</div>
+      <div class="panel-title">âš™ï¸ Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª</div>
+      <div class="panel-close" onclick="closeSettings()">âœ•</div>
     </div>
-    <div class="panel-sub">خصّص شكل التطبيق</div>
+    <div class="panel-sub">Ø®ØµÙ‘Øµ Ø´ÙƒÙ„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚</div>
     <div class="section-title">// THEME</div>
     <div class="theme-grid">
       <div class="theme-card selected" id="tc-amloud" onclick="setTheme('amloud')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amloud 🌑</div><div class="theme-desc">أسود + كحلي</div>
+        <div class="theme-name">Amloud ðŸŒ‘</div><div class="theme-desc">Ø£Ø³ÙˆØ¯ + ÙƒØ­Ù„ÙŠ</div>
       </div>
       <div class="theme-card" id="tc-steins" onclick="setTheme('steins')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Steins;Gate 📟</div><div class="theme-desc">أخضر نيون</div>
+        <div class="theme-name">Steins;Gate ðŸ“Ÿ</div><div class="theme-desc">Ø£Ø®Ø¶Ø± Ù†ÙŠÙˆÙ†</div>
       </div>
       <div class="theme-card" id="tc-crimson" onclick="setTheme('crimson')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Crimson 🔴</div><div class="theme-desc">أحمر داكن</div>
+        <div class="theme-name">Crimson ðŸ”´</div><div class="theme-desc">Ø£Ø­Ù…Ø± Ø¯Ø§ÙƒÙ†</div>
       </div>
       <div class="theme-card" id="tc-amber" onclick="setTheme('amber')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amber 🟡</div><div class="theme-desc">ذهبي دافي</div>
+        <div class="theme-name">Amber ðŸŸ¡</div><div class="theme-desc">Ø°Ù‡Ø¨ÙŠ Ø¯Ø§ÙÙŠ</div>
       </div>
       <div class="theme-card" id="tc-cyan" onclick="setTheme('cyan')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Cyan 🔵</div><div class="theme-desc">سماوي تيك</div>
+        <div class="theme-name">Cyan ðŸ”µ</div><div class="theme-desc">Ø³Ù…Ø§ÙˆÙŠ ØªÙŠÙƒ</div>
       </div>
     </div>
     <div class="divider"></div>
     <div class="section-title">// OPTIONS</div>
     <div class="toggle-row">
-      <div><div class="toggle-label">CRT Scanlines</div><div class="toggle-desc">تأثير شاشة قديمة</div></div>
+      <div><div class="toggle-label">CRT Scanlines</div><div class="toggle-desc">ØªØ£Ø«ÙŠØ± Ø´Ø§Ø´Ø© Ù‚Ø¯ÙŠÙ…Ø©</div></div>
       <div class="toggle" id="crtToggle" onclick="toggleCRT()"></div>
     </div>
     <div class="toggle-row">
-      <div><div class="toggle-label">الإشعارات</div><div class="toggle-desc">صوت عند استلام رسالة</div></div>
+      <div><div class="toggle-label">Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª</div><div class="toggle-desc">ØµÙˆØª Ø¹Ù†Ø¯ Ø§Ø³ØªÙ„Ø§Ù… Ø±Ø³Ø§Ù„Ø©</div></div>
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
     </div>
     <div class="toggle-row">
-      <div><div class="toggle-label">Enter للإرسال</div><div class="toggle-desc">اضغط Enter بدل زر الإرسال</div></div>
+      <div><div class="toggle-label">Enter Ù„Ù„Ø¥Ø±Ø³Ø§Ù„</div><div class="toggle-desc">Ø§Ø¶ØºØ· Enter Ø¨Ø¯Ù„ Ø²Ø± Ø§Ù„Ø¥Ø±Ø³Ø§Ù„</div></div>
       <div class="toggle on" onclick="this.classList.toggle('on')"></div>
     </div>
   </div>
@@ -299,20 +299,20 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="profileOverlay" onclick="if(event.target===this)closeProfile()">
   <div class="panel">
     <div class="profile-cover"></div>
-    <div class="profile-panel-av" id="profileAv">؟</div>
+    <div class="profile-panel-av" id="profileAv">ØŸ</div>
     <div class="profile-body">
-      <div class="profile-pname" id="profileName">—</div>
-      <div class="profile-pemail" id="profileEmail">—</div>
-      <div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
-      <div class="profile-row"><span class="picon">🟢</span><span>متصل الآن</span></div>
-      <div class="profile-row"><span class="picon">🧪</span><span>Lab Member</span></div>
+      <div class="profile-pname" id="profileName">â€”</div>
+      <div class="profile-pemail" id="profileEmail">â€”</div>
+      <div class="profile-row"><span class="picon">ðŸ“§</span><span id="profileEmail2">â€”</span></div>
+      <div class="profile-row"><span class="picon">ðŸŸ¢</span><span>Ù…ØªØµÙ„ Ø§Ù„Ø¢Ù†</span></div>
+      <div class="profile-row"><span class="picon">ðŸ§ª</span><span>Lab Member</span></div>
       <div class="profile-acts">
-        <button class="pbtn" onclick="closeProfile()">إغلاق</button>
-        <button class="pbtn danger" onclick="handleLogout()">خروج 🚪</button>
+        <button class="pbtn" onclick="closeProfile()">Ø¥ØºÙ„Ø§Ù‚</button>
+        <button class="pbtn danger" onclick="handleLogout()">Ø®Ø±ÙˆØ¬ ðŸšª</button>
       </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
-      <div class="panel-close" onclick="closeProfile()">✕</div>
+      <div class="panel-close" onclick="closeProfile()">âœ•</div>
     </div>
   </div>
 </div>
@@ -321,16 +321,16 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 <div class="overlay" id="searchOverlay" onclick="if(event.target===this)closeSearchPanel()">
   <div class="panel">
     <div class="panel-top">
-      <div class="panel-title">🔎 ابحث عن صديق</div>
-      <div class="panel-close" onclick="closeSearchPanel()">✕</div>
+      <div class="panel-title">ðŸ”Ž Ø§Ø¨Ø­Ø« Ø¹Ù† ØµØ¯ÙŠÙ‚</div>
+      <div class="panel-close" onclick="closeSearchPanel()">âœ•</div>
     </div>
-    <div class="panel-sub">ابحث بالإيميل أو الاسم</div>
+    <div class="panel-sub">Ø§Ø¨Ø­Ø« Ø¨Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„ Ø£Ùˆ Ø§Ù„Ø§Ø³Ù…</div>
     <div class="search-input-wrap">
       <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')searchFriends()">
-      <button class="search-go" onclick="searchFriends()">بحث</button>
+      <button class="search-go" onclick="searchFriends()">Ø¨Ø­Ø«</button>
     </div>
     <div class="search-results" id="searchResults">
-      <div class="s-empty">ابدأ البحث 👆</div>
+      <div class="s-empty">Ø§Ø¨Ø¯Ø£ Ø§Ù„Ø¨Ø­Ø« ðŸ‘†</div>
     </div>
   </div>
 </div>
@@ -360,27 +360,45 @@ document.getElementById('profileEmail2').textContent = myEmail;
 
 window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
 
+window.searchProfiles = async (q, limit = 8) => {
+  const query = (q || '').trim();
+  if(!query) return [];
+  const { data } = await sb
+    .from('profiles')
+    .select('id,full_name,email')
+    .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
+    .neq('id', me.id)
+    .limit(limit);
+  const colors = [
+    {bg:'#12123a',t:'#818cf8'},
+    {bg:'#0d2010',t:'#34d399'},
+    {bg:'#200a0a',t:'#f87171'},
+    {bg:'#001525',t:'#38bdf8'}
+  ];
+  return (data || []).map((u,i) => {
+    const c = colors[i % colors.length];
+    const name = u.full_name || u.email.split('@')[0];
+    return { id:u.id, email:u.email, name, color:c.bg, text:c.t, init:name.charAt(0).toUpperCase() };
+  });
+};
 window.searchFriends = async () => {
   const q = document.getElementById('friendInput').value.trim();
   if(!q) return;
   document.getElementById('searchResults').innerHTML='<div class="s-empty">جاري البحث... ⏳</div>';
-  const { data } = await sb.from('profiles').select('id,full_name,email').or(`email.ilike.%${q}%,full_name.ilike.%${q}%`).neq('id',me.id).limit(8);
-  if(!data?.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">مش لاقي حد 🤷</div>'; return; }
-  const colors=[{bg:'#12123a',t:'#818cf8'},{bg:'#0d2010',t:'#34d399'},{bg:'#200a0a',t:'#f87171'},{bg:'#001525',t:'#38bdf8'}];
-  document.getElementById('searchResults').innerHTML=data.map((u,i)=>{
-    const c=colors[i%colors.length];
-    const name=u.full_name||u.email.split('@')[0];
+  const results = await window.searchProfiles(q, 8);
+  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">مش لاقي حد 🤷</div>'; return; }
+  document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
-      <div class="avatar" style="background:${c.bg};color:${c.t};width:36px;height:36px;font-size:13px;">${name.charAt(0).toUpperCase()}</div>
-      <div class="result-info"><div class="result-name">${name}</div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn" onclick="window.startChat('${u.id}','${name}','${c.bg}','${c.t}')">محادثة</button>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
+      <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
+      <button class="add-btn" onclick="window.startChat('${u.id}','${u.name}','${u.color}','${u.text}')">محادثة</button>
     </div>`;
   }).join('');
 };
 
 window.startChat = (id,name,bg,t) => {
   if(!window._contacts.find(c=>c.id===id))
-    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:t,online:false,preview:'ابدأ المحادثة...',time:'',unread:0});
+    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:t,online:false,preview:'Ø§Ø¨Ø¯Ø£ Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø©...',time:'',unread:0});
   closeSearchPanel();
   selectContact(id);
   renderContacts();
@@ -394,6 +412,7 @@ let activeContact=null;
 let crtOn=false;
 const contacts=window._contacts;
 const conversations=window._convos;
+let sidebarSearchResults=[];
 
 // THEME
 function setTheme(t){
@@ -425,7 +444,7 @@ function renderContacts(list=contacts){
       <div class="avatar" style="background:${c.color};color:${c.text};">${c.init}<div class="avatar-dot ${c.online?'dot-online':'dot-offline'}"></div></div>
       <div class="contact-info"><div class="contact-name">${c.name}</div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
-    </div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">اضغط 🔎 للبحث عن صديق</div>';
+    </div>`).join(''):'<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">ابحث عن شخص من البحث بالأعلى</div>';
 }
 function selectContact(id){
   activeContact=contacts.find(c=>c.id===id);
@@ -435,14 +454,45 @@ function selectContact(id){
   document.getElementById('headerName').textContent=activeContact.name;
   renderContacts();renderMessages();
 }
-function filterContacts(q){renderContacts(contacts.filter(c=>c.name.includes(q)));}
+function renderSidebarSearchResults(results){
+  const el = document.getElementById('contacts');
+  if(!results.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">مش لاقي حد</div>';
+    return;
+  }
+  el.innerHTML = results.map(u => `
+    <div class="contact" onclick="startChatFromSidebar('${u.id}')">
+      <div class="avatar" style="background:${u.color};color:${u.text};">${u.init}<div class="avatar-dot dot-offline"></div></div>
+      <div class="contact-info"><div class="contact-name">${u.name}</div><div class="contact-preview">${u.email}</div></div>
+      <div class="contact-meta"><div class="badge">+</div></div>
+    </div>`).join('');
+}
+
+window.startChatFromSidebar = function(id){
+  const u = sidebarSearchResults.find(x=>x.id===id);
+  if(!u) return;
+  window.startChat(u.id, u.name, u.color, u.text);
+  const input = document.getElementById('sidebarSearchInput');
+  if(input) input.value='';
+};
+
+async function filterContacts(q){
+  const query = (q || '').trim();
+  if(contacts.length){
+    renderContacts(query ? contacts.filter(c=>c.name.toLowerCase().includes(query.toLowerCase())) : contacts);
+    return;
+  }
+  if(!query){ renderContacts(); return; }
+  sidebarSearchResults = await window.searchProfiles(query, 8);
+  renderSidebarSearchResults(sidebarSearchResults);
+}
 
 // MESSAGES
 function renderMessages(){
   const el=document.getElementById('messages');
-  if(!activeContact){el.innerHTML='<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">اختار محادثة 💬</div>';return;}
+  if(!activeContact){el.innerHTML='<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">Ø§Ø®ØªØ§Ø± Ù…Ø­Ø§Ø¯Ø«Ø© ðŸ’¬</div>';return;}
   const msgs=conversations[activeContact.id]||[];
-  el.innerHTML=`<div class="date-divider"><div class="date-line"></div><span>اليوم</span><div class="date-line"></div></div>`;
+  el.innerHTML=`<div class="date-divider"><div class="date-line"></div><span>Ø§Ù„ÙŠÙˆÙ…</span><div class="date-line"></div></div>`;
   let i=0;
   while(i<msgs.length){
     const isOut=msgs[i].out;
@@ -451,7 +501,7 @@ function renderMessages(){
     while(j<msgs.length&&msgs[j].out===isOut){
       const r=document.createElement('div');r.className='msg-row';
       const last=j===msgs.length-1||msgs[j+1]?.out!==isOut;
-      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?' <span class="tick">✓✓</span>':''}</div>`:''}</div>`;
+      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?' <span class="tick">âœ“âœ“</span>':''}</div>`:''}</div>`;
       g.appendChild(r);j++;
     }
     el.appendChild(g);i=j;
@@ -463,15 +513,18 @@ function sendMessage(){
   const inp=document.getElementById('msgInput');const txt=inp.value.trim();if(!txt)return;
   inp.value='';
   if(!conversations[activeContact.id])conversations[activeContact.id]=[];
-  const now=new Date();const t=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' م';
+  const now=new Date();const t=now.getHours()+':'+String(now.getMinutes()).padStart(2,'0')+' Ù…';
   conversations[activeContact.id].push({out:true,text:txt,time:t});
-  const c=contacts.find(c=>c.id===activeContact.id);c.preview=txt;c.time='دلوقتي';
+  const c=contacts.find(c=>c.id===activeContact.id);c.preview=txt;c.time='Ø¯Ù„ÙˆÙ‚ØªÙŠ';
   renderMessages();renderContacts();
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
-function addEmoji(){const e=['😊','❤️','👍','🔥','😂','🙏','💀','🫡'];document.getElementById('msgInput').value+=e[Math.floor(Math.random()*e.length)];document.getElementById('msgInput').focus();}
+function addEmoji(){const e=['ðŸ˜Š','â¤ï¸','ðŸ‘','ðŸ”¥','ðŸ˜‚','ðŸ™','ðŸ’€','ðŸ«¡'];document.getElementById('msgInput').value+=e[Math.floor(Math.random()*e.length)];document.getElementById('msgInput').focus();}
 
 renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
