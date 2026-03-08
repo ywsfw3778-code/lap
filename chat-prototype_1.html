@@ -387,12 +387,13 @@ let myUsername = (me.user_metadata?.username || '').toLowerCase();
 
 function toast(msg, type='success'){
   if(typeof window.showToast === 'function') window.showToast(msg, type);
-  else console.log(msg);
+  else alert(msg);
 }
 
 function normalizeUsername(v){
   return (v || '').trim().toLowerCase().replace(/^@+/, '');
 }
+const tr = (k) => (typeof window.t === 'function' ? window.t(k) : k);
 
 function applyMyProfileUI(){
   const init = (myName || '?').charAt(0).toUpperCase();
@@ -425,14 +426,14 @@ window.saveProfile = async () => {
   const btn = document.getElementById('saveProfileBtn');
   const name = document.getElementById('editName').value.trim();
   const username = normalizeUsername(document.getElementById('editUsername').value);
-  if(!name){ toast(t('saveNameReq'), 'error'); return; }
+  if(!name){ toast(tr('saveNameReq'), 'error'); return; }
   if(!/^[a-z0-9_]{3,20}$/.test(username)){
-    toast(t('saveUserRule'), 'error');
+    toast(tr('saveUserRule'), 'error');
     return;
   }
 
   btn.disabled = true;
-  btn.textContent = t('saveBtnBusy');
+  btn.textContent = tr('saveBtnBusy');
 
   const { data: taken, error: takenErr } = await sb
     .from('profiles')
@@ -442,14 +443,14 @@ window.saveProfile = async () => {
     .limit(1);
   if(takenErr){
     btn.disabled = false;
-    btn.textContent = t('profileSave');
+    btn.textContent = tr('profileSave');
     toast('❌ '+takenErr.message, 'error');
     return;
   }
   if(taken && taken.length){
     btn.disabled = false;
-    btn.textContent = t('profileSave');
-    toast(t('saveUserTaken'), 'error');
+    btn.textContent = tr('profileSave');
+    toast(tr('saveUserTaken'), 'error');
     return;
   }
 
@@ -460,7 +461,7 @@ window.saveProfile = async () => {
 
   if(upsertErr){
     btn.disabled = false;
-    btn.textContent = t('profileSave');
+    btn.textContent = tr('profileSave');
     toast('❌ '+upsertErr.message, 'error');
     return;
   }
@@ -468,7 +469,7 @@ window.saveProfile = async () => {
   const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username } });
   if(authErr){
     btn.disabled = false;
-    btn.textContent = t('profileSave');
+    btn.textContent = tr('profileSave');
     toast('❌ '+authErr.message, 'error');
     return;
   }
@@ -476,11 +477,11 @@ window.saveProfile = async () => {
   myName = name;
   myUsername = username;
   applyMyProfileUI();
-  applyLanguage();
+  if(typeof window.applyLanguage === 'function') window.applyLanguage();
 
   btn.disabled = false;
-  btn.textContent = t('profileSave');
-  toast(t('saveDone'));
+  btn.textContent = tr('profileSave');
+  toast(tr('saveDone'));
 };
 
 await loadMyProfile();
@@ -511,15 +512,15 @@ window.searchProfiles = async (q, limit = 8) => {
 window.searchFriends = async () => {
   const q = document.getElementById('friendInput').value.trim();
   if(!q) return;
-  document.getElementById('searchResults').innerHTML=`<div class="s-empty">${t('searchLoading')}</div>`;
+  document.getElementById('searchResults').innerHTML=`<div class="s-empty">${tr('searchLoading')}</div>`;
   const results = await window.searchProfiles(q, 8);
   window._mainSearchResults = results;
-  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+t('searchEmpty')+'</div>'; return; }
+  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+tr('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
       <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${t('chatBtn')}</button>
+      <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${tr('chatBtn')}</button>
     </div>`;
   }).join('');
 };
@@ -593,7 +594,7 @@ window.t = t;
 window.setAppLang = function(lang){
   appLang = (lang === 'en') ? 'en' : 'ar';
   localStorage.setItem('lm-lang', appLang);
-  applyLanguage();
+  if(typeof window.applyLanguage === 'function') window.applyLanguage();
   renderContacts();
   renderMessages();
 };
@@ -791,11 +792,14 @@ function sendMessage(){
 function handleKey(e){if(e.key==='Enter')sendMessage();}
 function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
 
-applyLanguage();
+if(typeof window.applyLanguage === 'function') window.applyLanguage();
 renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
 
 
 
