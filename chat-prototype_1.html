@@ -108,7 +108,9 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .attach-btn:hover{color:var(--accent);}
 .send-btn{width:40px;height:40px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--accent);transition:all .2s;box-shadow:0 0 10px var(--accent-glow);flex-shrink:0;}
 .send-btn:hover{transform:scale(1.05);background:var(--accent);color:var(--bg);}
-.send-btn:active{transform:scale(.96);}
+.send-btn:active{transform:scale(.96);} 
+.no-active-chat .chat-header,
+.no-active-chat .input-area{display:none;}
 .typing{display:flex;align-items:center;gap:4px;padding:9px 13px;background:var(--msg-in);border:1px solid var(--border2);border-radius:16px;width:fit-content;animation:slideIn .2s ease;}
 .typing span{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:typingAnim 1.2s infinite;}
 .typing span:nth-child(2){animation-delay:.2s;}
@@ -493,23 +495,43 @@ window.handleLogout = async () => { await sb.auth.signOut(); window.location.hre
 window.searchProfiles = async (q, limit = 8) => {
   const query = (q || '').trim();
   if(!query) return [];
-  const { data } = await sb
+
+  let data = null;
+  // Try rich search first (email/full_name/username). Fallback to username-only schema.
+  const rich = await sb
     .from('profiles')
-    .select('id,username')
-    .ilike('username', `%${query}%`)
+    .select('id,username,full_name,email')
+    .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
     .neq('id', me.id)
     .limit(limit);
+
+  if(!rich.error){
+    data = rich.data || [];
+  } else {
+    const lite = await sb
+      .from('profiles')
+      .select('id,username')
+      .ilike('username', `%${query}%`)
+      .neq('id', me.id)
+      .limit(limit);
+    data = lite.data || [];
+  }
+
   const colors = [
     {bg:'#12123a',t:'#818cf8'},
     {bg:'#0d2010',t:'#34d399'},
     {bg:'#200a0a',t:'#f87171'},
     {bg:'#001525',t:'#38bdf8'}
   ];
+
   return (data || []).map((u,i) => {
     const c = colors[i % colors.length];
     const uname = (u.username || '').trim();
-    const name = uname || 'User';
-    return { id:u.id, email: uname ? '@'+uname : '', name, color:c.bg, text:c.t, init:name.charAt(0).toUpperCase() };
+    const fullName = (u.full_name || '').trim();
+    const email = (u.email || '').trim();
+    const name = fullName || uname || (email ? email.split('@')[0] : 'User');
+    const sub = email || (uname ? '@'+uname : '');
+    return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:name.charAt(0).toUpperCase() };
   });
 };
 window.searchFriends = async () => {
@@ -768,7 +790,12 @@ window.startChatFromMain = function(id){
 // MESSAGES
 function renderMessages(){
   const el=document.getElementById('messages');
-  if(!activeContact){renderMainSearch();return;}
+  if(!activeContact){
+    document.body.classList.add('no-active-chat');
+    renderMainSearch();
+    return;
+  }
+  document.body.classList.remove('no-active-chat');
   const msgs=conversations[activeContact.id]||[];
   el.innerHTML=`<div class="date-divider"><div class="date-line"></div><span>${t('today')}</span><div class="date-line"></div></div>`;
   let i=0;
@@ -804,6 +831,11 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
