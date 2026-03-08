@@ -435,6 +435,7 @@ if(!session){ window.location.href='login.html'; throw 0; }
 const me = session.user;
 window.sb = sb;
 window.me = me;
+if(typeof window.onAuthReady === 'function') window.onAuthReady(me.id);
 let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
@@ -616,7 +617,16 @@ const onlineUserIds = new Set();
 
 function getChatStateKey(){
   const me = getCurrentUser();
-  return me ? `lm-chat-state-${me.id}` : 'lm-chat-state-guest';
+  if(me){
+    const key = `lm-chat-state-${me.id}`;
+    try{ localStorage.setItem('lm-chat-last-key', key); }catch(_e){}
+    return key;
+  }
+  try{
+    return localStorage.getItem('lm-chat-last-key') || 'lm-chat-state-guest';
+  }catch(_e){
+    return 'lm-chat-state-guest';
+  }
 }
 
 function saveLocalChatState(){
@@ -1121,6 +1131,14 @@ async function sendMessage(){
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
 function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
+
+window.onAuthReady = function(){
+  loadLocalChatState();
+  loadInboxContacts();
+  initPresence();
+  renderContacts();
+  renderMessages();
+};
 
 loadLocalChatState();
 startMessagePolling();
