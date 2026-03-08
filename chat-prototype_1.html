@@ -53,6 +53,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .contact-info{flex:1;min-width:0;}
 .contact-name{font-size:13px;font-weight:500;margin-bottom:2px;}
 .contact-preview{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.member-code{font-size:10px;color:var(--muted);margin-inline-start:6px;font-family:'Share Tech Mono',monospace;}
 .contact-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
 .contact-time{font-size:10px;color:var(--muted);}
 .badge{background:var(--accent);color:var(--bg);font-size:10px;font-weight:700;padding:2px 6px;border-radius:99px;min-width:18px;text-align:center;}
@@ -435,6 +436,12 @@ if(!session){ window.location.href='login.html'; throw 0; }
 const me = session.user;
 window.sb = sb;
 window.me = me;
+window.getLabCode = function(uid){
+  const s = String(uid || '');
+  let h = 0;
+  for(let i=0;i<s.length;i++) h = (h * 31 + s.charCodeAt(i)) % 999;
+  return String((h % 999) + 1).padStart(3,'0');
+};
 if(typeof window.onAuthReady === 'function') window.onAuthReady(me.id);
 let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
@@ -456,7 +463,8 @@ function applyMyProfileUI(){
   document.getElementById('myName').textContent = myName;
   document.getElementById('myEmail').textContent = myEmail;
   document.getElementById('profileAv').textContent = init;
-  document.getElementById('profileName').textContent = myName;
+  const myCode = window.getLabCode ? window.getLabCode(me.id) : '001';
+  document.getElementById('profileName').textContent = `${myName}  #${myCode}`;
   document.getElementById('profileEmail').textContent = myEmail;
   document.getElementById('profileEmail2').textContent = myEmail;
   document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
@@ -585,7 +593,7 @@ window.searchFriends = async () => {
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
-      <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
+      <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${tr('chatBtn')}</button>
     </div>`;
   }).join('');
@@ -965,7 +973,7 @@ function renderContacts(list=contacts){
   document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
     <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${c.id}')">
       <div class="avatar" style="background:${c.color};color:${c.text};">${c.init}<div class="avatar-dot ${c.online?'dot-online':'dot-offline'}"></div></div>
-      <div class="contact-info"><div class="contact-name">${c.name}</div><div class="contact-preview">${c.preview}</div></div>
+      <div class="contact-info"><div class="contact-name">${c.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(c.id) : '000'}</span></div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
@@ -976,7 +984,7 @@ function selectContact(id){
   if(hit) hit.unread=0;
   const av=document.getElementById('headerAvatar');
   av.style.background=activeContact.color;av.style.color=activeContact.text;av.textContent=activeContact.init;
-  document.getElementById('headerName').textContent=activeContact.name;
+  document.getElementById('headerName').textContent=`${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
   updateHeaderPresence();
   renderContacts();
   renderMessages();
@@ -992,7 +1000,7 @@ function renderSidebarSearchResults(results){
   el.innerHTML = results.map(u => `
     <div class="contact" onclick="startChatFromSidebar('${u.id}')">
       <div class="avatar" style="background:${u.color};color:${u.text};">${u.init}<div class="avatar-dot dot-offline"></div></div>
-      <div class="contact-info"><div class="contact-name">${u.name}</div><div class="contact-preview">${u.email}</div></div>
+      <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.email}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`).join('');
 }
@@ -1058,7 +1066,7 @@ window.searchFromMainArea = async function(){
   out.innerHTML = results.map(u => `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
-      <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
+      <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn">${t('chatBtn')}</button>
     </div>`).join('');
 };
