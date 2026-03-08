@@ -90,7 +90,13 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .msg-group.out{align-items:flex-start;}
 .msg-group.in{align-items:flex-end;}
 .msg-row{display:flex;align-items:flex-end;gap:7px;min-width:0;}
-.msg-content{min-width:0;max-width:75%;width:fit-content;display:flex;flex-direction:column;}
+.msg-content{
+min-width:0;
+max-width:70%;
+width:fit-content;
+display:flex;
+flex-direction:column;
+}
 .msg-group.out .msg-content{align-items:flex-start;}
 .msg-group.in .msg-content{align-items:flex-end;}
 .msg-group.out .msg-row{flex-direction:row;}
@@ -99,14 +105,9 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .msg-avatar.ghost{visibility:hidden;}
 .bubble{
 max-width:100%;
-min-width:0;
-display:block;
-width:auto;
-padding:9px 13px;
-border-radius:16px;
-white-space:pre-wrap;
-overflow-wrap:anywhere;
+white-space:normal;
 word-break:break-word;
+overflow-wrap:anywhere;
 }
 @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .msg-group.out .bubble{background:var(--msg-out);border:1px solid var(--border2);border-bottom-right-radius:4px;}
