@@ -100,7 +100,7 @@ background:var(--bg);
 .msg-row{display:flex;align-items:flex-end;gap:7px;min-width:0;}
 .msg-content{
   width:fit-content;
-  max-width:70%;
+  max-width:85%;
   display:flex;
   flex-direction:column;
 }
@@ -111,12 +111,13 @@ background:var(--bg);
 .msg-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;margin-bottom:2px;}
 .msg-avatar.ghost{visibility:hidden;}
 .bubble{
-  width:fit-content;
   max-width:100%;
   padding:9px 13px;
   border-radius:16px;
   line-height:1.5;
-  white-space:nowrap;
+  white-space:normal;
+  word-break:break-word;
+  overflow-wrap:break-word;
 }
 @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .msg-group.out .bubble{background:var(--msg-out);border:1px solid var(--border2);border-bottom-right-radius:4px;}
@@ -137,6 +138,11 @@ background:var(--bg);
 .send-btn{width:40px;height:40px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--accent);transition:all .2s;box-shadow:0 0 10px var(--accent-glow);flex-shrink:0;}
 .send-btn:hover{transform:scale(1.05);background:var(--accent);color:var(--bg);}
 .send-btn:active{transform:scale(.96);} 
+.voice-btn{width:40px;height:40px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .2s;flex-shrink:0;}
+.voice-btn:hover{border-color:#ef4444;color:#ef4444;}
+.voice-btn.recording{background:#ef444422;border-color:#ef4444;color:#ef4444;animation:recPulse 1s infinite;}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 #ef444444;}50%{box-shadow:0 0 0 6px #ef444400;}}
+audio{height:32px;max-width:200px;}
 .no-active-chat .chat-header,
 .no-active-chat .input-area{display:none;}
 .typing{display:flex;align-items:center;gap:4px;padding:9px 13px;background:var(--msg-in);border:1px solid var(--border2);border-radius:16px;width:fit-content;animation:slideIn .2s ease;}
@@ -340,6 +346,7 @@ background:var(--bg);
       <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
       <button class="attach-btn">📎</button>
     </div>
+    <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="تسجيل صوتي">🎤</button>
     <button class="send-btn" onclick="sendMessage()">➤</button>
   </div>
 </div>
@@ -1178,7 +1185,12 @@ function renderMessages(){
     while(j<msgs.length&&msgs[j].out===isOut){
       const r=document.createElement('div');r.className='msg-row';
       const last=j===msgs.length-1||msgs[j+1]?.out!==isOut;
-      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div class="msg-content"><div class="bubble">${msgs[j].text}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?` <span class="tick">${msgs[j].read?'✓✓':'✓'}</span>`:''}</div>`:''}</div>`;
+      const msgText = msgs[j].text;
+      const isVoice = msgText.startsWith('[voice]');
+      const bubbleContent = isVoice
+        ? `<audio controls src="${msgText.replace('[voice]','')}"></audio>`
+        : msgText;
+      r.innerHTML=`<div class="msg-avatar ${j===i&&!isOut?'':'ghost'}" style="background:${activeContact.color};color:${activeContact.text};">${activeContact.init}</div><div class="msg-content"><div class="bubble">${bubbleContent}</div>${last?`<div class="bubble-meta">${msgs[j].time}${isOut?` <span class="tick">${msgs[j].read?'✓✓':'✓'}</span>`:''}</div>`:''}</div>`;
       g.appendChild(r);j++;
     }
     el.appendChild(g);i=j;
@@ -1221,6 +1233,66 @@ async function sendMessage(){
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
 function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
+
+// VOICE RECORDING
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingSeconds = 0;
+
+async function toggleRecording(){
+  const btn = document.getElementById('voiceBtn');
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    mediaRecorder.stop();
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      clearInterval(recordingTimer);
+      btn.classList.remove('recording');
+      btn.textContent = '🎤';
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(audioChunks, {type:'audio/webm'});
+      await sendVoiceMessage(blob);
+    };
+    mediaRecorder.start();
+    btn.classList.add('recording');
+    btn.textContent = '⏹️';
+    recordingSeconds = 0;
+    recordingTimer = setInterval(() => {
+      recordingSeconds++;
+      if(recordingSeconds >= 60) mediaRecorder.stop();
+    }, 1000);
+  } catch(err) {
+    alert('مش قادر يوصل للميكروفون 🎤');
+  }
+}
+
+async function sendVoiceMessage(blob){
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
+  if(!sbClient || !currentUser || !activeContact) return;
+  const fileName = `voice_${Date.now()}.webm`;
+  const { data, error } = await sbClient.storage.from('voices').upload(fileName, blob, {contentType:'audio/webm'});
+  if(error){ alert('فشل رفع الصوت: ' + error.message); return; }
+  const { data: urlData } = sbClient.storage.from('voices').getPublicUrl(fileName);
+  const audioUrl = urlData.publicUrl;
+  const payloads = [
+    { sender_id: currentUser.id, receiver_id: activeContact.id, body: `[voice]${audioUrl}` },
+    { sender_id: currentUser.id, receiver_id: activeContact.id, content: `[voice]${audioUrl}` },
+    { sender_id: currentUser.id, receiver_id: activeContact.id, text: `[voice]${audioUrl}` },
+    { sender_id: currentUser.id, receiver_id: activeContact.id, message: `[voice]${audioUrl}` },
+  ];
+  for(const p of payloads){
+    const {error:e} = await sbClient.from('messages').insert(p);
+    if(!e) break;
+  }
+  await loadMessagesForContact(activeContact.id);
+}
 
 window.onMemberCodesUpdated = function(){
   if(typeof window.refreshMyProfileUI === 'function') window.refreshMyProfileUI();
