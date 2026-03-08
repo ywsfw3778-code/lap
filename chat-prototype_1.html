@@ -736,7 +736,7 @@ async function loadMessagesForContact(contactId){
   if(!sbClient || !currentUser || !contactId) return;
   const { data, error } = await sbClient
     .from('messages')
-    .select('sender_id,receiver_id,body,created_at')
+    .select('*')
     .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${currentUser.id})`)
     .order('created_at', { ascending: true })
     .limit(200);
@@ -748,7 +748,7 @@ async function loadMessagesForContact(contactId){
 
   const rows = (data || []).map(m => ({
     out: m.sender_id === currentUser.id,
-    text: m.body || '',
+    text: m.body || m.content || m.text || m.message || '',
     time: formatChatTime(m.created_at)
   }));
 
@@ -793,7 +793,7 @@ async function loadInboxContacts(){
 
   const { data, error } = await sbClient
     .from('messages')
-    .select('sender_id,receiver_id,body,created_at')
+    .select('*')
     .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -852,7 +852,7 @@ async function loadInboxContacts(){
       c.init = name.charAt(0).toUpperCase();
     }
 
-    c.preview = last?.body || '';
+    c.preview = last?.body || last?.content || last?.text || last?.message || '';
     c.time = t('now');
     const stamp = String(last?.created_at || '');
     if(last && last.sender_id !== currentUser.id && (!activeContact || activeContact.id !== id) && c._lastInboxAt !== stamp){
@@ -1003,16 +1003,29 @@ async function sendMessage(){
   if(!txt) return;
 
   inp.value='';
-  const { error } = await sbClient
-    .from('messages')
-    .insert({ sender_id: currentUser.id, receiver_id: activeContact.id, body: txt });
-
-  if(error){
-    alert('Message send failed: ' + error.message);
+  const payloads = [
+    { sender_id: currentUser.id, receiver_id: activeContact.id, body: txt },
+    { sender_id: currentUser.id, receiver_id: activeContact.id, content: txt },
+    { sender_id: currentUser.id, receiver_id: activeContact.id, text: txt },
+    { sender_id: currentUser.id, receiver_id: activeContact.id, message: txt }
+  ];
+  let lastErr = null;
+  for(const payload of payloads){
+    const { error } = await sbClient.from('messages').insert(payload);
+    if(!error){
+      lastErr = null;
+      break;
+    }
+    lastErr = error;
+    if(!/column|schema|does not exist|not found/i.test(String(error.message || ''))) break;
+  }
+  if(lastErr){
+    alert('Message send failed: ' + lastErr.message);
     return;
   }
 
   await loadMessagesForContact(activeContact.id);
+  await loadInboxContacts();
 }
 function handleKey(e){if(e.key==='Enter')sendMessage();}
 function addEmoji(){const e=["??","??","??","??","??","??","??","??"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
@@ -1025,6 +1038,7 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
 
 
 
