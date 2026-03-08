@@ -436,11 +436,10 @@ if(!session){ window.location.href='login.html'; throw 0; }
 const me = session.user;
 window.sb = sb;
 window.me = me;
+window.memberCodeMap = {};
+const ADMIN_USERNAME = 'ywsfw3778';
 window.getLabCode = function(uid){
-  const s = String(uid || '');
-  let h = 0;
-  for(let i=0;i<s.length;i++) h = (h * 31 + s.charCodeAt(i)) % 999;
-  return String((h % 999) + 1).padStart(3,'0');
+  return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
 if(typeof window.onAuthReady === 'function') window.onAuthReady(me.id);
 let myName = me.user_metadata?.full_name || me.email.split('@')[0];
@@ -457,6 +456,29 @@ function normalizeUsername(v){
 }
 const tr = (k) => (typeof window.t === 'function' ? window.t(k) : k);
 
+window.loadMemberCodes = async () => {
+  let rows = [];
+  let res = await sb.from('profiles').select('id,username,created_at').order('created_at', { ascending: true });
+  if(res.error){
+    const lite = await sb.from('profiles').select('id,username');
+    if(lite.error) return;
+    rows = lite.data || [];
+  } else {
+    rows = res.data || [];
+  }
+
+  let admin = rows.find(r => String(r.username || '').toLowerCase() === ADMIN_USERNAME);
+  if(!admin) admin = rows.find(r => r.id === me.id);
+
+  const others = rows.filter(r => !admin || r.id !== admin.id);
+  const ordered = admin ? [admin, ...others] : rows;
+  const map = {};
+  ordered.forEach((r, i) => { map[r.id] = String(i + 1).padStart(3, '0'); });
+  window.memberCodeMap = map;
+
+  if(typeof window.onMemberCodesUpdated === 'function') window.onMemberCodesUpdated();
+};
+
 function applyMyProfileUI(){
   const init = (myName || '?').charAt(0).toUpperCase();
   document.getElementById('myAvatar').textContent = init;
@@ -471,6 +493,7 @@ function applyMyProfileUI(){
   document.getElementById('editName').value = myName;
   document.getElementById('editUsername').value = myUsername;
 }
+window.refreshMyProfileUI = applyMyProfileUI;
 
 async function loadMyProfile(){
   const { data, error } = await sb
@@ -537,6 +560,7 @@ window.saveProfile = async () => {
   toast(tr('saveDone'));
 };
 
+await window.loadMemberCodes();
 await loadMyProfile();
 
 window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
@@ -1140,7 +1164,17 @@ async function sendMessage(){
 function handleKey(e){if(e.key==='Enter')sendMessage();}
 function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
 
+window.onMemberCodesUpdated = function(){
+  if(typeof window.refreshMyProfileUI === 'function') window.refreshMyProfileUI();
+  if(activeContact){
+    document.getElementById('headerName').textContent=`${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
+  }
+  renderContacts();
+  renderMessages();
+};
+
 window.onAuthReady = function(){
+  if(typeof window.loadMemberCodes === 'function') window.loadMemberCodes();
   loadLocalChatState();
   loadInboxContacts();
   initPresence();
@@ -1165,6 +1199,7 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
 
 
 
