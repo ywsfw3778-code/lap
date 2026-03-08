@@ -80,8 +80,18 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.8);}}
 .chat-actions{display:flex;gap:7px;}
 .mobile-back{display:none;}
-.messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:7px;background:var(--bg);background-image:radial-gradient(ellipse at 80% 20%,var(--accent-glow) 0%,transparent 55%),radial-gradient(ellipse at 20% 80%,var(--accent-glow) 0%,transparent 45%);}
-.messages::-webkit-scrollbar{width:3px;}
+.messages{
+flex:1;
+overflow-y:auto;
+padding:20px;
+display:flex;
+flex-direction:column;
+gap:7px;
+background:var(--bg);
+
+max-width:900px;
+margin:auto;
+}
 .messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
 .date-divider{display:flex;align-items:center;gap:10px;margin:6px 0;}
 .date-divider span{font-size:10px;color:var(--muted);white-space:nowrap;}
@@ -92,7 +102,7 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .msg-row{display:flex;align-items:flex-end;gap:7px;min-width:0;}
 .msg-content{
   min-width:0;
-  max-width:70%;
+  max-width:65%;
   width:auto;
   display:flex;
   flex-direction:column;
@@ -105,6 +115,9 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .msg-avatar.ghost{visibility:hidden;}
 .bubble{
   max-width:100%;
+  padding:9px 13px;
+  border-radius:16px;
+  line-height:1.5;
   white-space:pre-wrap;
   word-break:break-word;
   overflow-wrap:break-word;
