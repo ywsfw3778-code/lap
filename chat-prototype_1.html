@@ -424,7 +424,7 @@ function applyMyProfileUI(){
 async function loadMyProfile(){
   const { data, error } = await sb
     .from('profiles')
-    .select('full_name,username,email')
+    .select('full_name,username')
     .eq('id', me.id)
     .maybeSingle();
   if(!error && data){
@@ -469,7 +469,7 @@ window.saveProfile = async () => {
   // Ensure profile row exists and is updated in one call.
   const { error: upsertErr } = await sb
     .from('profiles')
-    .upsert({ id: me.id, email: myEmail, full_name: name, username }, { onConflict: 'id' });
+    .upsert({ id: me.id, full_name: name, username }, { onConflict: 'id' });
 
   if(upsertErr){
     btn.disabled = false;
@@ -505,8 +505,8 @@ window.searchProfiles = async (q, limit = 8) => {
   if(!query) return [];
   const { data } = await sb
     .from('profiles')
-    .select('id,full_name,email')
-    .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
+    .select('id,full_name,username')
+    .or(`full_name.ilike.%${query}%,username.ilike.%${query}%`)
     .neq('id', me.id)
     .limit(limit);
   const colors = [
@@ -517,8 +517,9 @@ window.searchProfiles = async (q, limit = 8) => {
   ];
   return (data || []).map((u,i) => {
     const c = colors[i % colors.length];
-    const name = u.full_name || u.email.split('@')[0];
-    return { id:u.id, email:u.email, name, color:c.bg, text:c.t, init:name.charAt(0).toUpperCase() };
+    const uname = (u.username || '').trim();
+    const name = (u.full_name || uname || 'User').trim();
+    return { id:u.id, email: uname ? '@'+uname : '', name, color:c.bg, text:c.t, init:name.charAt(0).toUpperCase() };
   });
 };
 window.searchFriends = async () => {
@@ -813,6 +814,9 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
 
 
 
