@@ -340,39 +340,59 @@
 <!-- toast -->
 <div class="toast" id="toast"></div>
 
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
 const SUPABASE_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let supabaseClient = null;
+
+function getSupabase(){
+  if (supabaseClient) return supabaseClient;
+  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+    throw new Error('Supabase SDK failed to load');
+  }
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return supabaseClient;
+}
 
 /* particles */
 const pEl = document.getElementById('particles');
 for(let i=0;i<25;i++){
-  const p=document.createElement('div');p.className='particle';
+  const p=document.createElement('div');
+  p.className='particle';
   p.style.cssText=`left:${Math.random()*100}%;width:${Math.random()*3+1}px;height:${Math.random()*3+1}px;animation-duration:${Math.random()*15+8}s;animation-delay:${Math.random()*10}s;`;
   pEl.appendChild(p);
 }
 
-/* check if already logged in (safe) */
-try {
-  const { data: { session } } = await supabase.auth.getSession();
-  if(session) window.location.href = 'chat-prototype_1.html';
-} catch (e) {
-  console.warn('session check skipped:', e?.message || e);
+/* toast */
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+function setLoading(btn, loading, originalHTML){
+  if(loading){
+    btn.classList.add('btn-loading');
+    btn.disabled=true;
+  } else {
+    btn.classList.remove('btn-loading');
+    btn.disabled=false;
+    if(originalHTML) btn.innerHTML=originalHTML;
+  }
 }
 
 /* theme */
 window.setTheme = function(name){
   document.getElementById('appBody').className='theme-'+name;
   document.querySelectorAll('.ts-dot').forEach(d=>d.classList.remove('active'));
-  document.getElementById('dot-'+name).classList.add('active');
+  const dot=document.getElementById('dot-'+name);
+  if(dot) dot.classList.add('active');
   localStorage.setItem('lm-theme',name);
   document.getElementById('logoText').style.fontSize = name==='steins' ? '34px' : '';
-}
-const saved = localStorage.getItem('lm-theme')||'amloud';
-window.setTheme(saved);
+};
+
 const i18n = {
   ar: {
     title: 'Lab Members - تسجيل الدخول',
@@ -392,11 +412,11 @@ const i18n = {
     forgot: 'نسيت الباسورد؟',
     restore: 'استعادة',
     terms: 'بالدخول، أنت موافق على شروط الاستخدام وسياسة الخصوصية',
+    errSdk: 'تعذر تحميل خدمة الدخول. أعد تحميل الصفحة.',
     errLoginRequired: 'اكتب الإيميل والباسورد',
     okLogin: '✅ أهلا بك!',
     errAllFields: 'اكمل كل البيانات',
     errPassLen: 'الباسورد 8 أحرف على الأقل',
-    okRegister: '✅ تم إنشاء الحساب!',
     okRegisterPending: '✅ تم إنشاء الحساب! افحص الإيميل لتأكيد الحساب ثم سجل دخول',
     okRegisterAuto: '✅ تم إنشاء الحساب وجاري تسجيل الدخول...',
     errEmailFirst: 'اكتب الإيميل الأول',
@@ -420,11 +440,11 @@ const i18n = {
     forgot: 'Forgot password?',
     restore: 'Reset',
     terms: 'By continuing, you agree to Terms of Service and Privacy Policy',
+    errSdk: 'Auth service failed to load. Refresh the page.',
     errLoginRequired: 'Enter email and password',
     okLogin: '✅ Welcome back!',
     errAllFields: 'Please fill in all fields',
     errPassLen: 'Password must be at least 8 characters',
-    okRegister: '✅ Account created!',
     okRegisterPending: '✅ Account created! Check your email to confirm, then sign in',
     okRegisterAuto: '✅ Account created. Signing you in...',
     errEmailFirst: 'Enter your email first',
@@ -452,11 +472,11 @@ window.setLang = function(lang){
   document.getElementById('tab-register').textContent = t.tabRegister;
 
   const labels = document.querySelectorAll('.input-label');
-  labels[0].textContent = t.lblEmail;
-  labels[1].textContent = t.lblPass;
-  labels[2].textContent = t.lblName;
-  labels[3].textContent = t.lblEmail;
-  labels[4].textContent = t.lblPass;
+  if(labels[0]) labels[0].textContent = t.lblEmail;
+  if(labels[1]) labels[1].textContent = t.lblPass;
+  if(labels[2]) labels[2].textContent = t.lblName;
+  if(labels[3]) labels[3].textContent = t.lblEmail;
+  if(labels[4]) labels[4].textContent = t.lblPass;
 
   document.getElementById('loginPass').placeholder = t.phPass;
   document.getElementById('regName').placeholder = t.phName;
@@ -470,43 +490,31 @@ window.setLang = function(lang){
   document.getElementById('lang-ar').classList.toggle('active', currentLang === 'ar');
   document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
 };
-window.setLang(currentLang);
 
-/* tabs */
 window.switchTab = function(tab){
   document.getElementById('tab-login').classList.toggle('active',tab==='login');
   document.getElementById('tab-register').classList.toggle('active',tab==='register');
   document.getElementById('loginForm').style.display=tab==='login'?'block':'none';
   document.getElementById('registerForm').style.display=tab==='register'?'block':'none';
-}
+};
 
-/* toast */
-function showToast(msg,type='success'){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast '+type+' show';
-  setTimeout(()=>t.classList.remove('show'),3500);
-}
-
-function setLoading(btn, loading, originalHTML){
-  if(loading){ btn.classList.add('btn-loading'); btn.disabled=true; }
-  else { btn.classList.remove('btn-loading'); btn.disabled=false; if(originalHTML) btn.innerHTML=originalHTML; }
-}
-
-/* LOGIN */
 window.handleLogin = async function(){
   const email = document.getElementById('loginEmail').value.trim();
   const pass  = document.getElementById('loginPass').value;
   if(!email||!pass){ showToast(tr('errLoginRequired'),'error'); return; }
+
+  let sb;
+  try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
+
   const btn = document.querySelector('#loginForm .submit-btn');
   setLoading(btn, true);
-  const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
   setLoading(btn, false);
   if(error){ showToast('❌ '+error.message,'error'); return; }
   showToast(tr('okLogin'));
-  setTimeout(()=> window.location.href='chat-prototype_1.html', 1000);
-}
+  setTimeout(()=> window.location.href='chat-prototype_1.html', 800);
+};
 
-/* REGISTER */
 window.handleRegister = async function(){
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
@@ -514,10 +522,13 @@ window.handleRegister = async function(){
   if(!name||!email||!pass){ showToast(tr('errAllFields'),'error'); return; }
   if(pass.length<8){ showToast(tr('errPassLen'),'error'); return; }
 
+  let sb;
+  try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
+
   const btn = document.querySelector('#registerForm .submit-btn');
   setLoading(btn, true);
 
-  const { data, error } = await supabase.auth.signUp({
+  const { data, error } = await sb.auth.signUp({
     email,
     password: pass,
     options: { data: { full_name: name } }
@@ -526,38 +537,57 @@ window.handleRegister = async function(){
   setLoading(btn, false);
   if(error){ showToast('❌ '+error.message,'error'); return; }
 
-  // If email confirmation is disabled, Supabase returns a session and we can log in immediately.
-  if(data?.session){
+  if(data && data.session){
     showToast(tr('okRegisterAuto'));
-    setTimeout(()=> window.location.href='chat-prototype_1.html', 1000);
+    setTimeout(()=> window.location.href='chat-prototype_1.html', 800);
     return;
   }
 
-  // If confirmation is required, guide user to login tab and prefill email.
   showToast(tr('okRegisterPending'));
   document.getElementById('loginEmail').value = email;
   window.switchTab('login');
-}
+};
 
-/* RESET PASSWORD */
 window.handleReset = async function(){
   const email = document.getElementById('loginEmail').value.trim();
   if(!email){ showToast(tr('errEmailFirst'),'error'); return; }
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+
+  let sb;
+  try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
+
+  const { error } = await sb.auth.resetPasswordForEmail(email);
   if(error){ showToast('❌ '+error.message,'error'); return; }
   showToast(tr('okReset'));
-}
+};
 
 window.handleGoogle = async function(){
-  const { error } = await supabase.auth.signInWithOAuth({
+  let sb;
+  try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
+
+  const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: { redirectTo: window.location.origin + '/chat-prototype_1.html' }
   });
   if(error){ showToast('❌ '+error.message,'error'); }
 };
+
+(async function init(){
+  const savedTheme = localStorage.getItem('lm-theme') || 'amloud';
+  window.setTheme(savedTheme);
+  window.setLang(currentLang);
+
+  try {
+    const sb = getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if(session) window.location.href = 'chat-prototype_1.html';
+  } catch(e){
+    console.warn('init auth skipped:', e?.message || e);
+  }
+})();
 </script>
 </body>
 </html>
+
 
 
 
