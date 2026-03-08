@@ -42,6 +42,20 @@
     --text:#ccf5ff;--muted:#1a5566;
     --logo-font:'Share Tech Mono',monospace;--crt:none;
   }
+  body.theme-white{
+    --bg:#f5f7fb;--surface:#f0f3fa;--surface2:#e6ebf6;
+    --border:#1f29370f;--border2:#1f293726;
+    --accent:#2563eb;--accent2:#4f46e5;--accent-glow:#2563eb40;
+    --text:#0f172a;--muted:#64748b;
+    --logo-font:'Outfit',sans-serif;--crt:none;
+  }
+  body.theme-black{
+    --bg:#050505;--surface:#111111;--surface2:#181818;
+    --border:#ffffff12;--border2:#ffffff1f;
+    --accent:#f1f5f9;--accent2:#d4d4d8;--accent-glow:#ffffff2b;
+    --text:#f5f5f5;--muted:#a1a1aa;
+    --logo-font:'Share Tech Mono',monospace;--crt:none;
+  }
 
   *{margin:0;padding:0;box-sizing:border-box;}
   body{
@@ -101,6 +115,8 @@
   .ts-crimson{background:linear-gradient(135deg,#ff1735,#ff6b7a);}
   .ts-amber{background:linear-gradient(135deg,#ffb300,#ffd54f);}
   .ts-cyan{background:linear-gradient(135deg,#00d4ff,#67e8f9);}
+  .ts-white{background:linear-gradient(135deg,#ffffff,#dbe3f1);}
+  .ts-black{background:linear-gradient(135deg,#050505,#2a2a2a);}
 
   /* CARD */
   .card{
@@ -260,6 +276,8 @@
   <div class="ts-dot ts-crimson" id="dot-crimson" onclick="setTheme('crimson')" title="Crimson"></div>
   <div class="ts-dot ts-amber" id="dot-amber" onclick="setTheme('amber')" title="Amber"></div>
   <div class="ts-dot ts-cyan" id="dot-cyan" onclick="setTheme('cyan')" title="Cyan"></div>
+  <div class="ts-dot ts-white" id="dot-white" onclick="setTheme('white')" title="White"></div>
+  <div class="ts-dot ts-black" id="dot-black" onclick="setTheme('black')" title="Black"></div>
 </div>
 
 <div class="lang-switcher">
