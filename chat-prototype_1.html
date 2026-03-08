@@ -113,6 +113,18 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .typing span:nth-child(3){animation-delay:.4s;}
 @keyframes typingAnim{0%,100%{opacity:.3;transform:translateY(0);}50%{opacity:1;transform:translateY(-3px);}}
 
+/* EMPTY CHAT SEARCH */
+.empty-search-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;}
+.empty-search-box{width:min(620px, 100%);background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:18px;box-shadow:0 12px 30px rgba(0,0,0,.25);}
+.empty-search-title{font-size:14px;font-weight:600;margin-bottom:10px;color:var(--text);}
+.empty-search-row{display:flex;gap:8px;margin-bottom:10px;}
+.empty-search-row input{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;direction:ltr;}
+.empty-search-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+.empty-search-btn{padding:10px 14px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:10px;cursor:pointer;color:var(--accent);font-family:inherit;font-size:12px;font-weight:600;}
+.empty-search-btn:hover{background:var(--accent);color:var(--bg);}
+.empty-search-results{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto;}
+.empty-search-hint{font-size:12px;color:var(--muted);text-align:center;padding:12px 4px;}
+
 /* OVERLAYS */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
 .overlay.open{display:flex;}
@@ -501,19 +513,20 @@ window.searchFriends = async () => {
   if(!q) return;
   document.getElementById('searchResults').innerHTML=`<div class="s-empty">${t('searchLoading')}</div>`;
   const results = await window.searchProfiles(q, 8);
+  window._mainSearchResults = results;
   if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+t('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
       <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn" onclick="window.startChat('${u.id}','${u.name}','${u.color}','${u.text}')">${t('chatBtn')}</button>
+      <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${t('chatBtn')}</button>
     </div>`;
   }).join('');
 };
 
-window.startChat = (id,name,bg,t) => {
+window.startChat = (id,name,bg,textColor) => {
   if(!window._contacts.find(c=>c.id===id))
-    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:t,online:false,preview:t('startChatPreview'),time:'',unread:0});
+    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:textColor,online:false,preview:window.t('startChatPreview'),time:'',unread:0});
   closeSearchPanel();
   selectContact(id);
   renderContacts();
@@ -552,7 +565,7 @@ const langPack = {
     descEnterSend:'اضغط Enter بدل زر الإرسال', langLabel:'اللغة', langDesc:'غيّر لغة التطبيق بالكامل',
     profileEdit:'تعديل الملف الشخصي', profileSave:'حفظ التعديلات', profileClose:'إغلاق', profileLogout:'خروج',
     searchPanelTitle:'🔎 ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
-    searchStart:'ابدأ البحث 👆', searchLoading:'جاري البحث... ⏳', searchEmpty:'مش لاقي حد 🤷',
+    searchStart:'ابدأ البحث 👆', searchLoading:'جاري البحث... ⏳', searchEmpty:'مش لاقي حد 🤷', mainSearchTitle:'ابحث عن شخص وابدأ محادثة', mainSearchPlaceholder:'اكتب الاسم أو الإيميل', mainSearchBtn:'بحث', mainSearchHint:'اكتب اسم الشخص في الحقل بالأعلى',
     chatBtn:'محادثة', startChatPreview:'ابدأ المحادثة...', emptyContacts:'ابحث عن شخص من البحث بالأعلى',
     emptyNoUser:'مش لاقي حد', chooseConv:'🔎 اكتب اسم الشخص في بحث الشريط الجانبي', today:'اليوم', now:'دلوقتي',
     saveNameReq:'اكتب الاسم', saveUserRule:'اليوزرنيم لازم يكون 3-20 حرف/رقم أو _ فقط',
@@ -567,7 +580,7 @@ const langPack = {
     descEnterSend:'Press Enter instead of send button', langLabel:'Language', langDesc:'Change app language',
     profileEdit:'Edit profile', profileSave:'Save Changes', profileClose:'Close', profileLogout:'Logout',
     searchPanelTitle:'🔎 Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
-    searchStart:'Start searching 👆', searchLoading:'Searching... ⏳', searchEmpty:'No users found 🤷',
+    searchStart:'Start searching 👆', searchLoading:'Searching... ⏳', searchEmpty:'No users found 🤷', mainSearchTitle:'Find someone to start chatting', mainSearchPlaceholder:'Type name or email', mainSearchBtn:'Search', mainSearchHint:'Type a name in the field above',
     chatBtn:'Chat', startChatPreview:'Start chatting...', emptyContacts:'Search for people above',
     emptyNoUser:'No users found', chooseConv:'🔎 Type a name in the sidebar search', today:'Today', now:'Now',
     saveNameReq:'Enter your name', saveUserRule:'Username must be 3-20 chars (letters/numbers/_)',
@@ -704,10 +717,50 @@ async function filterContacts(q){
   renderSidebarSearchResults(sidebarSearchResults);
 }
 
+function renderMainSearch(){
+  const el = document.getElementById('messages');
+  el.innerHTML = `
+    <div class="empty-search-wrap">
+      <div class="empty-search-box">
+        <div class="empty-search-title">${t('mainSearchTitle')}</div>
+        <div class="empty-search-row">
+          <input id="mainSearchInput" type="text" placeholder="${t('mainSearchPlaceholder')}" onkeydown="if(event.key==='Enter')searchFromMainArea()" />
+          <button class="empty-search-btn" onclick="searchFromMainArea()">${t('mainSearchBtn')}</button>
+        </div>
+        <div class="empty-search-results" id="mainSearchResults">
+          <div class="empty-search-hint">${t('mainSearchHint')}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+window.searchFromMainArea = async function(){
+  const q = (document.getElementById('mainSearchInput')?.value || '').trim();
+  const out = document.getElementById('mainSearchResults');
+  if(!out) return;
+  if(!q){ out.innerHTML = `<div class="empty-search-hint">${t('mainSearchHint')}</div>`; return; }
+  out.innerHTML = `<div class="empty-search-hint">${t('searchLoading')}</div>`;
+  const results = await window.searchProfiles(q, 8);
+  window._mainSearchResults = results;
+  if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
+  out.innerHTML = results.map(u => `
+    <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
+      <div class="result-info"><div class="result-name">${u.name}</div><div class="result-email">${u.email}</div></div>
+      <button class="add-btn">${t('chatBtn')}</button>
+    </div>`).join('');
+};
+window.startChatFromMain = function(id){
+  const list = window._mainSearchResults || [];
+  const u = list.find(x => x.id === id);
+  if(!u) return;
+  window.startChat(u.id, u.name, u.color, u.text);
+};
+
 // MESSAGES
 function renderMessages(){
   const el=document.getElementById('messages');
-  if(!activeContact){el.innerHTML=`<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;">${t('chooseConv')}</div>`;return;}
+  if(!activeContact){renderMainSearch();return;}
   const msgs=conversations[activeContact.id]||[];
   el.innerHTML=`<div class="date-divider"><div class="date-line"></div><span>${t('today')}</span><div class="date-line"></div></div>`;
   let i=0;
@@ -743,6 +796,13 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
 
 
 
