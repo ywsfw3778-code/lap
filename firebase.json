@@ -10,6 +10,13 @@
       "**/*.bat",
       "**/*.md",
       "**/node_modules/**"
+    ],
+    "redirects": [
+      {
+        "source": "/chat-prototype.html",
+        "destination": "/chat-prototype_1.html",
+        "type": 301
+      }
     ]
   }
 }
