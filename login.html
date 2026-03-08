@@ -81,6 +81,15 @@
     position:fixed;top:18px;left:18px;
     display:flex;gap:7px;z-index:100;
   }
+  .lang-switcher{
+    position:fixed;top:18px;right:18px;z-index:100;display:flex;gap:6px;
+  }
+  .lang-btn{
+    border:1px solid var(--border2);background:var(--surface);color:var(--text);
+    border-radius:8px;padding:5px 9px;font-size:11px;cursor:pointer;
+  }
+  .lang-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
+
   .ts-dot{
     width:22px;height:22px;border-radius:50%;
     cursor:pointer;border:2px solid transparent;
@@ -253,6 +262,11 @@
   <div class="ts-dot ts-cyan" id="dot-cyan" onclick="setTheme('cyan')" title="Cyan"></div>
 </div>
 
+<div class="lang-switcher">
+  <button class="lang-btn active" id="lang-ar" onclick="setLang('ar')">AR</button>
+  <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
+</div>
+
 <!-- CARD -->
 <div class="card">
   <div class="logo-area">
@@ -355,32 +369,100 @@ window.setTheme = function(name){
 }
 const saved = localStorage.getItem('lm-theme')||'amloud';
 window.setTheme(saved);
-/* fix mojibake text */
-function applyArabicText(){
+const i18n = {
+  ar: {
+    title: 'Lab Members - تسجيل الدخول',
+    logoSub: 'Future Gadget Lab - Communication System',
+    welcomeTitle: 'أهلا بك 👋',
+    welcomeSub: 'سجل دخولك عشان تتواصل مع أعضاء المعمل',
+    tabLogin: 'تسجيل الدخول',
+    tabRegister: 'إنشاء حساب',
+    lblEmail: 'الإيميل',
+    lblPass: 'الباسورد',
+    lblName: 'الاسم',
+    phPass: '••••••••',
+    phName: 'اسمك',
+    phRegPass: '8 أحرف على الأقل',
+    btnLogin: 'دخول',
+    btnRegister: 'إنشاء حساب',
+    forgot: 'نسيت الباسورد؟',
+    restore: 'استعادة',
+    terms: 'بالدخول، أنت موافق على شروط الاستخدام وسياسة الخصوصية',
+    errLoginRequired: 'اكتب الإيميل والباسورد',
+    okLogin: '✅ أهلا بك!',
+    errAllFields: 'اكمل كل البيانات',
+    errPassLen: 'الباسورد 8 أحرف على الأقل',
+    okRegister: '✅ تم إنشاء الحساب! افتح إيميلك وأكد التسجيل',
+    errEmailFirst: 'اكتب الإيميل الأول',
+    okReset: '✅ اتبعت رسالة استعادة على إيميلك'
+  },
+  en: {
+    title: 'Lab Members - Login',
+    logoSub: 'Future Gadget Lab - Communication System',
+    welcomeTitle: 'Welcome 👋',
+    welcomeSub: 'Sign in to chat with lab members',
+    tabLogin: 'Login',
+    tabRegister: 'Create Account',
+    lblEmail: 'Email',
+    lblPass: 'Password',
+    lblName: 'Name',
+    phPass: '••••••••',
+    phName: 'Your name',
+    phRegPass: 'At least 8 characters',
+    btnLogin: 'Login',
+    btnRegister: 'Create Account',
+    forgot: 'Forgot password?',
+    restore: 'Reset',
+    terms: 'By continuing, you agree to Terms of Service and Privacy Policy',
+    errLoginRequired: 'Enter email and password',
+    okLogin: '✅ Welcome back!',
+    errAllFields: 'Please fill in all fields',
+    errPassLen: 'Password must be at least 8 characters',
+    okRegister: '✅ Account created! Check your email to confirm',
+    errEmailFirst: 'Enter your email first',
+    okReset: '✅ Recovery email sent'
+  }
+};
+
+let currentLang = localStorage.getItem('lm-lang') || 'ar';
+function tr(key){ return (i18n[currentLang] && i18n[currentLang][key]) || i18n.ar[key] || key; }
+
+window.setLang = function(lang){
+  currentLang = (lang === 'en') ? 'en' : 'ar';
+  localStorage.setItem('lm-lang', currentLang);
+
+  const t = i18n[currentLang];
+  document.title = t.title;
+  document.documentElement.lang = currentLang;
+  document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+
   document.querySelector('.logo-icon').textContent = '🧪';
-  document.querySelector('.logo-sub').textContent = 'Future Gadget Lab - Communication System';
-  document.querySelector('.welcome-title').textContent = 'أهلا بك 👋';
-  document.querySelector('.welcome-sub').textContent = 'سجل دخولك عشان تتواصل مع أعضاء المعمل';
-  document.getElementById('tab-login').textContent = 'تسجيل الدخول';
-  document.getElementById('tab-register').textContent = 'إنشاء حساب';
+  document.querySelector('.logo-sub').textContent = t.logoSub;
+  document.querySelector('.welcome-title').textContent = t.welcomeTitle;
+  document.querySelector('.welcome-sub').textContent = t.welcomeSub;
+  document.getElementById('tab-login').textContent = t.tabLogin;
+  document.getElementById('tab-register').textContent = t.tabRegister;
 
   const labels = document.querySelectorAll('.input-label');
-  labels[0].textContent = 'الإيميل';
-  labels[1].textContent = 'الباسورد';
-  labels[2].textContent = 'الاسم';
-  labels[3].textContent = 'الإيميل';
-  labels[4].textContent = 'الباسورد';
+  labels[0].textContent = t.lblEmail;
+  labels[1].textContent = t.lblPass;
+  labels[2].textContent = t.lblName;
+  labels[3].textContent = t.lblEmail;
+  labels[4].textContent = t.lblPass;
 
-  document.getElementById('loginPass').placeholder = '••••••••';
-  document.getElementById('regName').placeholder = 'اسمك';
-  document.getElementById('regPass').placeholder = '8 أحرف على الأقل';
+  document.getElementById('loginPass').placeholder = t.phPass;
+  document.getElementById('regName').placeholder = t.phName;
+  document.getElementById('regPass').placeholder = t.phRegPass;
 
-  document.querySelector('#loginForm .submit-btn').textContent = 'دخول';
-  document.querySelector('#registerForm .submit-btn').textContent = 'إنشاء حساب';
-  document.querySelector('#loginForm .toggle-form').innerHTML = 'نسيت الباسورد؟ <a onclick="handleReset()">استعادة</a>';
-  document.querySelector('.terms').innerHTML = 'بالدخول، أنت موافق على <a>شروط الاستخدام</a> و<a>سياسة الخصوصية</a>';
-}
-applyArabicText();
+  document.querySelector('#loginForm .submit-btn').textContent = t.btnLogin;
+  document.querySelector('#registerForm .submit-btn').textContent = t.btnRegister;
+  document.querySelector('#loginForm .toggle-form').innerHTML = `${t.forgot} <a onclick="handleReset()">${t.restore}</a>`;
+  document.querySelector('.terms').textContent = t.terms;
+
+  document.getElementById('lang-ar').classList.toggle('active', currentLang === 'ar');
+  document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+};
+window.setLang(currentLang);
 
 /* tabs */
 window.switchTab = function(tab){
@@ -406,13 +488,13 @@ function setLoading(btn, loading, originalHTML){
 window.handleLogin = async function(){
   const email = document.getElementById('loginEmail').value.trim();
   const pass  = document.getElementById('loginPass').value;
-  if(!email||!pass){ showToast('اكتب الإيميل والباسورد','error'); return; }
+  if(!email||!pass){ showToast(tr('errLoginRequired'),'error'); return; }
   const btn = document.querySelector('#loginForm .submit-btn');
   setLoading(btn, true);
   const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
   setLoading(btn, false);
   if(error){ showToast('❌ '+error.message,'error'); return; }
-  showToast('✅ أهلا بك!');
+  showToast(tr('okLogin'));
   setTimeout(()=> window.location.href='chat-prototype_1.html', 1000);
 }
 
@@ -421,23 +503,23 @@ window.handleRegister = async function(){
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass  = document.getElementById('regPass').value;
-  if(!name||!email||!pass){ showToast('اكمل كل البيانات','error'); return; }
-  if(pass.length<8){ showToast('الباسورد 8 أحرف على الأقل','error'); return; }
+  if(!name||!email||!pass){ showToast(tr('errAllFields'),'error'); return; }
+  if(pass.length<8){ showToast(tr('errPassLen'),'error'); return; }
   const btn = document.querySelector('#registerForm .submit-btn');
   setLoading(btn, true);
   const { error } = await supabase.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
   setLoading(btn, false);
   if(error){ showToast('❌ '+error.message,'error'); return; }
-  showToast('✅ تم إنشاء الحساب! افتح إيميلك وأكد التسجيل');
+  showToast(tr('okRegister'));
 }
 
 /* RESET PASSWORD */
 window.handleReset = async function(){
   const email = document.getElementById('loginEmail').value.trim();
-  if(!email){ showToast('اكتب الإيميل الأول','error'); return; }
+  if(!email){ showToast(tr('errEmailFirst'),'error'); return; }
   const { error } = await supabase.auth.resetPasswordForEmail(email);
   if(error){ showToast('❌ '+error.message,'error'); return; }
-  showToast('✅ اتبعت رسالة استعادة على إيميلك');
+  showToast(tr('okReset'));
 }
 
 /* Google â€” Ø´ÙŠÙ„Ù†Ø§ Ø§Ù„Ø²Ø±Ø§Ø± Ù„Ø£Ù†Ù‡ Ø¨ÙŠØ­ØªØ§Ø¬ domain Ù…Ø³Ø¬Ù„ */
@@ -446,5 +528,8 @@ document.querySelector('.divider').style.display='none';
 </script>
 </body>
 </html>
+
+
+
 
 
