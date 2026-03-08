@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lab Members â€” Login</title>
+<title>Lab Members - تسجيل الدخول</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -355,6 +355,32 @@ window.setTheme = function(name){
 }
 const saved = localStorage.getItem('lm-theme')||'amloud';
 window.setTheme(saved);
+/* fix mojibake text */
+function applyArabicText(){
+  document.querySelector('.logo-icon').textContent = '🧪';
+  document.querySelector('.logo-sub').textContent = 'Future Gadget Lab - Communication System';
+  document.querySelector('.welcome-title').textContent = 'أهلا بك 👋';
+  document.querySelector('.welcome-sub').textContent = 'سجل دخولك عشان تتواصل مع أعضاء المعمل';
+  document.getElementById('tab-login').textContent = 'تسجيل الدخول';
+  document.getElementById('tab-register').textContent = 'إنشاء حساب';
+
+  const labels = document.querySelectorAll('.input-label');
+  labels[0].textContent = 'الإيميل';
+  labels[1].textContent = 'الباسورد';
+  labels[2].textContent = 'الاسم';
+  labels[3].textContent = 'الإيميل';
+  labels[4].textContent = 'الباسورد';
+
+  document.getElementById('loginPass').placeholder = '••••••••';
+  document.getElementById('regName').placeholder = 'اسمك';
+  document.getElementById('regPass').placeholder = '8 أحرف على الأقل';
+
+  document.querySelector('#loginForm .submit-btn').textContent = 'دخول';
+  document.querySelector('#registerForm .submit-btn').textContent = 'إنشاء حساب';
+  document.querySelector('#loginForm .toggle-form').innerHTML = 'نسيت الباسورد؟ <a onclick="handleReset()">استعادة</a>';
+  document.querySelector('.terms').innerHTML = 'بالدخول، أنت موافق على <a>شروط الاستخدام</a> و<a>سياسة الخصوصية</a>';
+}
+applyArabicText();
 
 /* tabs */
 window.switchTab = function(tab){
@@ -380,13 +406,13 @@ function setLoading(btn, loading, originalHTML){
 window.handleLogin = async function(){
   const email = document.getElementById('loginEmail').value.trim();
   const pass  = document.getElementById('loginPass').value;
-  if(!email||!pass){ showToast('Ø§ÙƒØªØ¨ Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„ ÙˆØ§Ù„Ø¨Ø§Ø³ÙˆØ±Ø¯','error'); return; }
+  if(!email||!pass){ showToast('اكتب الإيميل والباسورد','error'); return; }
   const btn = document.querySelector('#loginForm .submit-btn');
   setLoading(btn, true);
   const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
   setLoading(btn, false);
-  if(error){ showToast('âŒ '+error.message,'error'); return; }
-  showToast('âœ… Ø£Ù‡Ù„Ø§Ù‹ Ø¨ÙŠÙƒ!');
+  if(error){ showToast('❌ '+error.message,'error'); return; }
+  showToast('✅ أهلا بك!');
   setTimeout(()=> window.location.href='chat-prototype_1.html', 1000);
 }
 
@@ -395,23 +421,23 @@ window.handleRegister = async function(){
   const name  = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const pass  = document.getElementById('regPass').value;
-  if(!name||!email||!pass){ showToast('Ø§ÙƒÙ…Ù„ ÙƒÙ„ Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª','error'); return; }
-  if(pass.length<8){ showToast('Ø§Ù„Ø¨Ø§Ø³ÙˆØ±Ø¯ 8 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„','error'); return; }
+  if(!name||!email||!pass){ showToast('اكمل كل البيانات','error'); return; }
+  if(pass.length<8){ showToast('الباسورد 8 أحرف على الأقل','error'); return; }
   const btn = document.querySelector('#registerForm .submit-btn');
   setLoading(btn, true);
   const { error } = await supabase.auth.signUp({ email, password: pass, options:{ data:{ full_name: name } } });
   setLoading(btn, false);
-  if(error){ showToast('âŒ '+error.message,'error'); return; }
-  showToast('âœ… ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨! Ø§ÙØªØ­ Ø¥ÙŠÙ…ÙŠÙ„Ùƒ ÙˆØ£ÙƒØ¯ Ø§Ù„ØªØ³Ø¬ÙŠÙ„');
+  if(error){ showToast('❌ '+error.message,'error'); return; }
+  showToast('✅ تم إنشاء الحساب! افتح إيميلك وأكد التسجيل');
 }
 
 /* RESET PASSWORD */
 window.handleReset = async function(){
   const email = document.getElementById('loginEmail').value.trim();
-  if(!email){ showToast('Ø§ÙƒØªØ¨ Ø§Ù„Ø¥ÙŠÙ…ÙŠÙ„ Ø§Ù„Ø£ÙˆÙ„','error'); return; }
+  if(!email){ showToast('اكتب الإيميل الأول','error'); return; }
   const { error } = await supabase.auth.resetPasswordForEmail(email);
-  if(error){ showToast('âŒ '+error.message,'error'); return; }
-  showToast('âœ… Ø§ØªØ¨Ø¹Øª Ø±Ø³Ø§Ù„Ø© Ø§Ø³ØªØ¹Ø§Ø¯Ø© Ø¹Ù„Ù‰ Ø¥ÙŠÙ…ÙŠÙ„Ùƒ');
+  if(error){ showToast('❌ '+error.message,'error'); return; }
+  showToast('✅ اتبعت رسالة استعادة على إيميلك');
 }
 
 /* Google â€” Ø´ÙŠÙ„Ù†Ø§ Ø§Ù„Ø²Ø±Ø§Ø± Ù„Ø£Ù†Ù‡ Ø¨ÙŠØ­ØªØ§Ø¬ domain Ù…Ø³Ø¬Ù„ */
@@ -420,3 +446,5 @@ document.querySelector('.divider').style.display='none';
 </script>
 </body>
 </html>
+
+
