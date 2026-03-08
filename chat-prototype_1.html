@@ -81,13 +81,16 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .chat-actions{display:flex;gap:7px;}
 .mobile-back{display:none;}
 .messages{
-  flex:1;
-  overflow-y:auto;
-  padding:20px;
-  display:flex;
-  flex-direction:column;
-  gap:7px;
-  background:var(--bg);
+flex:1;
+overflow-y:auto;
+padding:20px;
+display:flex;
+flex-direction:column;
+gap:7px;
+background:var(--bg);
+
+max-width:900px;
+margin:auto;
 }
 .messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
 .date-divider{display:flex;align-items:center;gap:10px;margin:6px 0;}
@@ -928,7 +931,7 @@ async function loadMessagesForContact(contactId){
 
   const rows = (data || []).map(m => ({
     out: m.sender_id === currentUser.id,
-    text: m.body || m.content || m.text || m.message || '',
+    text: (m.body || m.content || m.text || m.message || '').replace(/\n/g, ' ').trim(),
     time: formatChatTime(m.created_at),
     read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
   }));
