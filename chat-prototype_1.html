@@ -18,6 +18,8 @@ body.theme-steins{--bg:#020c02;--sidebar:#030f03;--surface:#051405;--surface2:#0
 body.theme-crimson{--bg:#0f0608;--sidebar:#140709;--surface:#1a080b;--surface2:#220c10;--border:#ff173515;--border2:#ff173525;--accent:#ff1735;--accent2:#ff6b7a;--accent-glow:#ff173533;--text:#ffd6da;--muted:#6b3a3e;--online:#ff6b7a;--msg-out:#1a0509;--msg-in:#110407;--logo-font:'Outfit',sans-serif;--crt:none;}
 body.theme-amber{--bg:#0d0900;--sidebar:#120c00;--surface:#181000;--surface2:#201500;--border:#ffb30015;--border2:#ffb30025;--accent:#ffb300;--accent2:#ffd54f;--accent-glow:#ffb30033;--text:#fff3cc;--muted:#6b5200;--online:#ffd54f;--msg-out:#1a1000;--msg-in:#100900;--logo-font:'Outfit',sans-serif;--crt:none;}
 body.theme-cyan{--bg:#00080f;--sidebar:#000d14;--surface:#001219;--surface2:#001a24;--border:#00d4ff15;--border2:#00d4ff25;--accent:#00d4ff;--accent2:#67e8f9;--accent-glow:#00d4ff33;--text:#ccf5ff;--muted:#1a5566;--online:#00d4ff;--msg-out:#001a22;--msg-in:#001018;--logo-font:'Share Tech Mono',monospace;--crt:none;}
+body.theme-white{--bg:#f5f7fb;--sidebar:#ffffff;--surface:#f0f3fa;--surface2:#e6ebf6;--border:#1f29370f;--border2:#1f293726;--accent:#2563eb;--accent2:#4f46e5;--accent-glow:#2563eb22;--text:#0f172a;--muted:#64748b;--online:#10b981;--msg-out:#dbeafe;--msg-in:#eef2ff;--logo-font:'Outfit',sans-serif;--crt:none;}
+body.theme-black{--bg:#050505;--sidebar:#0b0b0b;--surface:#111111;--surface2:#181818;--border:#ffffff12;--border2:#ffffff1f;--accent:#f1f5f9;--accent2:#d4d4d8;--accent-glow:#ffffff1f;--text:#f5f5f5;--muted:#a1a1aa;--online:#22c55e;--msg-out:#1f1f1f;--msg-in:#141414;--logo-font:'Share Tech Mono',monospace;--crt:none;}
 
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;position:relative;transition:background .3s,color .3s;}
@@ -154,6 +156,8 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 #tc-crimson .tp-s{background:#140709;} #tc-crimson .tp-m{background:#0f0608;} #tc-crimson .tp-b{background:#ff1735;width:40%;}
 #tc-amber .tp-s{background:#120c00;} #tc-amber .tp-m{background:#0d0900;} #tc-amber .tp-b{background:#ffb300;width:45%;}
 #tc-cyan .tp-s{background:#000d14;} #tc-cyan .tp-m{background:#00080f;} #tc-cyan .tp-b{background:#00d4ff;width:43%;}
+#tc-white .tp-s{background:#ffffff;} #tc-white .tp-m{background:#f5f7fb;} #tc-white .tp-b{background:#2563eb;width:42%;}
+#tc-black .tp-s{background:#0b0b0b;} #tc-black .tp-m{background:#050505;} #tc-black .tp-b{background:#f1f5f9;width:42%;}
 .theme-name{font-size:13px;font-weight:600;color:var(--text);}
 .theme-desc{font-size:11px;color:var(--muted);margin-top:2px;}
 .divider{height:1px;background:var(--border);margin:4px 0 18px;}
@@ -296,6 +300,14 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
       <div class="theme-card" id="tc-cyan" onclick="setTheme('cyan')">
         <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
         <div class="theme-name">Cyan 🔵</div><div class="theme-desc">سماوي تيك</div>
+      </div>
+      <div class="theme-card" id="tc-white" onclick="setTheme('white')">
+        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+        <div class="theme-name">White ⚪</div><div class="theme-desc">فاتح ونظيف</div>
+      </div>
+      <div class="theme-card" id="tc-black" onclick="setTheme('black')">
+        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+        <div class="theme-name">Black ⚫</div><div class="theme-desc">أسود أحادي</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -642,6 +654,10 @@ function applyLanguage(){
   const tdAm = qs('#tc-amber .theme-desc'); if(tdAm) tdAm.textContent = appLang === 'ar' ? 'ذهبي دافئ' : 'Warm Gold';
   const tcCy = qs('#tc-cyan .theme-name'); if(tcCy) tcCy.textContent = 'Cyan 🔵';
   const tdCy = qs('#tc-cyan .theme-desc'); if(tdCy) tdCy.textContent = appLang === 'ar' ? 'سماوي تيك' : 'Tech Cyan';
+  const tcW = qs('#tc-white .theme-name'); if(tcW) tcW.textContent = 'White ⚪';
+  const tdW = qs('#tc-white .theme-desc'); if(tdW) tdW.textContent = appLang === 'ar' ? 'فاتح ونظيف' : 'Light & Clean';
+  const tcB = qs('#tc-black .theme-name'); if(tcB) tcB.textContent = 'Black ⚫';
+  const tdB = qs('#tc-black .theme-desc'); if(tdB) tdB.textContent = appLang === 'ar' ? 'أسود أحادي' : 'Monochrome Black';
   const profileRows = document.querySelectorAll('#profileOverlay .profile-row span:last-child');
   if(profileRows[2]) profileRows[2].textContent = t('online');
   if(profileRows[3]) profileRows[3].textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
@@ -797,6 +813,11 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
+
 
 
 
