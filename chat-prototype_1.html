@@ -168,6 +168,11 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .pbtn:hover{border-color:var(--accent);color:var(--accent);}
 .pbtn.danger{border-color:#ff444433;color:#ff6666;}
 .pbtn.danger:hover{background:#ff444422;border-color:#ff4444;}
+.profile-edit{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+.profile-edit-label{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.profile-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:8px;direction:ltr;}
+.profile-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+.profile-hint{font-size:11px;color:var(--muted);margin:2px 0 10px;}
 
 /* FRIEND SEARCH */
 .search-input-wrap{display:flex;gap:8px;margin-bottom:14px;}
@@ -304,6 +309,14 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
       <div class="profile-pname" id="profileName">â€”</div>
       <div class="profile-pemail" id="profileEmail">â€”</div>
       <div class="profile-row"><span class="picon">ðŸ“§</span><span id="profileEmail2">â€”</span></div>
+      <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
+      <div class="profile-edit">
+        <div class="profile-edit-label">Edit profile</div>
+        <input class="profile-input" id="editName" type="text" placeholder="Name" />
+        <input class="profile-input" id="editUsername" type="text" placeholder="username" />
+        <div class="profile-hint" id="usernameHint">username: 3-20 chars (letters/numbers/_), unique</div>
+        <button class="pbtn" id="saveProfileBtn" onclick="saveProfile()">Save Changes</button>
+      </div>
       <div class="profile-row"><span class="picon">ðŸŸ¢</span><span>Ù…ØªØµÙ„ Ø§Ù„Ø¢Ù†</span></div>
       <div class="profile-row"><span class="picon">ðŸ§ª</span><span>Lab Member</span></div>
       <div class="profile-acts">
@@ -346,17 +359,103 @@ const { data:{ session } } = await sb.auth.getSession();
 if(!session){ window.location.href='login.html'; throw 0; }
 
 const me = session.user;
-const myName = me.user_metadata?.full_name || me.email.split('@')[0];
+let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
-const myInit = myName.charAt(0).toUpperCase();
+let myUsername = (me.user_metadata?.username || '').toLowerCase();
 
-document.getElementById('myAvatar').textContent = myInit;
-document.getElementById('myName').textContent = myName;
-document.getElementById('myEmail').textContent = myEmail;
-document.getElementById('profileAv').textContent = myInit;
-document.getElementById('profileName').textContent = myName;
-document.getElementById('profileEmail').textContent = myEmail;
-document.getElementById('profileEmail2').textContent = myEmail;
+function toast(msg, type='success'){
+  if(typeof window.showToast === 'function') window.showToast(msg, type);
+  else console.log(msg);
+}
+
+function normalizeUsername(v){
+  return (v || '').trim().toLowerCase().replace(/^@+/, '');
+}
+
+function applyMyProfileUI(){
+  const init = (myName || '?').charAt(0).toUpperCase();
+  document.getElementById('myAvatar').textContent = init;
+  document.getElementById('myName').textContent = myName;
+  document.getElementById('myEmail').textContent = myEmail;
+  document.getElementById('profileAv').textContent = init;
+  document.getElementById('profileName').textContent = myName;
+  document.getElementById('profileEmail').textContent = myEmail;
+  document.getElementById('profileEmail2').textContent = myEmail;
+  document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
+  document.getElementById('editName').value = myName;
+  document.getElementById('editUsername').value = myUsername;
+}
+
+async function loadMyProfile(){
+  const { data, error } = await sb
+    .from('profiles')
+    .select('full_name,username,email')
+    .eq('id', me.id)
+    .maybeSingle();
+  if(!error && data){
+    if(data.full_name) myName = data.full_name;
+    if(data.username) myUsername = String(data.username).toLowerCase();
+  }
+  applyMyProfileUI();
+}
+
+window.saveProfile = async () => {
+  const btn = document.getElementById('saveProfileBtn');
+  const name = document.getElementById('editName').value.trim();
+  const username = normalizeUsername(document.getElementById('editUsername').value);
+  if(!name){ toast('اكتب الاسم', 'error'); return; }
+  if(!/^[a-z0-9_]{3,20}$/.test(username)){
+    toast('اليوزرنيم لازم يكون 3-20 حرف/رقم أو _ فقط', 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const { data: taken, error: takenErr } = await sb
+    .from('profiles')
+    .select('id')
+    .eq('username', username)
+    .neq('id', me.id)
+    .limit(1);
+  if(takenErr){
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+    toast('❌ '+takenErr.message, 'error');
+    return;
+  }
+  if(taken && taken.length){
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+    toast('اليوزرنيم مستخدم بالفعل، اختر واحد مختلف', 'error');
+    return;
+  }
+
+  const { error: updErr } = await sb
+    .from('profiles')
+    .update({ full_name: name, username })
+    .eq('id', me.id);
+
+  btn.disabled = false;
+  btn.textContent = 'Save Changes';
+
+  if(updErr){
+    if(String(updErr.message || '').toLowerCase().includes('username')){
+      toast('❌ عمود username غير موجود في profiles. أضفه في Supabase أولاً.', 'error');
+    } else {
+      toast('❌ '+updErr.message, 'error');
+    }
+    return;
+  }
+
+  await sb.auth.updateUser({ data: { full_name: name, username } });
+  myName = name;
+  myUsername = username;
+  applyMyProfileUI();
+  toast('✅ تم حفظ البيانات');
+};
+
+await loadMyProfile();
 
 window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
 
@@ -525,6 +624,12 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
+
+
+
+
+
+
 
 
 
