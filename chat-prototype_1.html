@@ -854,9 +854,31 @@ async function queryProfilesForSearch(query, limit){
   ];
   for(const run of attempts){
     const res = await run();
-    if(!res.error) return res.data || [];
+    if(!res.error && (res.data || []).length) return res.data || [];
   }
-  return [];
+
+  const broadAttempts = [
+    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(Math.max(limit * 8, 50)),
+    () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(Math.max(limit * 8, 50)),
+    () => sb.from('profiles').select('id,username').neq('id', me.id).limit(Math.max(limit * 8, 50))
+  ];
+
+  let broadData = [];
+  for(const run of broadAttempts){
+    const res = await run();
+    if(!res.error){
+      broadData = res.data || [];
+      if(broadData.length) break;
+    }
+  }
+
+  const q = String(query || '').toLowerCase();
+  return broadData.filter((u) => {
+    const username = String(u.username || '').toLowerCase();
+    const fullName = String(u.full_name || '').toLowerCase();
+    const email = String(u.email || '').toLowerCase();
+    return username.includes(q) || fullName.includes(q) || email.includes(q);
+  }).slice(0, limit);
 }
 
 async function queryProfilesByIds(ids){
@@ -1614,7 +1636,13 @@ async function filterContacts(q){
     const enriched = localMatches.concat(mergedRemote.map(u => ({
       id:u.id,name:u.name,init:u.init,color:u.color,text:u.text,avatar:u.avatar || '',online:false,preview:u.email,time:'',unread:0
     })));
+    sidebarSearchResults = mergedRemote;
     renderContacts(enriched);
+    return;
+  }
+
+  if(!remote.length){
+    renderContacts([]);
     return;
   }
 
@@ -1853,8 +1881,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
 
 
 
