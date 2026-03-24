@@ -130,9 +130,9 @@ background:var(--bg);
   overflow-wrap:break-word;
 }
 .voice-bubble{
-  width:auto;
-  min-width:240px;
-  max-width:min(360px, 78vw);
+  width:min(320px, 100%);
+  min-width:220px;
+  max-width:320px;
   padding:10px 12px;
   background:
     radial-gradient(circle at top right, var(--accent-glow), transparent 48%),
@@ -144,7 +144,7 @@ background:var(--bg);
   display:grid;
   grid-template-columns:auto minmax(0,1fr) auto;
   align-items:center;
-  gap:10px;
+  gap:8px;
   direction:ltr;
   width:100%;
   min-width:0;
@@ -175,45 +175,49 @@ background:var(--bg);
 .voice-track{
   position:relative;
   min-width:0;
-  height:36px;
-  display:flex;
+  height:40px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
   align-items:center;
-  padding:0 10px;
-  border-radius:999px;
+  gap:10px;
+  padding:0 12px;
+  border-radius:16px;
   background:color-mix(in srgb, var(--surface) 82%, transparent 18%);
   border:1px solid color-mix(in srgb, var(--border2) 72%, var(--accent) 28%);
   overflow:hidden;
 }
 .voice-wave{
   position:relative;
-  flex:1;
   min-width:0;
-  height:26px;
+  height:22px;
   display:flex;
   align-items:center;
-  gap:3px;
+  justify-content:space-between;
+  gap:2px;
   padding:0 2px;
   overflow:hidden;
 }
+.voice-wave::before{
+  content:'';
+  position:absolute;
+  left:0;
+  right:0;
+  top:50%;
+  height:2px;
+  transform:translateY(-50%);
+  background:color-mix(in srgb, var(--border2) 68%, transparent 32%);
+  border-radius:999px;
+}
 .voice-wave span{
-  width:4px;
+  position:relative;
+  z-index:1;
+  width:3px;
+  min-width:3px;
   border-radius:99px;
   background:color-mix(in srgb, var(--accent) 38%, var(--text) 62%);
   opacity:.38;
   transition:opacity .18s ease, background .18s ease, transform .18s ease;
 }
-.voice-wave span:nth-child(1){height:10px;}
-.voice-wave span:nth-child(2){height:14px;}
-.voice-wave span:nth-child(3){height:18px;}
-.voice-wave span:nth-child(4){height:12px;}
-.voice-wave span:nth-child(5){height:20px;}
-.voice-wave span:nth-child(6){height:9px;}
-.voice-wave span:nth-child(7){height:16px;}
-.voice-wave span:nth-child(8){height:11px;}
-.voice-wave span:nth-child(9){height:17px;}
-.voice-wave span:nth-child(10){height:13px;}
-.voice-wave span:nth-child(11){height:19px;}
-.voice-wave span:nth-child(12){height:10px;}
 .voice-progress{
   position:absolute;
   inset:0 auto 0 0;
@@ -221,22 +225,28 @@ background:var(--bg);
   overflow:hidden;
   display:flex;
   align-items:center;
-  gap:3px;
+  justify-content:space-between;
+  gap:2px;
+  padding:0 2px;
   pointer-events:none;
 }
 .voice-progress span{
-  width:4px;
+  position:relative;
+  z-index:1;
+  width:3px;
+  min-width:3px;
   border-radius:99px;
   background:var(--accent);
   opacity:.95;
 }
 .voice-time{
-  min-width:44px;
-  font-size:11px;
+  min-width:38px;
+  font-size:10px;
   color:var(--text);
   opacity:.78;
   text-align:right;
   font-variant-numeric:tabular-nums;
+  white-space:nowrap;
 }
 .voice-player.playing .voice-wave span{
   animation:voiceWavePulse 1s ease-in-out infinite;
@@ -402,11 +412,11 @@ background:var(--bg);
   .msg-content{max-width:86%;width:auto;}
   .bubble{max-width:100%;font-size:12px;padding:8px 10px;}
   .voice-bubble{
-    min-width:200px;
+    min-width:210px;
     max-width:min(300px, 100%);
   }
   .voice-play{width:34px;height:34px;font-size:13px;}
-  .voice-track{height:34px;padding:0 8px;}
+  .voice-track{height:36px;padding:0 10px;gap:8px;}
   .voice-time{min-width:40px;font-size:10px;}
   .input-area{padding:8px 10px;gap:6px;}
   .input-wrap{padding:5px 8px;}
@@ -1324,6 +1334,7 @@ function formatVoiceDuration(seconds){
 }
 
 function createVoicePlayer(audioUrl){
+  const waveHeights = [10, 14, 18, 12, 20, 9, 16, 11, 17, 13, 19, 10, 15, 8, 18, 12, 16, 11];
   const wrap = document.createElement('div');
   wrap.className = 'voice-player';
 
@@ -1341,9 +1352,11 @@ function createVoicePlayer(audioUrl){
   const progress = document.createElement('div');
   progress.className = 'voice-progress';
 
-  for(let i = 0; i < 12; i++){
+  for(let i = 0; i < waveHeights.length; i++){
     const bar = document.createElement('span');
     const fill = document.createElement('span');
+    bar.style.height = `${waveHeights[i]}px`;
+    fill.style.height = `${waveHeights[i]}px`;
     wave.appendChild(bar);
     progress.appendChild(fill);
   }
@@ -1357,16 +1370,6 @@ function createVoicePlayer(audioUrl){
   audio.preload = 'metadata';
   audio.src = audioUrl;
 
-  const applyVoiceWidth = () => {
-    const duration = audio.duration || 0;
-    let width = 240;
-    if(duration >= 15) width = 270;
-    if(duration >= 35) width = 300;
-    if(duration >= 70) width = 330;
-    if(duration >= 120) width = 350;
-    wrap.style.width = `min(${width}px, 100%)`;
-  };
-
   const syncProgress = () => {
     const duration = audio.duration || 0;
     const current = audio.currentTime || 0;
@@ -1376,7 +1379,6 @@ function createVoicePlayer(audioUrl){
   };
 
   audio.addEventListener('loadedmetadata', () => {
-    applyVoiceWidth();
     time.textContent = formatVoiceDuration(audio.duration || 0);
   });
   audio.addEventListener('timeupdate', syncProgress);
@@ -1969,8 +1971,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
 
 
 
