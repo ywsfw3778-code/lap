@@ -1327,12 +1327,14 @@ function hydrateStoredState(parsed){
     Object.keys(parsed.conversations).forEach((chatId) => {
       if(!Array.isArray(parsed.conversations[chatId])) return;
       const compactRows = parsed.conversations[chatId].map((msg) => ({
+        id: msg.id || '',
         out: !!msg.out,
         text: msg.text || '',
         time: msg.time || '',
         dayKey: msg.dayKey || '',
         dayLabel: msg.dayLabel || '',
-        read: !!msg.read
+        read: !!msg.read,
+        createdAt: msg.createdAt || ''
       }));
       if(!conversations[chatId] || !conversations[chatId].length){
         conversations[chatId] = compactRows;
@@ -1394,12 +1396,14 @@ function compactConversationsForStorage(source){
   Object.keys(source || {}).forEach((chatId) => {
     if(!Array.isArray(source[chatId])) return;
     out[chatId] = source[chatId].slice(-40).map((msg) => ({
+      id: msg.id || '',
       out: !!msg.out,
       text: msg.text || '',
       time: msg.time || '',
       dayKey: msg.dayKey || '',
       dayLabel: msg.dayLabel || '',
-      read: !!msg.read
+      read: !!msg.read,
+      createdAt: msg.createdAt || ''
     }));
   });
   return out;
