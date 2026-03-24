@@ -283,6 +283,24 @@ background:var(--bg);
 .voice-btn:hover{border-color:#ef4444;color:#ef4444;}
 .voice-btn.recording{background:#ef444422;border-color:#ef4444;color:#ef4444;animation:recPulse 1s infinite;}
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 #ef444444;}50%{box-shadow:0 0 0 6px #ef444400;}}
+.input-area.recording-mode .input-wrap,
+.input-area.recording-mode .voice-btn,
+.input-area.recording-mode .send-btn{display:none;}
+.record-panel{display:none;align-items:center;gap:10px;flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:16px;padding:8px 10px;box-shadow:0 0 0 3px var(--accent-glow);}
+.input-area.recording-mode .record-panel{display:flex;animation:slideIn .18s ease;}
+.record-action{width:38px;height:38px;border-radius:12px;border:1px solid var(--border2);background:var(--surface);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;transition:all .18s ease;}
+.record-action.delete:hover{border-color:#ef4444;color:#ef4444;background:#ef444411;}
+.record-action.send:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow);}
+.record-visual{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.record-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;}
+.record-live{display:flex;align-items:center;gap:8px;color:var(--text);}
+.record-dot{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef444488;animation:recordBlink 1s ease-in-out infinite;}
+.record-status{font-size:11px;color:var(--muted);}
+.record-time{font-variant-numeric:tabular-nums;font-size:12px;}
+.record-bars{height:28px;display:flex;align-items:flex-end;gap:3px;padding:0 2px;}
+.record-bars span{flex:1;min-width:4px;height:8px;border-radius:999px;background:color-mix(in srgb, var(--accent) 40%, var(--text) 60%);transition:height .08s linear, opacity .08s linear, background .18s ease;opacity:.75;}
+.recording-mode .record-bars span.active{background:var(--accent);opacity:1;}
+@keyframes recordBlink{0%,100%{opacity:1;}50%{opacity:.35;}}
 .no-active-chat .chat-header,
 .no-active-chat .input-area{display:none;}
 .typing{display:flex;align-items:center;gap:4px;padding:9px 13px;background:var(--msg-in);border:1px solid var(--border2);border-radius:16px;width:fit-content;animation:slideIn .2s ease;}
@@ -421,6 +439,9 @@ background:var(--bg);
   .input-area{padding:8px 10px;gap:6px;}
   .input-wrap{padding:5px 8px;}
   .send-btn{width:36px;height:36px;}
+  .record-panel{padding:7px 8px;gap:8px;}
+  .record-action{width:34px;height:34px;border-radius:10px;font-size:14px;}
+  .record-bars{height:24px;gap:2px;}
   .icon-btn{width:28px;height:28px;}
   .empty-search-wrap{padding:10px;}
   .empty-search-box{padding:12px;border-radius:12px;}
@@ -495,6 +516,20 @@ background:var(--bg);
       <button class="emoji-btn" onclick="addEmoji()">😊</button>
       <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
       <button class="attach-btn">📎</button>
+    </div>
+    <div class="record-panel" id="recordPanel">
+      <button class="record-action delete" type="button" onclick="discardRecording()" title="حذف">🗑</button>
+      <div class="record-visual">
+        <div class="record-head">
+          <div class="record-live">
+            <span class="record-dot"></span>
+            <span class="record-time" id="recordTime">0:00</span>
+          </div>
+          <div class="record-status" id="recordStatus">Recording...</div>
+        </div>
+        <div class="record-bars" id="recordBars"></div>
+      </div>
+      <button class="record-action send" type="button" onclick="finishRecording()" title="إرسال">➤</button>
     </div>
     <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="تسجيل صوتي">🎤</button>
     <button class="send-btn" onclick="sendMessage()">➤</button>
@@ -1214,6 +1249,7 @@ function applyLanguage(){
   const searchSub = qs('#searchOverlay .panel-sub'); if(searchSub) searchSub.textContent = t('searchPanelSub');
   const searchGo = qs('#searchOverlay .search-go'); if(searchGo) searchGo.textContent = t('searchBtn');
   const searchStart = qs('#searchResults .s-empty'); if(searchStart) searchStart.textContent = t('searchStart');
+  const recordStatus = byId('recordStatus'); if(recordStatus) recordStatus.textContent = appLang === 'ar' ? 'جارِ التسجيل...' : 'Recording...';
   const tcA = qs('#tc-amloud .theme-name'); if(tcA) tcA.textContent = 'Amloud 🌑';
   const tdA = qs('#tc-amloud .theme-desc'); if(tdA) tdA.textContent = appLang === 'ar' ? 'أسود + كحلي' : 'Black + Navy';
   const tcS = qs('#tc-steins .theme-name'); if(tcS) tcS.textContent = 'Steins;Gate 📟';
@@ -1886,38 +1922,161 @@ let mediaRecorder = null;
 let audioChunks = [];
 let recordingTimer = null;
 let recordingSeconds = 0;
+let recordingStream = null;
+let recordingCancelled = false;
+let recordingAnalyser = null;
+let recordingAudioContext = null;
+let recordingAnimationFrame = null;
+
+function formatRecordingTime(totalSeconds){
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = String(totalSeconds % 60).padStart(2, '0');
+  return `${mins}:${secs}`;
+}
+
+function ensureRecordingBars(){
+  const barsWrap = document.getElementById('recordBars');
+  if(!barsWrap || barsWrap.children.length) return;
+  for(let i = 0; i < 22; i++){
+    const bar = document.createElement('span');
+    bar.style.height = `${8 + (i % 5) * 2}px`;
+    barsWrap.appendChild(bar);
+  }
+}
+
+function setRecordingMode(isOn){
+  const area = document.querySelector('.input-area');
+  if(area) area.classList.toggle('recording-mode', !!isOn);
+  const status = document.getElementById('recordStatus');
+  if(status) status.textContent = isOn ? 'Recording...' : '';
+}
+
+function resetRecordingVisualizer(){
+  const bars = document.querySelectorAll('#recordBars span');
+  bars.forEach((bar, index) => {
+    bar.classList.remove('active');
+    bar.style.height = `${8 + (index % 5) * 2}px`;
+  });
+  const timer = document.getElementById('recordTime');
+  if(timer) timer.textContent = '0:00';
+}
+
+function stopRecordingVisualizer(){
+  if(recordingAnimationFrame){
+    cancelAnimationFrame(recordingAnimationFrame);
+    recordingAnimationFrame = null;
+  }
+  if(recordingAudioContext){
+    try { recordingAudioContext.close(); } catch(_e){}
+    recordingAudioContext = null;
+  }
+  recordingAnalyser = null;
+}
+
+function startRecordingVisualizer(stream){
+  ensureRecordingBars();
+  const bars = Array.from(document.querySelectorAll('#recordBars span'));
+  if(!bars.length) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if(!AudioCtx) return;
+  recordingAudioContext = new AudioCtx();
+  const source = recordingAudioContext.createMediaStreamSource(stream);
+  recordingAnalyser = recordingAudioContext.createAnalyser();
+  recordingAnalyser.fftSize = 64;
+  source.connect(recordingAnalyser);
+  const dataArray = new Uint8Array(recordingAnalyser.frequencyBinCount);
+
+  const draw = () => {
+    if(!recordingAnalyser) return;
+    recordingAnalyser.getByteFrequencyData(dataArray);
+    const activeCount = Math.max(1, Math.round((dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255) * bars.length));
+    bars.forEach((bar, index) => {
+      const value = dataArray[index % dataArray.length] || 0;
+      const height = Math.max(8, Math.min(28, 8 + Math.round((value / 255) * 20)));
+      bar.style.height = `${height}px`;
+      bar.classList.toggle('active', index < activeCount);
+    });
+    recordingAnimationFrame = requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+function clearRecordingState(){
+  if(recordingTimer){
+    clearInterval(recordingTimer);
+    recordingTimer = null;
+  }
+  stopRecordingVisualizer();
+  if(recordingStream){
+    recordingStream.getTracks().forEach(t => t.stop());
+    recordingStream = null;
+  }
+  mediaRecorder = null;
+  audioChunks = [];
+  recordingSeconds = 0;
+  setRecordingMode(false);
+  resetRecordingVisualizer();
+  const btn = document.getElementById('voiceBtn');
+  if(btn){
+    btn.classList.remove('recording');
+    btn.textContent = '🎤';
+  }
+}
 
 async function toggleRecording(){
   const btn = document.getElementById('voiceBtn');
   if(mediaRecorder && mediaRecorder.state === 'recording'){
-    mediaRecorder.stop();
+    finishRecording();
     return;
   }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    recordingStream = stream;
+    recordingCancelled = false;
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
     mediaRecorder.onstop = async () => {
-      clearInterval(recordingTimer);
-      btn.classList.remove('recording');
-      btn.textContent = '🎤';
-      stream.getTracks().forEach(t => t.stop());
+      const shouldSend = !recordingCancelled;
       const blob = new Blob(audioChunks, {type:'audio/webm'});
-      await sendVoiceMessage(blob);
+      clearRecordingState();
+      if(shouldSend && blob.size){
+        await sendVoiceMessage(blob);
+      }
     };
     mediaRecorder.start();
+    setRecordingMode(true);
+    startRecordingVisualizer(stream);
     btn.classList.add('recording');
     btn.textContent = '⏹️';
     recordingSeconds = 0;
+    const timer = document.getElementById('recordTime');
+    if(timer) timer.textContent = '0:00';
     recordingTimer = setInterval(() => {
       recordingSeconds++;
-      if(recordingSeconds >= 60) mediaRecorder.stop();
+      if(timer) timer.textContent = formatRecordingTime(recordingSeconds);
+      if(recordingSeconds >= 60) finishRecording();
     }, 1000);
   } catch(err) {
     alert('مش قادر يوصل للميكروفون 🎤');
   }
 }
+
+window.finishRecording = function(){
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    recordingCancelled = false;
+    mediaRecorder.stop();
+  }
+};
+
+window.discardRecording = function(){
+  if(mediaRecorder && mediaRecorder.state === 'recording'){
+    recordingCancelled = true;
+    mediaRecorder.stop();
+    return;
+  }
+  clearRecordingState();
+};
 
 async function sendVoiceMessage(blob){
   const sbClient = getSbClient();
@@ -1953,6 +2112,8 @@ window.onMemberCodesUpdated = function(){
 
 window.onAuthReady = function(){
   if(typeof window.loadMemberCodes === 'function') window.loadMemberCodes();
+  ensureRecordingBars();
+  resetRecordingVisualizer();
   loadLocalChatState();
   refreshProfilesDirectory();
   loadInboxContacts();
@@ -1984,11 +2145,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
-
 
 
 
