@@ -122,12 +122,100 @@ background:var(--bg);
 .voice-bubble{
   width:min(320px, 72vw);
   min-width:220px;
-  padding:8px 10px;
+  padding:10px 12px;
   background:
-    linear-gradient(135deg, var(--accent-glow), transparent 65%),
-    var(--surface2);
-  border:1px solid var(--accent);
-  box-shadow:0 0 16px var(--accent-glow), inset 0 1px 0 #ffffff12;
+    radial-gradient(circle at top right, var(--accent-glow), transparent 48%),
+    linear-gradient(135deg, color-mix(in srgb, var(--surface2) 88%, var(--accent-glow) 12%), var(--surface2));
+  border:1px solid color-mix(in srgb, var(--accent) 58%, var(--border2) 42%);
+  box-shadow:0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 #ffffff12;
+}
+.voice-player{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  direction:ltr;
+}
+.voice-play{
+  width:38px;
+  height:38px;
+  border:none;
+  border-radius:50%;
+  background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 65%, white 35%));
+  color:var(--bg);
+  font-size:14px;
+  cursor:pointer;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 8px 18px var(--accent-glow);
+  transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.voice-play:hover{
+  transform:scale(1.04);
+  filter:brightness(1.05);
+}
+.voice-play:active{
+  transform:scale(.97);
+}
+.voice-track{
+  flex:1;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.voice-wave{
+  position:relative;
+  height:26px;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  padding:0 2px;
+}
+.voice-wave span{
+  width:4px;
+  border-radius:99px;
+  background:color-mix(in srgb, var(--accent) 38%, var(--text) 62%);
+  opacity:.38;
+  transition:opacity .18s ease, background .18s ease, transform .18s ease;
+}
+.voice-wave span:nth-child(1){height:10px;}
+.voice-wave span:nth-child(2){height:14px;}
+.voice-wave span:nth-child(3){height:18px;}
+.voice-wave span:nth-child(4){height:12px;}
+.voice-wave span:nth-child(5){height:20px;}
+.voice-wave span:nth-child(6){height:9px;}
+.voice-wave span:nth-child(7){height:16px;}
+.voice-wave span:nth-child(8){height:11px;}
+.voice-wave span:nth-child(9){height:17px;}
+.voice-wave span:nth-child(10){height:13px;}
+.voice-wave span:nth-child(11){height:19px;}
+.voice-wave span:nth-child(12){height:10px;}
+.voice-progress{
+  position:absolute;
+  inset:0 auto 0 0;
+  width:0%;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  gap:3px;
+  pointer-events:none;
+}
+.voice-progress span{
+  width:4px;
+  border-radius:99px;
+  background:var(--accent);
+  opacity:.95;
+}
+.voice-time{
+  font-size:11px;
+  color:var(--text);
+  opacity:.78;
+  text-align:left;
+}
+.voice-audio{
+  display:none;
 }
 @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .msg-group.out .bubble{background:var(--msg-out);border:1px solid var(--border2);border-bottom-right-radius:4px;}
@@ -152,44 +240,6 @@ background:var(--bg);
 .voice-btn:hover{border-color:#ef4444;color:#ef4444;}
 .voice-btn.recording{background:#ef444422;border-color:#ef4444;color:#ef4444;animation:recPulse 1s infinite;}
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 #ef444444;}50%{box-shadow:0 0 0 6px #ef444400;}}
-audio{
-  height:36px;
-  width:100%;
-  min-width:0;
-  max-width:100%;
-  border-radius:12px;
-  display:block;
-  accent-color:var(--accent);
-  filter:
-    saturate(.92)
-    hue-rotate(0deg)
-    drop-shadow(0 0 10px var(--accent-glow));
-  opacity:.96;
-}
-.bubble audio{
-  background:var(--surface2);
-  border:1px solid var(--border2);
-}
-audio::-webkit-media-controls-enclosure{
-  border-radius:12px;
-  background:transparent;
-}
-audio::-webkit-media-controls-panel{
-  background:color-mix(in srgb, var(--surface2) 82%, var(--accent-glow) 18%);
-}
-audio::-webkit-media-controls-current-time-display,
-audio::-webkit-media-controls-time-remaining-display{
-  color:var(--text);
-  text-shadow:none;
-}
-audio::-webkit-media-controls-play-button,
-audio::-webkit-media-controls-mute-button{
-  filter:drop-shadow(0 0 4px var(--accent-glow));
-}
-audio::-webkit-media-controls-timeline,
-audio::-webkit-media-controls-volume-slider{
-  filter:saturate(1.1);
-}
 .no-active-chat .chat-header,
 .no-active-chat .input-area{display:none;}
 .typing{display:flex;align-items:center;gap:4px;padding:9px 13px;background:var(--msg-in);border:1px solid var(--border2);border-radius:16px;width:fit-content;animation:slideIn .2s ease;}
@@ -771,7 +821,11 @@ function getChatStateKey(){
 
 function saveLocalChatState(){
   try{
-    const payload = { contacts, conversations };
+    const payload = {
+      contacts,
+      conversations,
+      activeContactId: activeContact?.id || null
+    };
     localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
   }catch(_e){}
 }
@@ -791,6 +845,10 @@ function loadLocalChatState(){
       Object.keys(parsed.conversations).forEach(k => {
         if(!conversations[k] && Array.isArray(parsed.conversations[k])) conversations[k] = parsed.conversations[k];
       });
+    }
+    if(parsed?.activeContactId){
+      const savedActive = contacts.find(x => x.id === parsed.activeContactId);
+      if(savedActive) activeContact = savedActive;
     }
   }catch(_e){}
 }
@@ -1004,6 +1062,100 @@ function isSafeVoiceUrl(url){
   return /^https?:\/\//i.test(url);
 }
 
+function formatVoiceDuration(seconds){
+  const safe = Math.max(0, Math.floor(seconds || 0));
+  const mins = Math.floor(safe / 60);
+  const secs = String(safe % 60).padStart(2, '0');
+  return `${mins}:${secs}`;
+}
+
+function createVoicePlayer(audioUrl){
+  const wrap = document.createElement('div');
+  wrap.className = 'voice-player';
+
+  const button = document.createElement('button');
+  button.className = 'voice-play';
+  button.type = 'button';
+  button.textContent = '▶';
+
+  const track = document.createElement('div');
+  track.className = 'voice-track';
+
+  const wave = document.createElement('div');
+  wave.className = 'voice-wave';
+
+  const progress = document.createElement('div');
+  progress.className = 'voice-progress';
+
+  for(let i = 0; i < 12; i++){
+    const bar = document.createElement('span');
+    const fill = document.createElement('span');
+    wave.appendChild(bar);
+    progress.appendChild(fill);
+  }
+
+  const time = document.createElement('div');
+  time.className = 'voice-time';
+  time.textContent = '0:00';
+
+  const audio = document.createElement('audio');
+  audio.className = 'voice-audio';
+  audio.preload = 'metadata';
+  audio.src = audioUrl;
+
+  const syncProgress = () => {
+    const duration = audio.duration || 0;
+    const current = audio.currentTime || 0;
+    const percent = duration ? Math.min(100, (current / duration) * 100) : 0;
+    progress.style.width = `${percent}%`;
+    time.textContent = formatVoiceDuration(duration ? current : 0);
+  };
+
+  audio.addEventListener('loadedmetadata', () => {
+    time.textContent = formatVoiceDuration(audio.duration || 0);
+  });
+  audio.addEventListener('timeupdate', syncProgress);
+  audio.addEventListener('ended', () => {
+    button.textContent = '▶';
+    progress.style.width = '0%';
+    time.textContent = formatVoiceDuration(audio.duration || 0);
+  });
+
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.voice-audio').forEach(other => {
+      if(other !== audio) other.pause();
+    });
+    document.querySelectorAll('.voice-play').forEach(otherBtn => {
+      if(otherBtn !== button) otherBtn.textContent = '▶';
+    });
+    if(audio.paused){
+      audio.play().then(() => {
+        button.textContent = '❚❚';
+      }).catch(() => {
+        button.textContent = '▶';
+      });
+    }else{
+      audio.pause();
+      button.textContent = '▶';
+    }
+  });
+
+  audio.addEventListener('pause', () => {
+    if(!audio.ended) button.textContent = '▶';
+  });
+  audio.addEventListener('play', () => {
+    button.textContent = '❚❚';
+  });
+
+  wave.appendChild(progress);
+  track.appendChild(wave);
+  track.appendChild(time);
+  wrap.appendChild(button);
+  wrap.appendChild(track);
+  wrap.appendChild(audio);
+  return wrap;
+}
+
 function createMessageRow(msg, isOut, showAvatar){
   const row = document.createElement('div');
   row.className = 'msg-row';
@@ -1025,11 +1177,7 @@ function createMessageRow(msg, isOut, showAvatar){
     bubble.classList.add('voice-bubble');
     const audioUrl = msg.text.slice(7).trim();
     if(isSafeVoiceUrl(audioUrl)){
-      const audio = document.createElement('audio');
-      audio.controls = true;
-      audio.preload = 'metadata';
-      audio.src = audioUrl;
-      bubble.appendChild(audio);
+      bubble.appendChild(createVoicePlayer(audioUrl));
     }else{
       bubble.textContent = '[voice]';
     }
@@ -1503,9 +1651,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
 
 
 
