@@ -267,6 +267,14 @@ background:var(--bg);
 .msg-group.in .msg-row:last-child .bubble{border-bottom-left-radius:16px;border-top-left-radius:4px;}
 .bubble-meta{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:10px;color:var(--muted);}
 .msg-group.out .bubble-meta{justify-content:flex-end;}
+.message-menu{position:fixed;z-index:1300;min-width:220px;background:var(--sidebar);border:1px solid var(--border2);border-radius:16px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;backdrop-filter:blur(14px);}
+.message-menu.open{display:block;}
+.message-menu-date{padding:9px 10px 11px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:11px;color:var(--muted);line-height:1.5;}
+.message-menu button{width:100%;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:right;padding:10px 12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .18s,color .18s;}
+.message-menu button:hover{background:var(--surface);}
+.message-menu button.danger{color:#ff6b6b;}
+.message-menu button.danger:hover{background:#ff444418;}
+.message-menu button[disabled]{opacity:.45;cursor:not-allowed;background:transparent;}
 .tick{color:var(--accent);font-size:10px;}
 .input-area{padding:12px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;}
 .input-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:13px;display:flex;align-items:center;padding:6px 11px;gap:7px;transition:border-color .2s,box-shadow .2s;}
@@ -368,11 +376,13 @@ background:var(--bg);
 .lang-opt-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);} 
 
 /* PROFILE PANEL */
-.profile-cover{height:70px;background:linear-gradient(135deg,var(--accent-glow),var(--surface2));border-radius:12px 12px 0 0;position:relative;margin:-28px -28px 0;}
-.profile-panel-av{position:absolute;bottom:-24px;right:20px;width:52px;height:52px;border-radius:50%;border:3px solid var(--sidebar);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--accent);}
-.profile-body{padding:36px 0 0;}
-.profile-pname{font-size:17px;font-weight:600;margin-bottom:3px;}
-.profile-pemail{font-size:12px;color:var(--muted);margin-bottom:16px;}
+.profile-cover{height:116px;background:linear-gradient(135deg,var(--accent-glow),var(--surface2));background-size:cover;background-position:center;border-radius:12px 12px 0 0;position:relative;margin:-28px -28px 0;overflow:hidden;box-shadow:inset 0 -40px 90px rgba(0,0,0,.35);}
+.profile-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.06),rgba(0,0,0,.62));pointer-events:none;}
+.profile-cover.has-image{border-bottom:1px solid #ffffff14;}
+.profile-panel-av{position:absolute;bottom:-30px;right:22px;width:68px;height:68px;border-radius:50%;border:4px solid var(--sidebar);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--accent);box-shadow:0 14px 28px rgba(0,0,0,.34);}
+.profile-body{padding:48px 0 0;text-align:center;}
+.profile-pname{font-size:22px;font-weight:700;margin-bottom:6px;letter-spacing:.2px;}
+.profile-pemail{font-size:12px;color:var(--muted);margin-bottom:18px;}
 .profile-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .profile-row:last-of-type{border-bottom:none;}
 .picon{font-size:15px;width:22px;text-align:center;}
@@ -389,6 +399,8 @@ background:var(--bg);
 .profile-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:8px;direction:ltr;}
 .profile-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
 .profile-hint{font-size:11px;color:var(--muted);margin:2px 0 10px;}
+.profile-overlay-user .profile-edit,
+.profile-overlay-user #profileLogoutBtn{display:none;}
 
 /* FRIEND SEARCH */
 .search-input-wrap{display:flex;gap:8px;margin-bottom:14px;}
@@ -497,7 +509,7 @@ background:var(--bg);
 <div class="chat-area">
   <div class="chat-header">
     <div class="chat-user">
-      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);">💬</div>
+      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);cursor:pointer;" onclick="openActiveProfile()">💬</div>
       <div>
         <div class="chat-user-name" id="headerName">اختر محادثة</div>
         <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
@@ -602,14 +614,15 @@ background:var(--bg);
 <!-- PROFILE OVERLAY -->
 <div class="overlay" id="profileOverlay" onclick="if(event.target===this)closeProfile()">
   <div class="panel">
-    <div class="profile-cover"></div>
+    <div class="profile-cover" id="profileCover"></div>
     <div class="profile-panel-av" id="profileAv">?</div>
     <div class="profile-body">
       <div class="profile-pname" id="profileName">—</div>
       <div class="profile-pemail" id="profileEmail">—</div>
+      <div class="profile-row"><span class="picon">🪪</span><span id="profileCodeValue">#000</span></div>
       <div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
-      <div class="profile-edit">
+      <div class="profile-edit" id="profileEditBlock">
         <div class="profile-edit-label">Edit profile</div>
         <div class="profile-avatar-tools">
           <button class="profile-avatar-btn" type="button" onclick="document.getElementById('avatarInput').click()">اختيار صورة</button>
@@ -621,11 +634,11 @@ background:var(--bg);
         <div class="profile-hint" id="usernameHint">username: 3-20 chars (letters/numbers/_), unique</div>
         <button class="pbtn" id="saveProfileBtn" onclick="saveProfile()">Save Changes</button>
       </div>
-      <div class="profile-row"><span class="picon">🟢</span><span>متصل الآن</span></div>
-      <div class="profile-row"><span class="picon">🧪</span><span>Lab Member</span></div>
+      <div class="profile-row"><span class="picon">🟢</span><span id="profileStatusText">متصل الآن</span></div>
+      <div class="profile-row"><span class="picon">🧪</span><span id="profileRoleText">Lab Member</span></div>
       <div class="profile-acts">
-        <button class="pbtn" onclick="closeProfile()">إغلاق</button>
-        <button class="pbtn danger" onclick="handleLogout()">خروج 🚪</button>
+        <button class="pbtn" id="profileCloseBtn" onclick="closeProfile()">إغلاق</button>
+        <button class="pbtn danger" id="profileLogoutBtn" onclick="handleLogout()">خروج 🚪</button>
       </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
@@ -650,6 +663,13 @@ background:var(--bg);
       <div class="s-empty">ابدأ البحث 👆</div>
     </div>
   </div>
+</div>
+
+<div class="message-menu" id="messageMenu">
+  <div class="message-menu-date" id="messageMenuDate">—</div>
+  <button type="button" id="messageMenuEditBtn" onclick="editMessageFromMenu()"><span>تعديل الرسالة</span><span>✏️</span></button>
+  <button type="button" id="messageMenuDeleteMineBtn" onclick="deleteMessageMineFromMenu()"><span>حذف لديك</span><span>🗑</span></button>
+  <button type="button" class="danger" id="messageMenuDeleteAllBtn" onclick="deleteMessageAllFromMenu()"><span>حذف لدى الجميع</span><span>⛔</span></button>
 </div>
 
 <script type="module">
@@ -779,15 +799,36 @@ window.loadMemberCodes = async () => {
 
 function applyMyProfileUI(){
   const init = getDisplayInitial(myName);
+  window.myProfileState = {
+    id: me.id,
+    name: myName,
+    email: myEmail,
+    username: myUsername,
+    avatar: myAvatarUrl || ''
+  };
   setAvatarNode(document.getElementById('myAvatar'), init, myAvatarUrl);
   document.getElementById('myName').textContent = myName;
   document.getElementById('myEmail').textContent = myEmail;
   setAvatarNode(document.getElementById('profileAv'), init, myAvatarUrl);
   const myCode = window.getLabCode ? window.getLabCode(me.id) : '001';
   document.getElementById('profileName').textContent = `${myName}  #${myCode}`;
-  document.getElementById('profileEmail').textContent = myEmail;
+  document.getElementById('profileEmail').textContent = myUsername ? '@'+myUsername : myEmail;
   document.getElementById('profileEmail2').textContent = myEmail;
   document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
+  if(document.getElementById('profileCodeValue')) document.getElementById('profileCodeValue').textContent = `#${myCode}`;
+  if(document.getElementById('profileStatusText')) document.getElementById('profileStatusText').textContent = typeof window.t === 'function' ? window.t('online') : 'متصل الآن';
+  if(document.getElementById('profileRoleText')) document.getElementById('profileRoleText').textContent = document.documentElement.lang === 'en' ? 'Lab Member' : 'عضو في المعمل';
+  const cover = document.getElementById('profileCover');
+  if(cover){
+    if(myAvatarUrl){
+      const safeUrl = String(myAvatarUrl).replace(/"/g, '%22');
+      cover.classList.add('has-image');
+      cover.style.backgroundImage = `linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.62)), url("${safeUrl}")`;
+    }else{
+      cover.classList.remove('has-image');
+      cover.style.backgroundImage = 'linear-gradient(135deg,var(--accent-glow),var(--surface2))';
+    }
+  }
   document.getElementById('editName').value = myName;
   document.getElementById('editUsername').value = myUsername;
   syncMyAvatarIntoContacts();
@@ -905,6 +946,7 @@ window.handleLogout = async () => {
     try{ localStorage.removeItem('lm-chat-last-key'); }catch(_e){}
     try{ localStorage.removeItem(getActiveChatKey()); }catch(_e){}
     try{ localStorage.removeItem('lm-active-chat-guest'); }catch(_e){}
+    try{ localStorage.removeItem(getHiddenMessagesKey()); }catch(_e){}
     try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
     await sb.auth.signOut({ scope: 'local' });
   }catch(_e){}
@@ -1026,7 +1068,7 @@ window.searchFriends = async () => {
   if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+tr('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${avatarMarkup(u.init, u.avatar)}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserProfile('${u.id}')">${avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${tr('chatBtn')}</button>
     </div>`;
@@ -1090,6 +1132,8 @@ let pendingRestoredContactId = null;
 let notificationsEnabled = false;
 let inboxNotificationsPrimed = false;
 const seenInboxMessageIds = new Set();
+let messageMenuState = null;
+const hiddenMessageIds = new Set();
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
@@ -1164,6 +1208,31 @@ function getActiveChatKey(){
 
 function getLastSnapshotKey(){
   return 'lm-chat-state-last';
+}
+
+function getHiddenMessagesKey(){
+  const me = getCurrentUser();
+  return me ? `lm-hidden-messages-${me.id}` : 'lm-hidden-messages-guest';
+}
+
+function saveHiddenMessageIds(){
+  try{
+    localStorage.setItem(getHiddenMessagesKey(), JSON.stringify(Array.from(hiddenMessageIds)));
+  }catch(_e){}
+}
+
+function loadHiddenMessageIds(){
+  hiddenMessageIds.clear();
+  try{
+    const raw = localStorage.getItem(getHiddenMessagesKey());
+    if(!raw) return;
+    const parsed = JSON.parse(raw);
+    if(Array.isArray(parsed)){
+      parsed.forEach((id) => {
+        if(id !== null && id !== undefined) hiddenMessageIds.add(String(id));
+      });
+    }
+  }catch(_e){}
 }
 
 function hydrateStoredState(parsed){
@@ -1426,18 +1495,115 @@ function applyLanguage(){
   const tdW = qs('#tc-white .theme-desc'); if(tdW) tdW.textContent = appLang === 'ar' ? 'فاتح ونظيف' : 'Light & Clean';
   const tcB = qs('#tc-black .theme-name'); if(tcB) tcB.textContent = 'Black ⚫';
   const tdB = qs('#tc-black .theme-desc'); if(tdB) tdB.textContent = appLang === 'ar' ? 'أسود أحادي' : 'Monochrome Black';
-  const profileRows = document.querySelectorAll('#profileOverlay .profile-row span:last-child');
-  if(profileRows[2]) profileRows[2].textContent = t('online');
-  if(profileRows[3]) profileRows[3].textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
+  if(byId('profileRoleText')) byId('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
+  const profileOverlay = byId('profileOverlay');
+  if(byId('profileStatusText') && profileOverlay){
+    byId('profileStatusText').textContent = profileOverlay.dataset.isOnline === 'true' ? t('online') : t('offline');
+  }
 }
 
 // PANELS
 function openSettings(){document.getElementById('settingsOverlay').classList.add('open');}
 function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');}
-function openProfile(){document.getElementById('profileOverlay').classList.add('open');}
 function closeProfile(){document.getElementById('profileOverlay').classList.remove('open');}
 function openSearchPanel(){document.getElementById('searchOverlay').classList.add('open');}
 function closeSearchPanel(){document.getElementById('searchOverlay').classList.remove('open');}
+
+function setProfileCover(imageUrl){
+  const cover = document.getElementById('profileCover');
+  if(!cover) return;
+  if(imageUrl){
+    const safeUrl = String(imageUrl).replace(/"/g, '%22');
+    cover.classList.add('has-image');
+    cover.style.backgroundImage = `linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.62)), url("${safeUrl}")`;
+  }else{
+    cover.classList.remove('has-image');
+    cover.style.backgroundImage = 'linear-gradient(135deg,var(--accent-glow),var(--surface2))';
+  }
+}
+
+function fillProfileOverlay(data){
+  const overlay = document.getElementById('profileOverlay');
+  if(!overlay) return;
+
+  const id = data?.id || '';
+  const name = data?.name || '—';
+  const email = data?.email || '—';
+  const username = data?.username || '';
+  const avatar = data?.avatar || '';
+  const isSelf = !!data?.isSelf;
+  const isOnline = !!data?.online;
+  const code = window.getLabCode ? window.getLabCode(id) : '000';
+
+  overlay.dataset.userId = id;
+  overlay.dataset.isSelf = isSelf ? 'true' : 'false';
+  overlay.dataset.isOnline = isOnline ? 'true' : 'false';
+  overlay.classList.toggle('profile-overlay-user', !isSelf);
+
+  document.getElementById('profileName').textContent = `${name} #${code}`;
+  document.getElementById('profileEmail').textContent = username ? `@${username}` : email;
+  document.getElementById('profileEmail2').textContent = email || '—';
+  document.getElementById('profileUsername').textContent = username ? `@${username}` : '@—';
+  document.getElementById('profileCodeValue').textContent = `#${code}`;
+  document.getElementById('profileStatusText').textContent = isOnline ? t('online') : t('offline');
+  document.getElementById('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
+  window.setAvatarNode(document.getElementById('profileAv'), name, avatar);
+  setProfileCover(avatar);
+
+  const editBlock = document.getElementById('profileEditBlock');
+  const logoutBtn = document.getElementById('profileLogoutBtn');
+  if(editBlock) editBlock.style.display = isSelf ? '' : 'none';
+  if(logoutBtn) logoutBtn.style.display = isSelf ? '' : 'none';
+}
+
+window.openProfile = function(){
+  const me = getCurrentUser();
+  if(!me) return;
+  const mine = window.myProfileState || {};
+  fillProfileOverlay({
+    id: me.id,
+    name: mine.name || (me.email ? me.email.split('@')[0] : 'You'),
+    email: mine.email || me.email || '—',
+    username: mine.username || '',
+    avatar: mine.avatar || '',
+    online: true,
+    isSelf: true
+  });
+  document.getElementById('profileOverlay').classList.add('open');
+};
+
+window.openActiveProfile = function(){
+  if(activeContact) window.openUserProfile(activeContact.id);
+};
+
+window.openUserProfile = async function(userId){
+  const me = getCurrentUser();
+  if(!userId) return;
+  if(me && userId === me.id){
+    window.openProfile();
+    return;
+  }
+
+  const existing = contacts.find((c) => c.id === userId) || {};
+  const profileRows = await queryProfilesByIds([userId]);
+  const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
+  const uname = String(profile.username || '').trim();
+  const fullName = String(profile.full_name || '').trim();
+  const email = String(profile.email || '').trim();
+  const name = fullName || existing.name || uname || (email ? email.split('@')[0] : 'User');
+  const avatar = profile.avatar_url || existing.avatar || '';
+
+  fillProfileOverlay({
+    id: userId,
+    name,
+    email: email || '—',
+    username: uname,
+    avatar,
+    online: onlineUserIds.has(userId),
+    isSelf: false
+  });
+  document.getElementById('profileOverlay').classList.add('open');
+};
 
 function getNotifyStoreKey(){
   const me = getCurrentUser();
@@ -1574,6 +1740,19 @@ function formatChatTime(input){
   return `${h12}:${m} ${period}`;
 }
 
+function formatFullMessageDate(input){
+  const d = new Date(input || Date.now());
+  return d.toLocaleString(appLang === 'ar' ? 'ar-EG' : 'en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
 function getMessageDayKey(input){
   const d = new Date(input || Date.now());
   const y = d.getFullYear();
@@ -1687,6 +1866,99 @@ function showIncomingNotification(message, profile){
   };
 }
 
+function closeMessageMenu(){
+  const menu = document.getElementById('messageMenu');
+  if(menu) menu.classList.remove('open');
+  messageMenuState = null;
+}
+
+function openMessageMenu(event, msg){
+  if(!msg || !msg.id) return;
+  event.preventDefault();
+  const menu = document.getElementById('messageMenu');
+  if(!menu) return;
+
+  messageMenuState = { ...msg };
+  document.getElementById('messageMenuDate').textContent = formatFullMessageDate(msg.createdAt || Date.now());
+
+  const canEdit = !!msg.out && !parseVoiceMessage(msg.text).isVoice && !String(msg.text || '').startsWith('[deleted]');
+  const editBtn = document.getElementById('messageMenuEditBtn');
+  const deleteMineBtn = document.getElementById('messageMenuDeleteMineBtn');
+  const deleteAllBtn = document.getElementById('messageMenuDeleteAllBtn');
+
+  if(editBtn) editBtn.disabled = !canEdit;
+  if(deleteMineBtn) deleteMineBtn.disabled = false;
+  if(deleteAllBtn) deleteAllBtn.disabled = !msg.out;
+
+  menu.classList.add('open');
+  const pad = 14;
+  const menuWidth = 220;
+  const menuHeight = 168;
+  const maxLeft = window.innerWidth - menuWidth - pad;
+  const maxTop = window.innerHeight - menuHeight - pad;
+  menu.style.left = `${Math.max(pad, Math.min(event.clientX, maxLeft))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(event.clientY, maxTop))}px`;
+}
+
+window.editMessageFromMenu = async function(){
+  const msg = messageMenuState;
+  closeMessageMenu();
+  if(!msg || !msg.id || !msg.out) return;
+  const voice = parseVoiceMessage(msg.text);
+  if(voice.isVoice) return;
+  const nextText = prompt(appLang === 'ar' ? 'عدّل الرسالة' : 'Edit message', msg.text || '');
+  if(nextText === null) return;
+  const trimmed = String(nextText).trim();
+  if(!trimmed || trimmed === String(msg.text || '').trim()) return;
+
+  const sbClient = getSbClient();
+  if(!sbClient) return;
+  const updates = [
+    { body: trimmed },
+    { content: trimmed },
+    { text: trimmed },
+    { message: trimmed }
+  ];
+  let success = false;
+  for(const payload of updates){
+    const { error } = await sbClient.from('messages').update(payload).eq('id', msg.id);
+    if(!error){
+      success = true;
+      break;
+    }
+    if(!/column|schema|does not exist|not found/i.test(String(error.message || ''))) break;
+  }
+  if(success && activeContact) await loadMessagesForContact(activeContact.id);
+};
+
+window.deleteMessageMineFromMenu = async function(){
+  const msg = messageMenuState;
+  closeMessageMenu();
+  if(!msg || !msg.id) return;
+  hiddenMessageIds.add(String(msg.id));
+  saveHiddenMessageIds();
+  if(activeContact) await loadMessagesForContact(activeContact.id);
+};
+
+window.deleteMessageAllFromMenu = async function(){
+  const msg = messageMenuState;
+  closeMessageMenu();
+  if(!msg || !msg.id || !msg.out) return;
+  const confirmed = confirm(appLang === 'ar' ? 'تحذف الرسالة لدى الجميع؟' : 'Delete this message for everyone?');
+  if(!confirmed) return;
+  const sbClient = getSbClient();
+  if(!sbClient) return;
+  const { error } = await sbClient.from('messages').delete().eq('id', msg.id);
+  if(error){
+    alert((appLang === 'ar' ? 'فشل حذف الرسالة: ' : 'Delete failed: ') + error.message);
+    return;
+  }
+  hiddenMessageIds.delete(String(msg.id));
+  saveHiddenMessageIds();
+  if(activeContact) await loadMessagesForContact(activeContact.id);
+  await loadInboxContacts();
+};
+
 function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
   const waveHeights = [10, 14, 18, 12, 20, 9, 16, 11, 17, 13, 19, 10, 15, 8, 18, 12, 16, 11];
   const wrap = document.createElement('div');
@@ -1795,6 +2067,13 @@ function createMessageRow(msg, isOut, showAvatar){
   avatar.style.background = activeContact.color;
   avatar.style.color = activeContact.text;
   window.setAvatarNode(avatar, activeContact.init, activeContact.avatar);
+  avatar.style.cursor = showAvatar ? 'pointer' : 'default';
+  if(showAvatar){
+    avatar.addEventListener('click', (event) => {
+      event.stopPropagation();
+      window.openUserProfile(isOut ? getCurrentUser()?.id : activeContact.id);
+    });
+  }
 
   const content = document.createElement('div');
   content.className = 'msg-content';
@@ -1813,6 +2092,7 @@ function createMessageRow(msg, isOut, showAvatar){
   }else{
     bubble.textContent = msg.text || '';
   }
+  bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
 
   content.appendChild(bubble);
 
@@ -1851,11 +2131,15 @@ async function loadMessagesForContact(contactId){
     return;
   }
 
-  const rows = (data || []).map(m => ({
+  const rows = (data || [])
+    .filter((m) => !hiddenMessageIds.has(String(m.id)))
+    .map(m => ({
+    id: m.id,
     out: m.sender_id === currentUser.id,
     text: (m.body || m.content || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
     previewText: formatMessagePreviewText((m.body || m.content || m.text || m.message || ''), m.sender_id === currentUser.id),
     time: formatChatTime(m.created_at),
+    createdAt: m.created_at,
     dayKey: getMessageDayKey(m.created_at),
     dayLabel: formatDayDivider(m.created_at),
     read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
@@ -2013,7 +2297,7 @@ async function loadInboxContacts(){
 function renderContacts(list=contacts){
   document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
     <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${c.id}')">
-      <div class="avatar" style="background:${c.color};color:${c.text};">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
+      <div class="avatar" style="background:${c.color};color:${c.text};" onclick="event.stopPropagation();openUserProfile('${c.id}')">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${c.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(c.id) : '000'}</span></div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
@@ -2047,7 +2331,7 @@ function renderSidebarSearchResults(results){
   }
   el.innerHTML = results.map(u => `
     <div class="contact" onclick="startChatFromSidebar('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};" onclick="event.stopPropagation();openUserProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.email}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`).join('');
@@ -2135,7 +2419,7 @@ window.searchFromMainArea = async function(){
   if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
   out.innerHTML = results.map(u => `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${window.avatarMarkup(u.init, u.avatar)}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn">${t('chatBtn')}</button>
     </div>`).join('');
@@ -2441,6 +2725,7 @@ window.onMemberCodesUpdated = function(){
 window.onAuthReady = function(){
   if(typeof window.loadMemberCodes === 'function') window.loadMemberCodes();
   loadNotificationPreference();
+  loadHiddenMessageIds();
   ensureRecordingBars();
   resetRecordingVisualizer();
   loadLocalChatState();
@@ -2472,6 +2757,12 @@ window.addEventListener('beforeunload', async () => {
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'hidden') saveLocalChatState();
 });
+document.addEventListener('click', (event) => {
+  const menu = document.getElementById('messageMenu');
+  if(menu && menu.classList.contains('open') && !menu.contains(event.target)) closeMessageMenu();
+});
+window.addEventListener('scroll', closeMessageMenu, true);
+window.addEventListener('resize', closeMessageMenu);
 applyLanguage();
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
@@ -2479,8 +2770,3 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
-
