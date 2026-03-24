@@ -297,7 +297,7 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
 .msg-group.in .msg-row:last-child .bubble{border-bottom-left-radius:16px;border-top-left-radius:4px;}
 .bubble-meta{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:10px;color:var(--muted);}
 .msg-group.out .bubble-meta{justify-content:flex-end;}
-.message-menu{position:absolute;z-index:30;min-width:220px;max-width:min(260px,calc(100vw - 28px));background:var(--sidebar);border:1px solid var(--border2);border-radius:16px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;backdrop-filter:blur(14px);top:calc(100% + 8px);}
+.message-menu{position:fixed;z-index:1300;min-width:220px;max-width:min(260px,calc(100vw - 28px));background:var(--sidebar);border:1px solid var(--border2);border-radius:16px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;backdrop-filter:blur(14px);}
 .message-menu.open{display:block;}
 .message-menu-date{padding:9px 10px 11px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:11px;color:var(--muted);line-height:1.5;}
 .message-menu button{width:100%;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:right;padding:10px 12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .18s,color .18s;}
@@ -1937,7 +1937,7 @@ function formatDayDivider(input){
 }
 
 function buildMessageSignature(msgs){
-  return msgs.map(m => `${m.out ? 1 : 0}|${m.text}|${m.time}|${m.read ? 1 : 0}`).join('||');
+  return msgs.map(m => `${m.id || ''}|${m.createdAt || ''}|${m.out ? 1 : 0}|${m.text}|${m.time}|${m.read ? 1 : 0}`).join('||');
 }
 
 function shouldStickToBottom(el){
@@ -2032,7 +2032,6 @@ function closeMessageMenu(){
     menu.classList.remove('open');
     if(menu.parentElement !== document.body) document.body.appendChild(menu);
   }
-  document.querySelectorAll('.msg-inline-menu.open').forEach((el) => el.classList.remove('open'));
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
 }
@@ -2047,37 +2046,41 @@ function openMessageMenu(event, msg, anchorEl = null){
   if(!msg || !msg.id) return;
   event.preventDefault();
   if(typeof event.stopPropagation === 'function') event.stopPropagation();
+  const menu = document.getElementById('messageMenu');
   const anchor = anchorEl || event.currentTarget || event.target;
   const row = anchor?.closest?.('.msg-row') || event.target?.closest?.('.msg-row');
   const tools = anchor?.closest?.('.msg-tools') || row?.querySelector?.('.msg-tools');
-  const content = row?.querySelector?.('.msg-content');
-  const inlineMenu = content?.querySelector?.('.msg-inline-menu');
-  if(!tools || !content || !inlineMenu) return;
-  const wasOpen = inlineMenu.classList.contains('open');
+  if(!menu || !tools) return;
+  const wasOpen = menu.classList.contains('open') && messageMenuState?.id === msg.id;
   closeMessageMenu();
   if(wasOpen) return;
   if(!prepareMessageMenuState(msg)) return;
   const canEdit = !!msg.out && !parseVoiceMessage(msg.text).isVoice && !String(msg.text || '').startsWith('[deleted]');
-  const dateEl = inlineMenu.querySelector('.msg-inline-menu-date');
-  const editBtn = inlineMenu.querySelector('[data-action=\"edit\"]');
-  const deleteMineBtn = inlineMenu.querySelector('[data-action=\"delete-mine\"]');
-  const deleteAllBtn = inlineMenu.querySelector('[data-action=\"delete-all\"]');
+  const dateEl = document.getElementById('messageMenuDate');
+  const editBtn = document.getElementById('messageMenuEditBtn');
+  const deleteMineBtn = document.getElementById('messageMenuDeleteMineBtn');
+  const deleteAllBtn = document.getElementById('messageMenuDeleteAllBtn');
   if(dateEl) dateEl.textContent = formatFullMessageDate(msg.createdAt || Date.now());
   if(editBtn) editBtn.disabled = !canEdit;
   if(deleteMineBtn) deleteMineBtn.disabled = false;
   if(deleteAllBtn) deleteAllBtn.disabled = !msg.out;
   tools.classList.add('active');
-  inlineMenu.classList.add('open');
+  document.body.appendChild(menu);
+  menu.classList.add('open');
   requestAnimationFrame(() => {
-    const rect = inlineMenu.getBoundingClientRect();
-    const overflowBottom = rect.bottom - (window.innerHeight - 12);
-    if(overflowBottom > 0){
-      inlineMenu.style.top = 'auto';
-      inlineMenu.style.bottom = 'calc(100% + 8px)';
-    }else{
-      inlineMenu.style.bottom = 'auto';
-      inlineMenu.style.top = 'calc(100% + 8px)';
-    }
+    const anchorRect = tools.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const pad = 12;
+    const maxLeft = window.innerWidth - menuRect.width - pad;
+    const maxTop = window.innerHeight - menuRect.height - pad;
+    const wantsRtl = document.documentElement.dir === 'rtl';
+    const baseLeft = wantsRtl
+      ? anchorRect.right - menuRect.width
+      : anchorRect.left;
+    const belowTop = anchorRect.bottom + 8;
+    const aboveTop = anchorRect.top - menuRect.height - 8;
+    menu.style.left = `${Math.max(pad, Math.min(baseLeft, maxLeft))}px`;
+    menu.style.top = `${Math.max(pad, Math.min(belowTop > maxTop ? aboveTop : belowTop, maxTop))}px`;
   });
 }
 
@@ -2264,53 +2267,6 @@ function createMessageRow(msg, isOut, showAvatar){
   });
   tools.appendChild(menuBtn);
 
-  const inlineMenu = document.createElement('div');
-  inlineMenu.className = 'msg-inline-menu';
-  inlineMenu.addEventListener('click', (event) => event.stopPropagation());
-
-  const inlineDate = document.createElement('div');
-  inlineDate.className = 'msg-inline-menu-date';
-  inlineDate.textContent = formatFullMessageDate(msg.createdAt || Date.now());
-
-  const editAction = document.createElement('button');
-  editAction.type = 'button';
-  editAction.dataset.action = 'edit';
-  editAction.innerHTML = `<span>${appLang === 'ar' ? 'تعديل الرسالة' : 'Edit message'}</span><span>✏️</span>`;
-  editAction.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    prepareMessageMenuState(msg);
-    window.editMessageFromMenu();
-  });
-
-  const deleteMineAction = document.createElement('button');
-  deleteMineAction.type = 'button';
-  deleteMineAction.dataset.action = 'delete-mine';
-  deleteMineAction.innerHTML = `<span>${appLang === 'ar' ? 'حذف لديك' : 'Delete for you'}</span><span>🗑️</span>`;
-  deleteMineAction.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    prepareMessageMenuState(msg);
-    window.deleteMessageMineFromMenu();
-  });
-
-  const deleteAllAction = document.createElement('button');
-  deleteAllAction.type = 'button';
-  deleteAllAction.dataset.action = 'delete-all';
-  deleteAllAction.className = 'danger';
-  deleteAllAction.innerHTML = `<span>${appLang === 'ar' ? 'حذف لدى الجميع' : 'Delete for everyone'}</span><span>⛔</span>`;
-  deleteAllAction.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    prepareMessageMenuState(msg);
-    window.deleteMessageAllFromMenu();
-  });
-
-  inlineMenu.appendChild(inlineDate);
-  inlineMenu.appendChild(editAction);
-  inlineMenu.appendChild(deleteMineAction);
-  inlineMenu.appendChild(deleteAllAction);
-
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
 
@@ -2328,7 +2284,6 @@ function createMessageRow(msg, isOut, showAvatar){
   bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
 
   content.appendChild(tools);
-  content.appendChild(inlineMenu);
   content.appendChild(bubble);
 
   if(msg.showMeta){
