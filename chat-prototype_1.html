@@ -125,14 +125,24 @@ background:var(--bg);
   flex-direction:column;
   position:relative;
 }
-.msg-tools{position:absolute;top:50%;display:flex;align-items:center;opacity:0;transform:translateY(-50%);transition:opacity .16s ease;pointer-events:none;z-index:4;}
-html[dir="ar"] .msg-tools{left:-42px;}
-html[dir="en"] .msg-tools{right:-42px;}
+.msg-tools{position:absolute;top:50%;display:flex;align-items:center;opacity:0;transform:translateY(-50%);transition:opacity .16s ease;pointer-events:none;z-index:8;}
+html[dir="ar"] .msg-tools{left:-36px;}
+html[dir="en"] .msg-tools{right:-36px;}
 .msg-row:hover .msg-tools,
 .msg-row:focus-within .msg-tools,
 .msg-tools.active{opacity:1;pointer-events:auto;}
 .msg-tool-btn{width:28px;height:28px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;box-shadow:0 6px 14px rgba(0,0,0,.22);}
 .msg-tool-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--surface2);}
+.msg-inline-menu{position:absolute;top:calc(100% + 8px);min-width:220px;max-width:min(260px,calc(100vw - 28px));background:var(--sidebar);border:1px solid var(--border2);border-radius:16px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;backdrop-filter:blur(14px);}
+.msg-inline-menu.open{display:block;}
+.msg-inline-menu-date{padding:9px 10px 11px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:11px;color:var(--muted);line-height:1.5;}
+.msg-inline-menu button{width:100%;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:right;padding:10px 12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .18s,color .18s;}
+.msg-inline-menu button:hover{background:var(--surface);}
+.msg-inline-menu button.danger{color:#ff6b6b;}
+.msg-inline-menu button.danger:hover{background:#ff444418;}
+.msg-inline-menu button[disabled]{opacity:.45;cursor:not-allowed;background:transparent;}
+html[dir="rtl"] .msg-inline-menu{left:0;right:auto;}
+html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
 .msg-group.out .msg-content{align-items:flex-start;}
 .msg-group.in .msg-content{align-items:flex-end;}
 .msg-group.out .msg-row{flex-direction:row;}
@@ -1484,7 +1494,14 @@ const langPack = {
     saveUserTaken:'Username already taken', saveDone:'✅ Profile saved', saveBtnBusy:'Saving...'
   }
 };
-let appLang = document.documentElement.lang === 'en' ? 'en' : 'ar';
+function getStoredLang(){
+  try{
+    return localStorage.getItem('lm-lang') === 'en' ? 'en' : 'ar';
+  }catch(_e){
+    return 'ar';
+  }
+}
+let appLang = getStoredLang();
 function t(k){ return (langPack[appLang] && langPack[appLang][k]) || langPack.ar[k] || k; }
 window.t = t;
 window.setAppLang = function(lang){
@@ -1993,53 +2010,50 @@ function closeMessageMenu(){
     menu.classList.remove('open');
     if(menu.parentElement !== document.body) document.body.appendChild(menu);
   }
+  document.querySelectorAll('.msg-inline-menu.open').forEach((el) => el.classList.remove('open'));
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
+}
+
+function prepareMessageMenuState(msg){
+  if(!msg || !msg.id) return false;
+  messageMenuState = { ...msg };
+  return true;
 }
 
 function openMessageMenu(event, msg, anchorEl = null){
   if(!msg || !msg.id) return;
   event.preventDefault();
   if(typeof event.stopPropagation === 'function') event.stopPropagation();
-  const menu = document.getElementById('messageMenu');
-  if(!menu) return;
-
-  document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   const anchor = anchorEl || event.currentTarget || event.target;
-  const host = anchor?.closest?.('.msg-content') || event.target?.closest?.('.msg-content');
-  if(!host) return;
-  anchor?.closest?.('.msg-tools')?.classList.add('active');
-
-  messageMenuState = { ...msg };
-  document.getElementById('messageMenuDate').textContent = formatFullMessageDate(msg.createdAt || Date.now());
-
+  const row = anchor?.closest?.('.msg-row') || event.target?.closest?.('.msg-row');
+  const tools = anchor?.closest?.('.msg-tools') || row?.querySelector?.('.msg-tools');
+  const inlineMenu = tools?.querySelector('.msg-inline-menu');
+  if(!tools || !inlineMenu) return;
+  const wasOpen = inlineMenu.classList.contains('open');
+  closeMessageMenu();
+  if(wasOpen) return;
+  if(!prepareMessageMenuState(msg)) return;
   const canEdit = !!msg.out && !parseVoiceMessage(msg.text).isVoice && !String(msg.text || '').startsWith('[deleted]');
-  const editBtn = document.getElementById('messageMenuEditBtn');
-  const deleteMineBtn = document.getElementById('messageMenuDeleteMineBtn');
-  const deleteAllBtn = document.getElementById('messageMenuDeleteAllBtn');
-
+  const dateEl = inlineMenu.querySelector('.msg-inline-menu-date');
+  const editBtn = inlineMenu.querySelector('[data-action=\"edit\"]');
+  const deleteMineBtn = inlineMenu.querySelector('[data-action=\"delete-mine\"]');
+  const deleteAllBtn = inlineMenu.querySelector('[data-action=\"delete-all\"]');
+  if(dateEl) dateEl.textContent = formatFullMessageDate(msg.createdAt || Date.now());
   if(editBtn) editBtn.disabled = !canEdit;
   if(deleteMineBtn) deleteMineBtn.disabled = false;
   if(deleteAllBtn) deleteAllBtn.disabled = !msg.out;
-
-  host.appendChild(menu);
-  menu.classList.add('open');
-  menu.style.top = 'calc(100% + 8px)';
-  menu.style.bottom = 'auto';
-  if(document.documentElement.dir === 'rtl'){
-    menu.style.left = '0px';
-    menu.style.right = 'auto';
-  }else{
-    menu.style.right = '0px';
-    menu.style.left = 'auto';
-  }
-
+  tools.classList.add('active');
+  inlineMenu.classList.add('open');
   requestAnimationFrame(() => {
-    const rect = menu.getBoundingClientRect();
+    const rect = inlineMenu.getBoundingClientRect();
     const overflowBottom = rect.bottom - (window.innerHeight - 12);
     if(overflowBottom > 0){
-      menu.style.top = 'auto';
-      menu.style.bottom = 'calc(100% + 8px)';
+      inlineMenu.style.top = 'auto';
+      inlineMenu.style.bottom = 'calc(100% + 8px)';
+    }else{
+      inlineMenu.style.bottom = 'auto';
+      inlineMenu.style.top = 'calc(100% + 8px)';
     }
   });
 }
@@ -2226,6 +2240,54 @@ function createMessageRow(msg, isOut, showAvatar){
     openMessageMenu(event, msg, menuBtn);
   });
   tools.appendChild(menuBtn);
+
+  const inlineMenu = document.createElement('div');
+  inlineMenu.className = 'msg-inline-menu';
+  inlineMenu.addEventListener('click', (event) => event.stopPropagation());
+
+  const inlineDate = document.createElement('div');
+  inlineDate.className = 'msg-inline-menu-date';
+  inlineDate.textContent = formatFullMessageDate(msg.createdAt || Date.now());
+
+  const editAction = document.createElement('button');
+  editAction.type = 'button';
+  editAction.dataset.action = 'edit';
+  editAction.innerHTML = `<span>${appLang === 'ar' ? 'تعديل الرسالة' : 'Edit message'}</span><span>✏️</span>`;
+  editAction.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    prepareMessageMenuState(msg);
+    window.editMessageFromMenu();
+  });
+
+  const deleteMineAction = document.createElement('button');
+  deleteMineAction.type = 'button';
+  deleteMineAction.dataset.action = 'delete-mine';
+  deleteMineAction.innerHTML = `<span>${appLang === 'ar' ? 'حذف لديك' : 'Delete for you'}</span><span>🗑️</span>`;
+  deleteMineAction.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    prepareMessageMenuState(msg);
+    window.deleteMessageMineFromMenu();
+  });
+
+  const deleteAllAction = document.createElement('button');
+  deleteAllAction.type = 'button';
+  deleteAllAction.dataset.action = 'delete-all';
+  deleteAllAction.className = 'danger';
+  deleteAllAction.innerHTML = `<span>${appLang === 'ar' ? 'حذف لدى الجميع' : 'Delete for everyone'}</span><span>⛔</span>`;
+  deleteAllAction.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    prepareMessageMenuState(msg);
+    window.deleteMessageAllFromMenu();
+  });
+
+  inlineMenu.appendChild(inlineDate);
+  inlineMenu.appendChild(editAction);
+  inlineMenu.appendChild(deleteMineAction);
+  inlineMenu.appendChild(deleteAllAction);
+  tools.appendChild(inlineMenu);
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
@@ -2883,6 +2945,18 @@ window.onAuthReady = function(){
 applyLanguage();
 window.onAuthReady(me.id);
 
+window.addEventListener('pageshow', () => {
+  const nextLang = getStoredLang();
+  if(nextLang !== appLang){
+    appLang = nextLang;
+    applyLanguage();
+    renderContacts();
+    renderMessages();
+  }else{
+    applyLanguage();
+  }
+});
+
 window.addEventListener('beforeunload', async () => {
   saveLocalChatState();
   if(messagePollTimer) clearInterval(messagePollTimer);
@@ -2894,6 +2968,15 @@ window.addEventListener('beforeunload', async () => {
 });
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'hidden') saveLocalChatState();
+  if(document.visibilityState === 'visible'){
+    const nextLang = getStoredLang();
+    if(nextLang !== appLang){
+      appLang = nextLang;
+      applyLanguage();
+      renderContacts();
+      renderMessages();
+    }
+  }
 });
 document.addEventListener('click', (event) => {
   const menu = document.getElementById('messageMenu');
