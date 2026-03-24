@@ -142,7 +142,22 @@ background:var(--bg);
 .voice-btn:hover{border-color:#ef4444;color:#ef4444;}
 .voice-btn.recording{background:#ef444422;border-color:#ef4444;color:#ef4444;animation:recPulse 1s infinite;}
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 #ef444444;}50%{box-shadow:0 0 0 6px #ef444400;}}
-audio{height:32px;max-width:200px;}
+audio{
+  height:36px;
+  width:min(260px, 100%);
+  max-width:100%;
+  border-radius:12px;
+  display:block;
+  filter:
+    saturate(.92)
+    hue-rotate(0deg)
+    drop-shadow(0 0 10px var(--accent-glow));
+  opacity:.96;
+}
+.bubble audio{
+  background:var(--surface2);
+  border:1px solid var(--border2);
+}
 .no-active-chat .chat-header,
 .no-active-chat .input-area{display:none;}
 .typing{display:flex;align-items:center;gap:4px;padding:9px 13px;background:var(--msg-in);border:1px solid var(--border2);border-radius:16px;width:fit-content;animation:slideIn .2s ease;}
@@ -356,7 +371,7 @@ audio{height:32px;max-width:200px;}
   <div class="panel">
     <div class="panel-top">
       <div class="panel-title" id="settingsTitle">⚙️ الإعدادات</div>
-      <div class="panel-close" onclick="closeSettings()">?</div>
+      <div class="panel-close" onclick="closeSettings()">×</div>
     </div>
     <div class="panel-sub" id="settingsSub">خصص شكل التطبيق</div>
     <div class="section-title" id="settingsThemeTitle">// THEME</div>
@@ -439,7 +454,7 @@ audio{height:32px;max-width:200px;}
       </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
-      <div class="panel-close" onclick="closeProfile()">?</div>
+      <div class="panel-close" onclick="closeProfile()">×</div>
     </div>
   </div>
 </div>
@@ -449,7 +464,7 @@ audio{height:32px;max-width:200px;}
   <div class="panel">
     <div class="panel-top">
       <div class="panel-title">🔎 ابحث عن صديق</div>
-      <div class="panel-close" onclick="closeSearchPanel()">?</div>
+      <div class="panel-close" onclick="closeSearchPanel()">×</div>
     </div>
     <div class="panel-sub">ابحث بالإيميل أو الاسم</div>
     <div class="search-input-wrap">
@@ -1422,7 +1437,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
