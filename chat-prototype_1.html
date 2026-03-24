@@ -351,8 +351,9 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .empty-search-hint{font-size:12px;color:var(--muted);text-align:center;padding:12px 4px;}
 
 /* OVERLAYS */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
 .overlay.open{display:flex;}
+.profile-overlay-open .profile-bar{visibility:hidden;}
 .panel{background:var(--sidebar);border:1px solid var(--border2);border-radius:20px;width:440px;max-width:95vw;padding:28px;box-shadow:0 0 40px var(--accent-glow),0 20px 60px rgba(0,0,0,.8);animation:panelIn .25s ease;direction:rtl;max-height:90vh;overflow-y:auto;}
 .panel::-webkit-scrollbar{width:3px;}
 .panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
@@ -397,13 +398,18 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .lang-opt-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);} 
 
 /* PROFILE PANEL */
-.profile-cover{height:116px;background:linear-gradient(135deg,var(--accent-glow),var(--surface2));background-size:cover;background-position:center;border-radius:12px 12px 0 0;position:relative;margin:-28px -28px 0;overflow:hidden;box-shadow:inset 0 -40px 90px rgba(0,0,0,.35);}
+.profile-cover{height:132px;background:
+  radial-gradient(circle at top right, var(--accent-glow), transparent 44%),
+  linear-gradient(135deg,var(--surface2),var(--sidebar));
+  background-size:cover;background-position:center;border-radius:12px 12px 0 0;position:relative;margin:-28px -28px 0;overflow:hidden;box-shadow:inset 0 -40px 90px rgba(0,0,0,.35);}
 .profile-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.06),rgba(0,0,0,.62));pointer-events:none;}
 .profile-cover.has-image{border-bottom:1px solid #ffffff14;}
-.profile-panel-av{position:absolute;bottom:-30px;right:22px;width:68px;height:68px;border-radius:50%;border:4px solid var(--sidebar);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--accent);box-shadow:0 14px 28px rgba(0,0,0,.34);}
-.profile-body{padding:48px 0 0;text-align:center;}
+.profile-panel-av{position:absolute;bottom:-40px;left:50%;transform:translateX(-50%);width:88px;height:88px;border-radius:50%;border:4px solid var(--sidebar);background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--accent);box-shadow:0 14px 28px rgba(0,0,0,.34);overflow:hidden;cursor:pointer;}
+.profile-panel-av::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px #ffffff18;pointer-events:none;}
+.profile-body{padding:58px 0 0;text-align:center;}
 .profile-pname{font-size:22px;font-weight:700;margin-bottom:6px;letter-spacing:.2px;}
 .profile-pemail{font-size:12px;color:var(--muted);margin-bottom:18px;}
+.profile-avatar-caption{font-size:11px;color:var(--muted);margin:-6px 0 16px;}
 .profile-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
 .profile-row:last-of-type{border-bottom:none;}
 .picon{font-size:15px;width:22px;text-align:center;}
@@ -422,6 +428,13 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .profile-hint{font-size:11px;color:var(--muted);margin:2px 0 10px;}
 .profile-overlay-user .profile-edit,
 .profile-overlay-user #profileLogoutBtn{display:none;}
+.chat-menu{position:absolute;top:56px;inset-inline-end:18px;min-width:190px;background:var(--sidebar);border:1px solid var(--border2);border-radius:14px;box-shadow:0 16px 38px rgba(0,0,0,.35);padding:8px;display:none;z-index:40;}
+.chat-menu.open{display:block;}
+.chat-menu button{width:100%;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:13px;padding:10px 12px;border-radius:10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;text-align:inherit;}
+.chat-menu button:hover{background:var(--surface);}
+.image-viewer{max-width:min(92vw,760px);max-height:88vh;display:flex;flex-direction:column;gap:12px;align-items:center;}
+.image-viewer img{max-width:100%;max-height:74vh;object-fit:contain;border-radius:22px;border:1px solid var(--border2);box-shadow:0 20px 60px rgba(0,0,0,.45);}
+.image-viewer-name{font-size:13px;color:var(--muted);}
 
 /* FRIEND SEARCH */
 .search-input-wrap{display:flex;gap:8px;margin-bottom:14px;}
@@ -530,7 +543,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 <div class="chat-area">
   <div class="chat-header">
     <div class="chat-user">
-      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);cursor:pointer;" onclick="openActiveProfile()">💬</div>
+      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);cursor:pointer;" onclick="openActiveAvatarPreview()">💬</div>
       <div>
         <div class="chat-user-name" id="headerName">اختر محادثة</div>
         <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
@@ -540,7 +553,11 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
       <div class="icon-btn mobile-back" onclick="openSidebarMobile()" title="رجوع">←</div>
       <div class="icon-btn">📞</div>
       <div class="icon-btn">📹</div>
-      <div class="icon-btn">⋮</div>
+      <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
+    </div>
+    <div class="chat-menu" id="chatHeaderMenu">
+      <button type="button" onclick="openActiveProfileFromMenu()"><span id="chatMenuProfileText">إظهار البروفايل</span><span>👤</span></button>
+      <button type="button" onclick="openActiveAvatarFromMenu()"><span id="chatMenuImageText">عرض الصورة</span><span>🖼️</span></button>
     </div>
   </div>
   <div class="messages" id="messages"></div>
@@ -636,10 +653,11 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 <div class="overlay" id="profileOverlay" onclick="if(event.target===this)closeProfile()">
   <div class="panel">
     <div class="profile-cover" id="profileCover"></div>
-    <div class="profile-panel-av" id="profileAv">?</div>
+    <div class="profile-panel-av" id="profileAv" onclick="openProfileImage()">?</div>
     <div class="profile-body">
       <div class="profile-pname" id="profileName">—</div>
       <div class="profile-pemail" id="profileEmail">—</div>
+      <div class="profile-avatar-caption" id="profileAvatarCaption">اضغط على الصورة لعرضها</div>
       <div class="profile-row"><span class="picon">🪪</span><span id="profileCodeValue">#000</span></div>
       <div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
@@ -691,6 +709,14 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   <button type="button" id="messageMenuEditBtn" onclick="editMessageFromMenu()"><span>تعديل الرسالة</span><span>✏️</span></button>
   <button type="button" id="messageMenuDeleteMineBtn" onclick="deleteMessageMineFromMenu()"><span>حذف لديك</span><span>🗑</span></button>
   <button type="button" class="danger" id="messageMenuDeleteAllBtn" onclick="deleteMessageAllFromMenu()"><span>حذف لدى الجميع</span><span>⛔</span></button>
+</div>
+
+<div class="overlay" id="imageViewerOverlay" onclick="if(event.target===this)closeImageViewer()">
+  <div class="image-viewer">
+    <img id="imageViewerImg" alt="Profile image" />
+    <div class="image-viewer-name" id="imageViewerName">—</div>
+    <button class="pbtn" type="button" onclick="closeImageViewer()" id="imageViewerCloseBtn">إغلاق</button>
+  </div>
 </div>
 
 <script type="module">
@@ -1089,7 +1115,7 @@ window.searchFriends = async () => {
   if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+tr('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserProfile('${u.id}')">${avatarMarkup(u.init, u.avatar)}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${tr('chatBtn')}</button>
     </div>`;
@@ -1517,6 +1543,10 @@ function applyLanguage(){
   const tdW = qs('#tc-white .theme-desc'); if(tdW) tdW.textContent = appLang === 'ar' ? 'فاتح ونظيف' : 'Light & Clean';
   const tcB = qs('#tc-black .theme-name'); if(tcB) tcB.textContent = 'Black ⚫';
   const tdB = qs('#tc-black .theme-desc'); if(tdB) tdB.textContent = appLang === 'ar' ? 'أسود أحادي' : 'Monochrome Black';
+  if(byId('chatMenuProfileText')) byId('chatMenuProfileText').textContent = appLang === 'ar' ? 'إظهار البروفايل' : 'View profile';
+  if(byId('chatMenuImageText')) byId('chatMenuImageText').textContent = appLang === 'ar' ? 'عرض الصورة' : 'View image';
+  if(byId('profileAvatarCaption')) byId('profileAvatarCaption').textContent = appLang === 'ar' ? 'اضغط على الصورة لعرضها' : 'Tap the photo to view it';
+  if(byId('imageViewerCloseBtn')) byId('imageViewerCloseBtn').textContent = t('profileClose');
   if(byId('profileRoleText')) byId('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
   const profileOverlay = byId('profileOverlay');
   if(byId('profileStatusText') && profileOverlay){
@@ -1527,21 +1557,47 @@ function applyLanguage(){
 // PANELS
 function openSettings(){document.getElementById('settingsOverlay').classList.add('open');}
 function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');}
-function closeProfile(){document.getElementById('profileOverlay').classList.remove('open');}
+function closeProfile(){
+  document.getElementById('profileOverlay').classList.remove('open');
+  document.body.classList.remove('profile-overlay-open');
+}
 function openSearchPanel(){document.getElementById('searchOverlay').classList.add('open');}
 function closeSearchPanel(){document.getElementById('searchOverlay').classList.remove('open');}
+function closeChatHeaderMenu(){document.getElementById('chatHeaderMenu')?.classList.remove('open');}
+window.toggleChatHeaderMenu = function(event){
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
+  const menu = document.getElementById('chatHeaderMenu');
+  if(!menu) return;
+  menu.classList.toggle('open');
+};
+
+window.openImageViewer = function(imageUrl, label = ''){
+  if(!imageUrl) return;
+  const overlay = document.getElementById('imageViewerOverlay');
+  const img = document.getElementById('imageViewerImg');
+  const name = document.getElementById('imageViewerName');
+  if(!overlay || !img || !name) return;
+  img.src = imageUrl;
+  img.alt = label || 'Profile image';
+  name.textContent = label || '—';
+  overlay.classList.add('open');
+};
+
+window.closeImageViewer = function(){
+  const overlay = document.getElementById('imageViewerOverlay');
+  const img = document.getElementById('imageViewerImg');
+  if(img) img.removeAttribute('src');
+  overlay?.classList.remove('open');
+};
 
 function setProfileCover(imageUrl){
   const cover = document.getElementById('profileCover');
   if(!cover) return;
-  if(imageUrl){
-    const safeUrl = String(imageUrl).replace(/"/g, '%22');
-    cover.classList.add('has-image');
-    cover.style.backgroundImage = `linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.62)), url("${safeUrl}")`;
-  }else{
-    cover.classList.remove('has-image');
-    cover.style.backgroundImage = 'linear-gradient(135deg,var(--accent-glow),var(--surface2))';
-  }
+  cover.classList.toggle('has-image', !!imageUrl);
+  cover.style.backgroundImage = imageUrl
+    ? 'radial-gradient(circle at top right, var(--accent-glow), transparent 42%), linear-gradient(135deg, color-mix(in srgb, var(--surface2) 78%, var(--accent-glow) 22%), var(--sidebar))'
+    : 'radial-gradient(circle at top right, var(--accent-glow), transparent 42%), linear-gradient(135deg,var(--surface2),var(--sidebar))';
 }
 
 function fillProfileOverlay(data){
@@ -1560,6 +1616,8 @@ function fillProfileOverlay(data){
   overlay.dataset.userId = id;
   overlay.dataset.isSelf = isSelf ? 'true' : 'false';
   overlay.dataset.isOnline = isOnline ? 'true' : 'false';
+  overlay.dataset.avatar = avatar || '';
+  overlay.dataset.name = name || '';
   overlay.classList.toggle('profile-overlay-user', !isSelf);
 
   document.getElementById('profileName').textContent = `${name} #${code}`;
@@ -1591,6 +1649,7 @@ window.openProfile = function(){
     online: true,
     isSelf: true
   });
+  document.body.classList.add('profile-overlay-open');
   document.getElementById('profileOverlay').classList.add('open');
 };
 
@@ -1624,7 +1683,47 @@ window.openUserProfile = async function(userId){
     online: onlineUserIds.has(userId),
     isSelf: false
   });
+  document.body.classList.add('profile-overlay-open');
   document.getElementById('profileOverlay').classList.add('open');
+};
+
+window.openProfileImage = function(){
+  const overlay = document.getElementById('profileOverlay');
+  const avatar = overlay?.dataset?.avatar || '';
+  const name = overlay?.dataset?.name || '';
+  if(avatar) window.openImageViewer(avatar, name);
+};
+
+window.openActiveAvatarPreview = function(){
+  if(activeContact?.avatar) window.openImageViewer(activeContact.avatar, activeContact.name || '');
+  else if(activeContact) window.openUserProfile(activeContact.id);
+};
+
+window.openActiveProfileFromMenu = function(){
+  closeChatHeaderMenu();
+  window.openActiveProfile();
+};
+
+window.openActiveAvatarFromMenu = function(){
+  closeChatHeaderMenu();
+  window.openActiveAvatarPreview();
+};
+
+window.openUserAvatarOrProfile = async function(userId){
+  const me = getCurrentUser();
+  if(me && userId === me.id){
+    const mineAvatar = window.myProfileState?.avatar || '';
+    if(mineAvatar) window.openImageViewer(mineAvatar, window.myProfileState?.name || 'You');
+    else window.openProfile();
+    return;
+  }
+  const existing = contacts.find((c) => c.id === userId) || {};
+  const profileRows = await queryProfilesByIds([userId]);
+  const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
+  const avatar = profile.avatar_url || existing.avatar || '';
+  const label = String(profile.full_name || '').trim() || existing.name || String(profile.username || '').trim() || 'User';
+  if(avatar) window.openImageViewer(avatar, label);
+  else window.openUserProfile(userId);
 };
 
 function getNotifyStoreKey(){
@@ -2105,7 +2204,7 @@ function createMessageRow(msg, isOut, showAvatar){
   if(showAvatar){
     avatar.addEventListener('click', (event) => {
       event.stopPropagation();
-      window.openUserProfile(isOut ? getCurrentUser()?.id : activeContact.id);
+      window.openUserAvatarOrProfile(isOut ? getCurrentUser()?.id : activeContact.id);
     });
   }
 
@@ -2348,7 +2447,7 @@ async function loadInboxContacts(){
 function renderContacts(list=contacts){
   document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
     <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${c.id}')">
-      <div class="avatar" style="background:${c.color};color:${c.text};" onclick="event.stopPropagation();openUserProfile('${c.id}')">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
+      <div class="avatar" style="background:${c.color};color:${c.text};" onclick="event.stopPropagation();openUserAvatarOrProfile('${c.id}')">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${c.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(c.id) : '000'}</span></div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
@@ -2382,7 +2481,7 @@ function renderSidebarSearchResults(results){
   }
   el.innerHTML = results.map(u => `
     <div class="contact" onclick="startChatFromSidebar('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};" onclick="event.stopPropagation();openUserProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.email}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`).join('');
@@ -2470,7 +2569,7 @@ window.searchFromMainArea = async function(){
   if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
   out.innerHTML = results.map(u => `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn">${t('chatBtn')}</button>
     </div>`).join('');
@@ -2799,12 +2898,21 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('click', (event) => {
   const menu = document.getElementById('messageMenu');
   if(menu && menu.classList.contains('open') && !menu.contains(event.target)) closeMessageMenu();
+  const chatMenu = document.getElementById('chatHeaderMenu');
+  const chatBtn = document.getElementById('chatMenuBtn');
+  if(chatMenu && chatMenu.classList.contains('open') && !chatMenu.contains(event.target) && !chatBtn?.contains(event.target)) closeChatHeaderMenu();
 });
 document.getElementById('messageMenu')?.addEventListener('click', (event) => {
   event.stopPropagation();
 });
+document.getElementById('chatHeaderMenu')?.addEventListener('click', (event) => {
+  event.stopPropagation();
+});
 window.addEventListener('scroll', closeMessageMenu, true);
-window.addEventListener('resize', closeMessageMenu);
+window.addEventListener('resize', () => {
+  closeMessageMenu();
+  closeChatHeaderMenu();
+});
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
 </script>
