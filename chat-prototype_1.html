@@ -682,10 +682,15 @@ function avatarMarkup(label, imageUrl, extraDotClass = ''){
   return `${image}${fallback}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
 }
 
+window.getDisplayInitial = getDisplayInitial;
+window.setAvatarNode = setAvatarNode;
+window.avatarMarkup = avatarMarkup;
+
 function syncMyAvatarIntoContacts(){
-  const mine = contacts.find(x => x.id === me.id);
+  const contactList = window._contacts || [];
+  const mine = contactList.find(x => x.id === me.id);
   if(mine) mine.avatar = myAvatarUrl || '';
-  if(activeContact && activeContact.id === me.id) activeContact.avatar = myAvatarUrl || '';
+  if(window.activeContactRef && window.activeContactRef.id === me.id) window.activeContactRef.avatar = myAvatarUrl || '';
 }
 
 function fileToDataUrl(file){
@@ -881,6 +886,7 @@ function profileMatchesQuery(profile, query){
 }
 
 async function refreshProfilesDirectory(limit = 300){
+  const globalDirectory = window.profilesDirectory || [];
   const broadAttempts = [
     () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(limit),
     () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(limit),
@@ -889,15 +895,15 @@ async function refreshProfilesDirectory(limit = 300){
   for(const run of broadAttempts){
     const res = await withTimeout(run());
     if(!res.error){
-      profilesDirectory = res.data || [];
-      if(profilesDirectory.length) return profilesDirectory;
+      window.profilesDirectory = res.data || [];
+      if(window.profilesDirectory.length) return window.profilesDirectory;
     }
   }
-  return profilesDirectory;
+  return globalDirectory;
 }
 
 async function queryProfilesForSearch(query, limit){
-  const cachedMatches = profilesDirectory.filter((u) => profileMatchesQuery(u, query));
+  const cachedMatches = (window.profilesDirectory || []).filter((u) => profileMatchesQuery(u, query));
   if(cachedMatches.length) return cachedMatches.slice(0, limit);
 
   const broadAttempts = [
@@ -914,7 +920,7 @@ async function queryProfilesForSearch(query, limit){
       if(broadData.length) break;
     }
   }
-  if(broadData.length) profilesDirectory = broadData;
+  if(broadData.length) window.profilesDirectory = broadData;
   return broadData.filter((u) => profileMatchesQuery(u, query)).slice(0, limit);
 }
 
@@ -937,6 +943,7 @@ window.searchProfiles = async (q, limit = 8) => {
   if(!query) return [];
 
   const data = await queryProfilesForSearch(query, limit);
+  profilesDirectory = window.profilesDirectory || profilesDirectory;
 
   const colors = [
     {bg:'#12123a',t:'#818cf8'},
@@ -952,7 +959,7 @@ window.searchProfiles = async (q, limit = 8) => {
     const email = (u.email || '').trim();
     const name = fullName || uname || (email ? email.split('@')[0] : 'User');
     const sub = email || (uname ? '@'+uname : '');
-    const existing = contacts.find(x => x.id === u.id);
+    const existing = (window._contacts || []).find(x => x.id === u.id);
     return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:getDisplayInitial(name), avatar: existing?.avatar || u.avatar_url || '' };
   });
 };
@@ -1029,7 +1036,7 @@ const onlineUserIds = new Set();
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
 let mobileSidebarOpen = false;
-let profilesDirectory = [];
+let profilesDirectory = window.profilesDirectory || [];
 let pendingRestoredContactId = null;
 
 function isMobileView(){
@@ -1082,7 +1089,7 @@ function loadLocalChatState(){
     if(Array.isArray(parsed?.contacts)){
       parsed.contacts.forEach(c => {
         if(!c || !c.id) return;
-        c.init = getDisplayInitial(c.init || c.name || c.email || c.id);
+        c.init = window.getDisplayInitial(c.init || c.name || c.email || c.id);
         c.avatar = c.avatar || '';
         if(!contacts.find(x => x.id === c.id)) contacts.push(c);
       });
@@ -1431,7 +1438,7 @@ function createMessageRow(msg, isOut, showAvatar){
   avatar.className = `msg-avatar ${showAvatar && !isOut ? '' : 'ghost'}`;
   avatar.style.background = activeContact.color;
   avatar.style.color = activeContact.text;
-  setAvatarNode(avatar, activeContact.init, activeContact.avatar);
+  window.setAvatarNode(avatar, activeContact.init, activeContact.avatar);
 
   const content = document.createElement('div');
   content.className = 'msg-content';
@@ -1584,7 +1591,7 @@ async function loadInboxContacts(){
       c = {
         id,
         name,
-        init: getDisplayInitial(name),
+        init: window.getDisplayInitial(name),
         color: clr.bg,
         text: clr.t,
         avatar: p.avatar_url || '',
@@ -1597,7 +1604,7 @@ async function loadInboxContacts(){
       contacts.push(c);
     } else if(c.name === id || c.name === 'User'){
       c.name = name;
-      c.init = getDisplayInitial(name);
+      c.init = window.getDisplayInitial(name);
     }
     if(p.avatar_url) c.avatar = p.avatar_url;
 
@@ -1630,7 +1637,7 @@ async function loadInboxContacts(){
 function renderContacts(list=contacts){
   document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
     <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${c.id}')">
-      <div class="avatar" style="background:${c.color};color:${c.text};">${avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
+      <div class="avatar" style="background:${c.color};color:${c.text};">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${c.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(c.id) : '000'}</span></div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
@@ -1638,12 +1645,13 @@ function renderContacts(list=contacts){
 function selectContact(id){
   activeContact=contacts.find(c=>c.id===id);
   if(!activeContact) return;
+  window.activeContactRef = activeContact;
   mobileSidebarOpen = false;
   const hit = contacts.find(c=>c.id===id);
   if(hit) hit.unread=0;
   const av=document.getElementById('headerAvatar');
   av.style.background=activeContact.color;av.style.color=activeContact.text;
-  setAvatarNode(av, activeContact.init, activeContact.avatar);
+  window.setAvatarNode(av, activeContact.init, activeContact.avatar);
   document.getElementById('headerName').textContent=`${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
   updateHeaderPresence();
   renderContacts();
@@ -1667,7 +1675,7 @@ function renderSidebarSearchResults(results){
   }
   el.innerHTML = results.map(u => `
     <div class="contact" onclick="startChatFromSidebar('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};">${avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.email}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`).join('');
@@ -1755,7 +1763,7 @@ window.searchFromMainArea = async function(){
   if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
   out.innerHTML = results.map(u => `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${avatarMarkup(u.init, u.avatar)}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn">${t('chatBtn')}</button>
     </div>`).join('');
@@ -1961,11 +1969,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
-
 
 
 
