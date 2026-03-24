@@ -977,10 +977,22 @@ window.searchFriends = async () => {
   }).join('');
 };
 
-window.startChat = (id,name,bg,textColor,avatarUrl='') => {
-  const existing = window._contacts.find(c=>c.id===id);
+function ensureContactRecord(id, name, bg, textColor, avatarUrl=''){
+  let existing = window._contacts.find(c => c.id === id);
   if(!existing){
-    window._contacts.push({id,name,init:getDisplayInitial(name),color:bg,text:textColor,avatar:avatarUrl || '',online:false,preview:window.t('startChatPreview'),time:'',unread:0});
+    existing = {
+      id,
+      name,
+      init:getDisplayInitial(name),
+      color:bg,
+      text:textColor,
+      avatar:avatarUrl || '',
+      online:false,
+      preview:window.t('startChatPreview'),
+      time:'',
+      unread:0
+    };
+    window._contacts.push(existing);
   }else{
     existing.name = name || existing.name;
     existing.init = getDisplayInitial(existing.name);
@@ -988,7 +1000,14 @@ window.startChat = (id,name,bg,textColor,avatarUrl='') => {
     existing.text = textColor || existing.text;
     if(avatarUrl) existing.avatar = avatarUrl;
   }
+  if(!window._convos[id]) window._convos[id] = [];
+  return existing;
+}
+
+window.startChat = (id,name,bg,textColor,avatarUrl='') => {
+  ensureContactRecord(id, name, bg, textColor, avatarUrl);
   closeSearchPanel();
+  pendingRestoredContactId = id;
   selectContact(id);
   saveLocalChatState();
   renderContacts();
@@ -1937,7 +1956,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
