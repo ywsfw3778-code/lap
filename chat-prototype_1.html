@@ -850,11 +850,19 @@ function withTimeout(promise, timeoutMs = 3500){
   ]);
 }
 
+function normalizeSearchValue(value){
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^@+/, '')
+    .replace(/\s+/g, '');
+}
+
 function profileMatchesQuery(profile, query){
-  const q = String(query || '').toLowerCase();
-  const username = String(profile?.username || '').toLowerCase();
-  const fullName = String(profile?.full_name || '').toLowerCase();
-  const email = String(profile?.email || '').toLowerCase();
+  const q = normalizeSearchValue(query);
+  const username = normalizeSearchValue(profile?.username);
+  const fullName = normalizeSearchValue(profile?.full_name);
+  const email = normalizeSearchValue(profile?.email);
   return username.includes(q) || fullName.includes(q) || email.includes(q);
 }
 
@@ -1913,7 +1921,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
