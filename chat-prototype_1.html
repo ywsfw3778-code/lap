@@ -901,6 +901,10 @@ window.handleLogout = async () => {
       try { sbClient.removeChannel(presenceChannel); } catch(_e){}
     }
     try{ localStorage.removeItem(getChatStateKey()); }catch(_e){}
+    try{ localStorage.removeItem('lm-chat-state-last'); }catch(_e){}
+    try{ localStorage.removeItem('lm-chat-last-key'); }catch(_e){}
+    try{ localStorage.removeItem(getActiveChatKey()); }catch(_e){}
+    try{ localStorage.removeItem('lm-active-chat-guest'); }catch(_e){}
     try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
     await sb.auth.signOut({ scope: 'local' });
   }catch(_e){}
@@ -1084,6 +1088,41 @@ let mobileSidebarOpen = false;
 let profilesDirectory = window.profilesDirectory || [];
 let pendingRestoredContactId = null;
 
+function fallbackDisplayInitial(value, fallback = '?'){
+  const text = String(value || '').trim();
+  if(!text) return fallback;
+  return text.charAt(0).toUpperCase();
+}
+
+function fallbackSetAvatarNode(el, label, imageUrl){
+  if(!el) return;
+  el.innerHTML = '';
+  const safeLabel = fallbackDisplayInitial(label);
+  if(imageUrl){
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = safeLabel || 'avatar';
+    img.className = 'avatar-image';
+    img.onerror = () => { img.remove(); };
+    el.appendChild(img);
+  }
+  const fallback = document.createElement('span');
+  fallback.className = 'avatar-fallback';
+  fallback.textContent = safeLabel;
+  el.appendChild(fallback);
+}
+
+function fallbackAvatarMarkup(label, imageUrl, extraDotClass = ''){
+  const safeLabel = fallbackDisplayInitial(label);
+  const image = imageUrl ? `<img class="avatar-image" src="${imageUrl}" alt="${safeLabel}" onerror="this.remove()">` : '';
+  const fallback = `<span class="avatar-fallback">${safeLabel}</span>`;
+  return `${image}${fallback}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
+}
+
+window.getDisplayInitial = window.getDisplayInitial || fallbackDisplayInitial;
+window.setAvatarNode = window.setAvatarNode || fallbackSetAvatarNode;
+window.avatarMarkup = window.avatarMarkup || fallbackAvatarMarkup;
+
 function isMobileView(){
   return window.matchMedia('(max-width: 980px)').matches;
 }
@@ -1120,70 +1159,161 @@ function getActiveChatKey(){
   return me ? `lm-active-chat-${me.id}` : 'lm-active-chat-guest';
 }
 
+function getLastSnapshotKey(){
+  return 'lm-chat-state-last';
+}
+
+function hydrateStoredState(parsed){
+  if(!parsed || typeof parsed !== 'object') return false;
+  let restoredSomething = false;
+
+  if(Array.isArray(parsed.contacts)){
+    parsed.contacts.forEach((c) => {
+      if(!c || !c.id) return;
+      const existing = contacts.find((x) => x.id === c.id);
+      const nextContact = {
+        id: c.id,
+        name: c.name || c.email || 'User',
+        init: window.getDisplayInitial(c.init || c.name || c.email || c.id),
+        color: c.color || '#12123a',
+        text: c.text || '#818cf8',
+        avatar: c.avatar || '',
+        online: !!c.online,
+        preview: c.preview || '',
+        time: c.time || '',
+        unread: Number(c.unread || 0),
+        _lastInboxAt: c._lastInboxAt || ''
+      };
+      if(existing){
+        Object.assign(existing, nextContact);
+      }else{
+        contacts.push(nextContact);
+      }
+      restoredSomething = true;
+    });
+  }
+
+  if(parsed.conversations && typeof parsed.conversations === 'object'){
+    Object.keys(parsed.conversations).forEach((chatId) => {
+      if(!Array.isArray(parsed.conversations[chatId])) return;
+      const compactRows = parsed.conversations[chatId].map((msg) => ({
+        out: !!msg.out,
+        text: msg.text || '',
+        time: msg.time || '',
+        dayKey: msg.dayKey || '',
+        dayLabel: msg.dayLabel || '',
+        read: !!msg.read
+      }));
+      if(!conversations[chatId] || !conversations[chatId].length){
+        conversations[chatId] = compactRows;
+      }
+      restoredSomething = restoredSomething || compactRows.length > 0;
+    });
+  }
+
+  const restoredActiveId = parsed.activeContactId || localStorage.getItem(getActiveChatKey()) || localStorage.getItem('lm-active-chat-guest') || null;
+  if(restoredActiveId){
+    pendingRestoredContactId = restoredActiveId;
+    const savedActive = contacts.find((x) => x.id === restoredActiveId);
+    if(savedActive){
+      activeContact = savedActive;
+      window.activeContactRef = savedActive;
+    }
+    restoredSomething = true;
+  }
+
+  return restoredSomething;
+}
+
 function loadFastLocalChatState(){
   try{
-    const fallbackKey = localStorage.getItem('lm-chat-last-key') || 'lm-chat-state-guest';
-    const rawState = localStorage.getItem(fallbackKey);
-    if(!rawState) return;
-    const parsed = JSON.parse(rawState);
-    if(Array.isArray(parsed?.contacts)){
-      parsed.contacts.forEach(c => {
-        if(!c || !c.id) return;
-        c.init = window.getDisplayInitial(c.init || c.name || c.email || c.id);
-        c.avatar = c.avatar || '';
-        if(!contacts.find(x => x.id === c.id)) contacts.push(c);
-      });
-    }
-    if(parsed?.conversations && typeof parsed.conversations === 'object'){
-      Object.keys(parsed.conversations).forEach(k => {
-        if(!conversations[k] && Array.isArray(parsed.conversations[k])) conversations[k] = parsed.conversations[k];
-      });
-    }
-    const cachedActiveId = parsed?.activeContactId || localStorage.getItem('lm-active-chat-guest');
-    if(cachedActiveId){
-      pendingRestoredContactId = cachedActiveId;
-      const savedActive = contacts.find(x => x.id === cachedActiveId);
-      if(savedActive) activeContact = savedActive;
+    const keys = [
+      window.me ? `lm-chat-state-${window.me.id}` : '',
+      localStorage.getItem('lm-chat-last-key') || '',
+      getLastSnapshotKey(),
+      'lm-chat-state-guest'
+    ].filter(Boolean);
+
+    for(const key of [...new Set(keys)]){
+      const rawState = localStorage.getItem(key);
+      if(!rawState) continue;
+      const parsed = JSON.parse(rawState);
+      if(hydrateStoredState(parsed)) break;
     }
   }catch(_e){}
 }
 
+function compactContactForStorage(contact){
+  return {
+    id: contact.id,
+    name: contact.name,
+    init: contact.init,
+    color: contact.color,
+    text: contact.text,
+    avatar: /^https?:\/\//i.test(String(contact.avatar || '')) ? contact.avatar : '',
+    online: !!contact.online,
+    preview: contact.preview || '',
+    time: contact.time || '',
+    unread: contact.unread || 0,
+    _lastInboxAt: contact._lastInboxAt || ''
+  };
+}
+
+function compactConversationsForStorage(source){
+  const out = {};
+  Object.keys(source || {}).forEach((chatId) => {
+    if(!Array.isArray(source[chatId])) return;
+    out[chatId] = source[chatId].slice(-40).map((msg) => ({
+      out: !!msg.out,
+      text: msg.text || '',
+      time: msg.time || '',
+      dayKey: msg.dayKey || '',
+      dayLabel: msg.dayLabel || '',
+      read: !!msg.read
+    }));
+  });
+  return out;
+}
+
 function saveLocalChatState(){
+  const activeId = activeContact?.id || pendingRestoredContactId || null;
+  const payload = {
+    contacts: contacts.map(compactContactForStorage),
+    conversations: compactConversationsForStorage(conversations),
+    activeContactId: activeId
+  };
   try{
-    const payload = {
-      contacts,
-      conversations,
-      activeContactId: activeContact?.id || null
-    };
     localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
-    if(activeContact?.id) localStorage.setItem(getActiveChatKey(), activeContact.id);
-  }catch(_e){}
+    localStorage.setItem(getLastSnapshotKey(), JSON.stringify(payload));
+    if(activeId) localStorage.setItem(getActiveChatKey(), activeId);
+  }catch(_e){
+    try{
+      const fallbackPayload = {
+        contacts: contacts.map(compactContactForStorage),
+        conversations: {},
+        activeContactId: activeId
+      };
+      localStorage.setItem(getChatStateKey(), JSON.stringify(fallbackPayload));
+      localStorage.setItem(getLastSnapshotKey(), JSON.stringify(fallbackPayload));
+      if(activeId) localStorage.setItem(getActiveChatKey(), activeId);
+    }catch(_ignore){}
+  }
 }
 
 function loadLocalChatState(){
   try{
-    const rawState = localStorage.getItem(getChatStateKey());
-    if(!rawState) return;
-    const parsed = JSON.parse(rawState);
-    if(Array.isArray(parsed?.contacts)){
-      parsed.contacts.forEach(c => {
-        if(!c || !c.id) return;
-        c.init = window.getDisplayInitial(c.init || c.name || c.email || c.id);
-        c.avatar = c.avatar || '';
-        if(!contacts.find(x => x.id === c.id)) contacts.push(c);
-      });
-    }
-    if(parsed?.conversations && typeof parsed.conversations === 'object'){
-      Object.keys(parsed.conversations).forEach(k => {
-        if(!conversations[k] && Array.isArray(parsed.conversations[k])) conversations[k] = parsed.conversations[k];
-      });
-    }
-    if(parsed?.activeContactId){
-      pendingRestoredContactId = parsed.activeContactId;
-      const savedActive = contacts.find(x => x.id === parsed.activeContactId);
-      if(savedActive) activeContact = savedActive;
-    }else{
-      pendingRestoredContactId = localStorage.getItem(getActiveChatKey()) || null;
+    const keys = [
+      getChatStateKey(),
+      getLastSnapshotKey(),
+      localStorage.getItem('lm-chat-last-key') || '',
+      'lm-chat-state-guest'
+    ].filter(Boolean);
+
+    for(const key of [...new Set(keys)]){
+      const rawState = localStorage.getItem(key);
+      if(!rawState) continue;
+      const parsed = JSON.parse(rawState);
+      if(hydrateStoredState(parsed)) break;
     }
   }catch(_e){}
 }
@@ -2179,9 +2309,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
 
 
 
