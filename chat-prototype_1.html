@@ -8,6 +8,7 @@
   try{
     const savedLang = localStorage.getItem('lm-lang');
     const lang = savedLang === 'en' ? 'en' : 'ar';
+    window.__lmInitialLang = lang;
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
   }catch(_e){}
@@ -1501,7 +1502,7 @@ function getStoredLang(){
     return 'ar';
   }
 }
-let appLang = getStoredLang();
+let appLang = window.__lmInitialLang === 'en' ? 'en' : getStoredLang();
 function t(k){ return (langPack[appLang] && langPack[appLang][k]) || langPack.ar[k] || k; }
 window.t = t;
 window.setAppLang = function(lang){
@@ -1653,11 +1654,17 @@ function fillProfileOverlay(data){
   if(logoutBtn) logoutBtn.style.display = isSelf ? '' : 'none';
 }
 
+function openProfileOverlayWithData(data){
+  fillProfileOverlay(data);
+  document.body.classList.add('profile-overlay-open');
+  document.getElementById('profileOverlay').classList.add('open');
+}
+
 window.openProfile = function(){
   const me = getCurrentUser();
   if(!me) return;
   const mine = window.myProfileState || {};
-  fillProfileOverlay({
+  openProfileOverlayWithData({
     id: me.id,
     name: mine.name || (me.email ? me.email.split('@')[0] : 'You'),
     email: mine.email || me.email || '—',
@@ -1666,12 +1673,20 @@ window.openProfile = function(){
     online: true,
     isSelf: true
   });
-  document.body.classList.add('profile-overlay-open');
-  document.getElementById('profileOverlay').classList.add('open');
 };
 
 window.openActiveProfile = function(){
-  if(activeContact) window.openUserProfile(activeContact.id);
+  if(!activeContact) return;
+  openProfileOverlayWithData({
+    id: activeContact.id,
+    name: activeContact.name || 'User',
+    email: activeContact.preview || '—',
+    username: activeContact.username || '',
+    avatar: activeContact.avatar || '',
+    online: onlineUserIds.has(activeContact.id),
+    isSelf: false
+  });
+  window.openUserProfile(activeContact.id);
 };
 
 window.openUserProfile = async function(userId){
@@ -1683,7 +1698,12 @@ window.openUserProfile = async function(userId){
   }
 
   const existing = contacts.find((c) => c.id === userId) || {};
-  const profileRows = await queryProfilesByIds([userId]);
+  let profileRows = [];
+  try{
+    profileRows = await queryProfilesByIds([userId]);
+  }catch(_e){
+    profileRows = [];
+  }
   const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
   const uname = String(profile.username || '').trim();
   const fullName = String(profile.full_name || '').trim();
@@ -1691,7 +1711,7 @@ window.openUserProfile = async function(userId){
   const name = fullName || existing.name || uname || (email ? email.split('@')[0] : 'User');
   const avatar = profile.avatar_url || existing.avatar || '';
 
-  fillProfileOverlay({
+  openProfileOverlayWithData({
     id: userId,
     name,
     email: email || '—',
@@ -1700,8 +1720,6 @@ window.openUserProfile = async function(userId){
     online: onlineUserIds.has(userId),
     isSelf: false
   });
-  document.body.classList.add('profile-overlay-open');
-  document.getElementById('profileOverlay').classList.add('open');
 };
 
 window.openProfileImage = function(){
@@ -1718,7 +1736,7 @@ window.openActiveAvatarPreview = function(){
 
 window.openActiveProfileFromMenu = function(){
   closeChatHeaderMenu();
-  window.openActiveProfile();
+  if(activeContact) window.openActiveProfile();
 };
 
 window.openActiveAvatarFromMenu = function(){
@@ -2945,6 +2963,14 @@ window.onAuthReady = function(){
 applyLanguage();
 window.onAuthReady(me.id);
 
+document.addEventListener('DOMContentLoaded', () => {
+  const nextLang = getStoredLang();
+  if(nextLang !== appLang){
+    appLang = nextLang;
+  }
+  applyLanguage();
+});
+
 window.addEventListener('pageshow', () => {
   const nextLang = getStoredLang();
   if(nextLang !== appLang){
@@ -2976,6 +3002,17 @@ document.addEventListener('visibilitychange', () => {
       renderContacts();
       renderMessages();
     }
+  }
+});
+
+window.addEventListener('storage', (event) => {
+  if(event.key !== 'lm-lang') return;
+  const nextLang = getStoredLang();
+  if(nextLang !== appLang){
+    appLang = nextLang;
+    applyLanguage();
+    renderContacts();
+    renderMessages();
   }
 });
 document.addEventListener('click', (event) => {
