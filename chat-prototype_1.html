@@ -1005,12 +1005,30 @@ function ensureContactRecord(id, name, bg, textColor, avatarUrl=''){
 }
 
 window.startChat = (id,name,bg,textColor,avatarUrl='') => {
-  ensureContactRecord(id, name, bg, textColor, avatarUrl);
-  closeSearchPanel();
+  const contact = ensureContactRecord(id, name, bg, textColor, avatarUrl);
+  activeContact = contact;
   pendingRestoredContactId = id;
-  selectContact(id);
-  saveLocalChatState();
+  mobileSidebarOpen = false;
+
+  const av = document.getElementById('headerAvatar');
+  if(av){
+    av.style.background = contact.color;
+    av.style.color = contact.text;
+    setAvatarNode(av, contact.init, contact.avatar);
+  }
+  const headerName = document.getElementById('headerName');
+  if(headerName){
+    headerName.textContent = `${contact.name} #${window.getLabCode ? window.getLabCode(contact.id) : '000'}`;
+  }
+
+  closeSearchPanel();
+  updateHeaderPresence();
+  lastRenderedMessageSig = '';
   renderContacts();
+  renderMessages(true);
+  setMobileChatMode(true);
+  saveLocalChatState();
+  loadMessagesForContact(id);
 };
 </script>
 
@@ -1956,7 +1974,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
