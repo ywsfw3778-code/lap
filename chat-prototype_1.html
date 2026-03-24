@@ -947,6 +947,7 @@ const onlineUserIds = new Set();
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
 let mobileSidebarOpen = false;
+let pendingRestoredContactId = null;
 
 function isMobileView(){
   return window.matchMedia('(max-width: 980px)').matches;
@@ -1009,6 +1010,7 @@ function loadLocalChatState(){
       });
     }
     if(parsed?.activeContactId){
+      pendingRestoredContactId = parsed.activeContactId;
       const savedActive = contacts.find(x => x.id === parsed.activeContactId);
       if(savedActive) activeContact = savedActive;
     }
@@ -1525,8 +1527,21 @@ async function loadInboxContacts(){
     c._lastInboxAt = stamp;
   }
 
+  if(pendingRestoredContactId){
+    const restored = contacts.find(x => x.id === pendingRestoredContactId);
+    if(restored){
+      activeContact = restored;
+    }
+  }
+
   saveLocalChatState();
   renderContacts();
+  if(activeContact){
+    updateHeaderPresence();
+    lastRenderedMessageSig = '';
+    renderMessages();
+    loadMessagesForContact(activeContact.id);
+  }
 }
 // CONTACTS
 function renderContacts(list=contacts){
@@ -1818,14 +1833,11 @@ window.onAuthReady = function(){
   loadLocalChatState();
   loadInboxContacts();
   initPresence();
+  startMessagePolling();
   renderContacts();
   renderMessages();
 };
 
-loadLocalChatState();
-startMessagePolling();
-loadInboxContacts();
-initPresence();
 window.addEventListener('beforeunload', async () => {
   if(messagePollTimer) clearInterval(messagePollTimer);
   const sbClient = getSbClient();
@@ -1841,7 +1853,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
