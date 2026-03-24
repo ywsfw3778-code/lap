@@ -130,8 +130,9 @@ background:var(--bg);
   overflow-wrap:break-word;
 }
 .voice-bubble{
-  width:min(320px, 72vw);
-  min-width:220px;
+  width:auto;
+  min-width:240px;
+  max-width:min(360px, 78vw);
   padding:10px 12px;
   background:
     radial-gradient(circle at top right, var(--accent-glow), transparent 48%),
@@ -140,10 +141,13 @@ background:var(--bg);
   box-shadow:0 10px 24px rgba(0,0,0,.18), inset 0 1px 0 #ffffff12;
 }
 .voice-player{
-  display:flex;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
   align-items:center;
   gap:10px;
   direction:ltr;
+  width:100%;
+  min-width:0;
 }
 .voice-play{
   width:38px;
@@ -169,19 +173,27 @@ background:var(--bg);
   transform:scale(.97);
 }
 .voice-track{
-  flex:1;
+  position:relative;
   min-width:0;
+  height:36px;
   display:flex;
-  flex-direction:column;
-  gap:6px;
+  align-items:center;
+  padding:0 10px;
+  border-radius:999px;
+  background:color-mix(in srgb, var(--surface) 82%, transparent 18%);
+  border:1px solid color-mix(in srgb, var(--border2) 72%, var(--accent) 28%);
+  overflow:hidden;
 }
 .voice-wave{
   position:relative;
+  flex:1;
+  min-width:0;
   height:26px;
   display:flex;
   align-items:center;
   gap:3px;
   padding:0 2px;
+  overflow:hidden;
 }
 .voice-wave span{
   width:4px;
@@ -219,10 +231,21 @@ background:var(--bg);
   opacity:.95;
 }
 .voice-time{
+  min-width:44px;
   font-size:11px;
   color:var(--text);
   opacity:.78;
-  text-align:left;
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.voice-player.playing .voice-wave span{
+  animation:voiceWavePulse 1s ease-in-out infinite;
+}
+.voice-player.playing .voice-wave span:nth-child(3n){animation-delay:.15s;}
+.voice-player.playing .voice-wave span:nth-child(4n){animation-delay:.3s;}
+@keyframes voiceWavePulse{
+  0%,100%{opacity:.38;transform:scaleY(.72);}
+  50%{opacity:.95;transform:scaleY(1.12);}
 }
 .voice-audio{
   display:none;
@@ -379,9 +402,12 @@ background:var(--bg);
   .msg-content{max-width:86%;width:auto;}
   .bubble{max-width:100%;font-size:12px;padding:8px 10px;}
   .voice-bubble{
-    width:min(270px, 100%);
-    min-width:180px;
+    min-width:200px;
+    max-width:min(300px, 100%);
   }
+  .voice-play{width:34px;height:34px;font-size:13px;}
+  .voice-track{height:34px;padding:0 8px;}
+  .voice-time{min-width:40px;font-size:10px;}
   .input-area{padding:8px 10px;gap:6px;}
   .input-wrap{padding:5px 8px;}
   .send-btn{width:36px;height:36px;}
@@ -1241,6 +1267,16 @@ function createVoicePlayer(audioUrl){
   audio.preload = 'metadata';
   audio.src = audioUrl;
 
+  const applyVoiceWidth = () => {
+    const duration = audio.duration || 0;
+    let width = 240;
+    if(duration >= 15) width = 270;
+    if(duration >= 35) width = 300;
+    if(duration >= 70) width = 330;
+    if(duration >= 120) width = 350;
+    wrap.style.width = `min(${width}px, 100%)`;
+  };
+
   const syncProgress = () => {
     const duration = audio.duration || 0;
     const current = audio.currentTime || 0;
@@ -1250,10 +1286,12 @@ function createVoicePlayer(audioUrl){
   };
 
   audio.addEventListener('loadedmetadata', () => {
+    applyVoiceWidth();
     time.textContent = formatVoiceDuration(audio.duration || 0);
   });
   audio.addEventListener('timeupdate', syncProgress);
   audio.addEventListener('ended', () => {
+    wrap.classList.remove('playing');
     button.textContent = '▶';
     progress.style.width = '0%';
     time.textContent = formatVoiceDuration(audio.duration || 0);
@@ -1263,25 +1301,33 @@ function createVoicePlayer(audioUrl){
     document.querySelectorAll('.voice-audio').forEach(other => {
       if(other !== audio) other.pause();
     });
+    document.querySelectorAll('.voice-player').forEach(otherWrap => {
+      if(otherWrap !== wrap) otherWrap.classList.remove('playing');
+    });
     document.querySelectorAll('.voice-play').forEach(otherBtn => {
       if(otherBtn !== button) otherBtn.textContent = '▶';
     });
     if(audio.paused){
       audio.play().then(() => {
+        wrap.classList.add('playing');
         button.textContent = '❚❚';
       }).catch(() => {
+        wrap.classList.remove('playing');
         button.textContent = '▶';
       });
     }else{
       audio.pause();
+      wrap.classList.remove('playing');
       button.textContent = '▶';
     }
   });
 
   audio.addEventListener('pause', () => {
+    wrap.classList.remove('playing');
     if(!audio.ended) button.textContent = '▶';
   });
   audio.addEventListener('play', () => {
+    wrap.classList.add('playing');
     button.textContent = '❚❚';
   });
 
@@ -1802,9 +1848,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
 
 
 
