@@ -710,19 +710,16 @@ const tr = (k) => (typeof window.t === 'function' ? window.t(k) : k);
 
 window.loadMemberCodes = async () => {
   let rows = [];
-  let res = await sb.from('profiles').select('id,username,created_at').order('created_at', { ascending: true });
-  if(res.error){
-    const lite = await sb.from('profiles').select('id,username');
-    if(lite.error) return;
-    rows = lite.data || [];
-  } else {
-    rows = res.data || [];
-  }
+  const lite = await sb.from('profiles').select('id,username');
+  if(lite.error) return;
+  rows = lite.data || [];
 
   let admin = rows.find(r => String(r.username || '').toLowerCase() === ADMIN_USERNAME);
   if(!admin) admin = rows.find(r => r.id === me.id);
 
-  const others = rows.filter(r => !admin || r.id !== admin.id);
+  const others = rows
+    .filter(r => !admin || r.id !== admin.id)
+    .sort((a, b) => String(a.username || a.id).localeCompare(String(b.username || b.id)));
   const ordered = admin ? [admin, ...others] : rows;
   const map = {};
   ordered.forEach((r, i) => { map[r.id] = String(i + 1).padStart(3, '0'); });
@@ -847,20 +844,10 @@ await loadMyProfile();
 window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
 
 async function queryProfilesForSearch(query, limit){
-  const attempts = [
-    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`).neq('id', me.id).limit(limit),
-    () => sb.from('profiles').select('id,username,full_name,email').or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`).neq('id', me.id).limit(limit),
-    () => sb.from('profiles').select('id,username').ilike('username', `%${query}%`).neq('id', me.id).limit(limit)
-  ];
-  for(const run of attempts){
-    const res = await run();
-    if(!res.error && (res.data || []).length) return res.data || [];
-  }
-
   const broadAttempts = [
-    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(Math.max(limit * 8, 50)),
-    () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(Math.max(limit * 8, 50)),
-    () => sb.from('profiles').select('id,username').neq('id', me.id).limit(Math.max(limit * 8, 50))
+    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(Math.max(limit * 20, 200)),
+    () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(Math.max(limit * 20, 200)),
+    () => sb.from('profiles').select('id,username').neq('id', me.id).limit(Math.max(limit * 20, 200))
   ];
 
   let broadData = [];
@@ -923,7 +910,12 @@ window.searchFriends = async () => {
   const q = document.getElementById('friendInput').value.trim();
   if(!q) return;
   document.getElementById('searchResults').innerHTML=`<div class="s-empty">${tr('searchLoading')}</div>`;
-  const results = await window.searchProfiles(q, 8);
+  let results = [];
+  try{
+    results = await window.searchProfiles(q, 8);
+  }catch(_e){
+    results = [];
+  }
   window._mainSearchResults = results;
   if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+tr('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
@@ -1619,7 +1611,12 @@ async function filterContacts(q){
   if(!query){ renderContacts(); return; }
 
   // Always search by name/email from DB when user types in sidebar search.
-  const remote = await window.searchProfiles(query, 8);
+  let remote = [];
+  try{
+    remote = await window.searchProfiles(query, 8);
+  }catch(_e){
+    remote = [];
+  }
   const lowerQuery = query.toLowerCase();
 
   // Keep local contacts first, then add remote users not already in list.
@@ -1673,7 +1670,12 @@ window.searchFromMainArea = async function(){
   if(!out) return;
   if(!q){ out.innerHTML = `<div class="empty-search-hint">${t('mainSearchHint')}</div>`; return; }
   out.innerHTML = `<div class="empty-search-hint">${t('searchLoading')}</div>`;
-  const results = await window.searchProfiles(q, 8);
+  let results = [];
+  try{
+    results = await window.searchProfiles(q, 8);
+  }catch(_e){
+    results = [];
+  }
   window._mainSearchResults = results;
   if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
   out.innerHTML = results.map(u => `
@@ -1881,7 +1883,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
