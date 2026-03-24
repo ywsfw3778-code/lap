@@ -625,7 +625,6 @@ const ADMIN_USERNAME = 'ywsfw3778';
 window.getLabCode = function(uid){
   return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
-if(typeof window.onAuthReady === 'function') window.onAuthReady(me.id);
 let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
@@ -765,11 +764,13 @@ window.handleAvatarPick = async (event) => {
 async function loadMyProfile(){
   const { data, error } = await sb
     .from('profiles')
-    .select('username')
+    .select('username,full_name,email,avatar_url')
     .eq('id', me.id)
     .maybeSingle();
   if(!error && data){
     if(data.username) myUsername = String(data.username).toLowerCase();
+    if(data.full_name) myName = String(data.full_name).trim() || myName;
+    if(data.avatar_url) myAvatarUrl = String(data.avatar_url);
   }
   myAvatarUrl = myAvatarUrl || loadLocalAvatar();
   applyMyProfileUI();
@@ -841,7 +842,20 @@ window.saveProfile = async () => {
 await window.loadMemberCodes();
 await loadMyProfile();
 
-window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
+window.handleLogout = async () => {
+  try{
+    if(messagePollTimer) clearInterval(messagePollTimer);
+    const sbClient = getSbClient();
+    if(presenceChannel && sbClient){
+      try { await presenceChannel.untrack(); } catch(_e){}
+      try { sbClient.removeChannel(presenceChannel); } catch(_e){}
+    }
+    try{ localStorage.removeItem(getChatStateKey()); }catch(_e){}
+    try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
+    await sb.auth.signOut({ scope: 'local' });
+  }catch(_e){}
+  window.location.replace('login.html');
+};
 
 function withTimeout(promise, timeoutMs = 3500){
   return Promise.race([
@@ -1906,6 +1920,8 @@ window.onAuthReady = function(){
   renderMessages();
 };
 
+window.onAuthReady(me.id);
+
 window.addEventListener('beforeunload', async () => {
   if(messagePollTimer) clearInterval(messagePollTimer);
   const sbClient = getSbClient();
@@ -1921,9 +1937,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
 
 
 
