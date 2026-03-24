@@ -119,6 +119,11 @@ background:var(--bg);
   word-break:break-word;
   overflow-wrap:break-word;
 }
+.voice-bubble{
+  width:min(320px, 72vw);
+  min-width:220px;
+  padding:8px 10px;
+}
 @keyframes slideIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .msg-group.out .bubble{background:var(--msg-out);border:1px solid var(--border2);border-bottom-right-radius:4px;}
 .msg-group.out .msg-row:last-child .bubble{border-bottom-right-radius:16px;border-top-right-radius:4px;}
@@ -144,7 +149,8 @@ background:var(--bg);
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 #ef444444;}50%{box-shadow:0 0 0 6px #ef444400;}}
 audio{
   height:36px;
-  width:min(260px, 100%);
+  width:100%;
+  min-width:0;
   max-width:100%;
   border-radius:12px;
   display:block;
@@ -283,6 +289,10 @@ audio{
   .messages{padding:12px;}
   .msg-content{max-width:86%;width:auto;}
   .bubble{max-width:100%;font-size:12px;padding:8px 10px;}
+  .voice-bubble{
+    width:min(270px, 100%);
+    min-width:180px;
+  }
   .input-area{padding:8px 10px;gap:6px;}
   .input-wrap{padding:5px 8px;}
   .send-btn{width:36px;height:36px;}
@@ -986,6 +996,7 @@ function createMessageRow(msg, isOut, showAvatar){
 
   const isVoice = typeof msg.text === 'string' && msg.text.startsWith('[voice]');
   if(isVoice){
+    bubble.classList.add('voice-bubble');
     const audioUrl = msg.text.slice(7).trim();
     if(isSafeVoiceUrl(audioUrl)){
       const audio = document.createElement('audio');
@@ -1466,8 +1477,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
 
 
 
