@@ -1913,22 +1913,10 @@ window.editMessageFromMenu = async function(){
 
   const sbClient = getSbClient();
   if(!sbClient) return;
-  const updates = [
-    { body: trimmed },
-    { content: trimmed },
-    { text: trimmed },
-    { message: trimmed }
-  ];
-  let success = false;
-  for(const payload of updates){
-    const { error } = await sbClient.from('messages').update(payload).eq('id', msg.id);
-    if(!error){
-      success = true;
-      break;
-    }
-    if(!/column|schema|does not exist|not found/i.test(String(error.message || ''))) break;
-  }
+  const { error } = await sbClient.from('messages').update({ content: trimmed }).eq('id', msg.id);
+  const success = !error;
   if(success && activeContact) await loadMessagesForContact(activeContact.id);
+  if(success) await loadInboxContacts();
 };
 
 window.deleteMessageMineFromMenu = async function(){
@@ -2061,6 +2049,7 @@ function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
 function createMessageRow(msg, isOut, showAvatar){
   const row = document.createElement('div');
   row.className = 'msg-row';
+  row.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
 
   const avatar = document.createElement('div');
   avatar.className = `msg-avatar ${showAvatar && !isOut ? '' : 'ghost'}`;
@@ -2077,6 +2066,7 @@ function createMessageRow(msg, isOut, showAvatar){
 
   const content = document.createElement('div');
   content.className = 'msg-content';
+  content.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
@@ -2136,8 +2126,8 @@ async function loadMessagesForContact(contactId){
     .map(m => ({
     id: m.id,
     out: m.sender_id === currentUser.id,
-    text: (m.body || m.content || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
-    previewText: formatMessagePreviewText((m.body || m.content || m.text || m.message || ''), m.sender_id === currentUser.id),
+    text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
+    previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), m.sender_id === currentUser.id),
     time: formatChatTime(m.created_at),
     createdAt: m.created_at,
     dayKey: getMessageDayKey(m.created_at),
@@ -2268,7 +2258,7 @@ async function loadInboxContacts(){
     }
     if(p.avatar_url) c.avatar = p.avatar_url;
 
-    c.preview = formatMessagePreviewText((last?.body || last?.content || last?.text || last?.message || ''), last?.sender_id === currentUser.id);
+    c.preview = formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id);
     c.time = t('now');
     const stamp = String(last?.created_at || '');
     if(last && last.sender_id !== currentUser.id && (!activeContact || activeContact.id !== id) && c._lastInboxAt !== stamp){
@@ -2500,24 +2490,10 @@ async function sendMessage(){
   if(!txt) return;
 
   inp.value='';
-  const payloads = [
-    { sender_id: currentUser.id, receiver_id: activeContact.id, body: txt },
-    { sender_id: currentUser.id, receiver_id: activeContact.id, content: txt },
-    { sender_id: currentUser.id, receiver_id: activeContact.id, text: txt },
-    { sender_id: currentUser.id, receiver_id: activeContact.id, message: txt }
-  ];
-  let lastErr = null;
-  for(const payload of payloads){
-    const { error } = await sbClient.from('messages').insert(payload);
-    if(!error){
-      lastErr = null;
-      break;
-    }
-    lastErr = error;
-    if(!/column|schema|does not exist|not found/i.test(String(error.message || ''))) break;
-  }
-  if(lastErr){
-    alert('Message send failed: ' + lastErr.message);
+  const payload = { sender_id: currentUser.id, receiver_id: activeContact.id, content: txt };
+  const { error } = await sbClient.from('messages').insert(payload);
+  if(error){
+    alert('Message send failed: ' + error.message);
     return;
   }
 
@@ -2701,18 +2677,18 @@ async function sendVoiceMessage(blob, durationSeconds = 0){
   const { data: urlData } = sbClient.storage.from('voices').getPublicUrl(fileName);
   const audioUrl = urlData.publicUrl;
   const voicePayload = buildVoicePayload(audioUrl, durationSeconds);
-  const payloads = [
-    { sender_id: currentUser.id, receiver_id: activeContact.id, body: voicePayload },
-    { sender_id: currentUser.id, receiver_id: activeContact.id, content: voicePayload },
-    { sender_id: currentUser.id, receiver_id: activeContact.id, text: voicePayload },
-    { sender_id: currentUser.id, receiver_id: activeContact.id, message: voicePayload },
-  ];
-  for(const p of payloads){
-    const {error:e} = await sbClient.from('messages').insert(p);
-    if(!e) break;
+  const { error: insertError } = await sbClient.from('messages').insert({
+    sender_id: currentUser.id,
+    receiver_id: activeContact.id,
+    content: voicePayload
+  });
+  if(insertError){
+    alert((appLang === 'ar' ? 'فشل إرسال الريكورد: ' : 'Voice send failed: ') + insertError.message);
+    return;
   }
   lastRenderedMessageSig = '';
   await loadMessagesForContact(activeContact.id);
+  await loadInboxContacts();
 }
 
 window.onMemberCodesUpdated = function(){
