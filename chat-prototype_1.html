@@ -1382,8 +1382,7 @@ function applyLanguage(){
   const byId = id => document.getElementById(id);
   if(byId('sidebarSearchInput')) byId('sidebarSearchInput').placeholder = t('searchPh');
   if(qs('.section-label')) qs('.section-label').textContent = t('members');
-  if(byId('headerName') && !activeContact) byId('headerName').textContent = t('headerDefault');
-  updateHeaderPresence();
+  syncActiveHeader();
   if(byId('msgInput')) byId('msgInput').placeholder = t('msgPh');
   if(byId('settingsTitle')) byId('settingsTitle').textContent = t('settingsTitle');
   if(byId('settingsSub')) byId('settingsSub').textContent = t('settingsSub');
@@ -1436,6 +1435,27 @@ function openProfile(){document.getElementById('profileOverlay').classList.add('
 function closeProfile(){document.getElementById('profileOverlay').classList.remove('open');}
 function openSearchPanel(){document.getElementById('searchOverlay').classList.add('open');}
 function closeSearchPanel(){document.getElementById('searchOverlay').classList.remove('open');}
+
+function syncActiveHeader(){
+  const av = document.getElementById('headerAvatar');
+  const nameEl = document.getElementById('headerName');
+  if(!av || !nameEl) return;
+
+  if(!activeContact){
+    av.style.background = 'var(--surface2)';
+    av.style.color = 'var(--accent)';
+    av.textContent = '💬';
+    nameEl.textContent = t('headerDefault');
+    updateHeaderPresence();
+    return;
+  }
+
+  av.style.background = activeContact.color || 'var(--surface2)';
+  av.style.color = activeContact.text || 'var(--accent)';
+  window.setAvatarNode(av, activeContact.init || activeContact.name, activeContact.avatar || '');
+  nameEl.textContent = `${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
+  updateHeaderPresence();
+}
 
 function updateHeaderPresence(){
   const st = document.querySelector('.chat-user-status');
@@ -1833,7 +1853,7 @@ async function loadInboxContacts(){
   saveLocalChatState();
   renderContacts();
   if(activeContact){
-    updateHeaderPresence();
+    syncActiveHeader();
     lastRenderedMessageSig = '';
     renderMessages();
     loadMessagesForContact(activeContact.id);
@@ -1855,11 +1875,7 @@ function selectContact(id){
   mobileSidebarOpen = false;
   const hit = contacts.find(c=>c.id===id);
   if(hit) hit.unread=0;
-  const av=document.getElementById('headerAvatar');
-  av.style.background=activeContact.color;av.style.color=activeContact.text;
-  window.setAvatarNode(av, activeContact.init, activeContact.avatar);
-  document.getElementById('headerName').textContent=`${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
-  updateHeaderPresence();
+  syncActiveHeader();
   renderContacts();
   lastRenderedMessageSig = '';
   renderMessages(true);
@@ -1989,10 +2005,12 @@ function renderMessages(forceScrollToBottom = false){
     setMobileChatMode(false);
     lastRenderedChatId = null;
     lastRenderedMessageSig = '';
+    syncActiveHeader();
     renderMainSearch();
     return;
   }
   document.body.classList.remove('no-active-chat');
+  syncActiveHeader();
   setMobileChatMode(!(isMobileView() && mobileSidebarOpen));
   const msgs=conversations[activeContact.id]||[];
   const nextSig = `${activeContact.id}::${buildMessageSignature(msgs)}`;
@@ -2263,9 +2281,7 @@ async function sendVoiceMessage(blob){
 
 window.onMemberCodesUpdated = function(){
   if(typeof window.refreshMyProfileUI === 'function') window.refreshMyProfileUI();
-  if(activeContact){
-    document.getElementById('headerName').textContent=`${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
-  }
+  syncActiveHeader();
   renderContacts();
   renderMessages();
 };
@@ -2279,6 +2295,7 @@ window.onAuthReady = function(){
   loadInboxContacts();
   initPresence();
   startMessagePolling();
+  syncActiveHeader();
   renderContacts();
   renderMessages();
   if(pendingRestoredContactId){
@@ -2309,11 +2326,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
-
 
 
 
