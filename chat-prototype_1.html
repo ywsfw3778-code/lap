@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+(() => {
+  try{
+    const savedLang = localStorage.getItem('lm-lang');
+    const lang = savedLang === 'en' ? 'en' : 'ar';
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+  }catch(_e){}
+})();
+</script>
 <title>Lab Members</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Share+Tech+Mono&family=VT323&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -276,7 +286,7 @@ html[dir="en"] .msg-tools{right:-42px;}
 .msg-group.in .msg-row:last-child .bubble{border-bottom-left-radius:16px;border-top-left-radius:4px;}
 .bubble-meta{display:flex;align-items:center;gap:4px;margin-top:3px;font-size:10px;color:var(--muted);}
 .msg-group.out .bubble-meta{justify-content:flex-end;}
-.message-menu{position:fixed;z-index:1300;min-width:220px;background:var(--sidebar);border:1px solid var(--border2);border-radius:16px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;backdrop-filter:blur(14px);}
+.message-menu{position:absolute;z-index:30;min-width:220px;max-width:min(260px,calc(100vw - 28px));background:var(--sidebar);border:1px solid var(--border2);border-radius:16px;box-shadow:0 18px 44px rgba(0,0,0,.42);padding:8px;display:none;backdrop-filter:blur(14px);top:calc(100% + 8px);}
 .message-menu.open{display:block;}
 .message-menu-date{padding:9px 10px 11px;border-bottom:1px solid var(--border);margin-bottom:6px;font-size:11px;color:var(--muted);line-height:1.5;}
 .message-menu button{width:100%;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:13px;text-align:right;padding:10px 12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .18s,color .18s;}
@@ -284,6 +294,8 @@ html[dir="en"] .msg-tools{right:-42px;}
 .message-menu button.danger{color:#ff6b6b;}
 .message-menu button.danger:hover{background:#ff444418;}
 .message-menu button[disabled]{opacity:.45;cursor:not-allowed;background:transparent;}
+html[dir="rtl"] .message-menu{left:0;right:auto;}
+html[dir="ltr"] .message-menu{right:0;left:auto;}
 .tick{color:var(--accent);font-size:10px;}
 .input-area{padding:12px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;}
 .input-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:13px;display:flex;align-items:center;padding:6px 11px;gap:7px;transition:border-color .2s,box-shadow .2s;}
@@ -1446,7 +1458,7 @@ const langPack = {
     saveUserTaken:'Username already taken', saveDone:'✅ Profile saved', saveBtnBusy:'Saving...'
   }
 };
-let appLang = localStorage.getItem('lm-lang') || 'ar';
+let appLang = document.documentElement.lang === 'en' ? 'en' : 'ar';
 function t(k){ return (langPack[appLang] && langPack[appLang][k]) || langPack.ar[k] || k; }
 window.t = t;
 window.setAppLang = function(lang){
@@ -1459,6 +1471,7 @@ window.setAppLang = function(lang){
 function applyLanguage(){
   document.documentElement.lang = appLang;
   document.documentElement.dir = appLang === 'ar' ? 'rtl' : 'ltr';
+  if(document.body) document.body.dir = document.documentElement.dir;
   const qs = s => document.querySelector(s);
   const byId = id => document.getElementById(id);
   if(byId('sidebarSearchInput')) byId('sidebarSearchInput').placeholder = t('searchPh');
@@ -1877,7 +1890,10 @@ function showIncomingNotification(message, profile){
 
 function closeMessageMenu(){
   const menu = document.getElementById('messageMenu');
-  if(menu) menu.classList.remove('open');
+  if(menu){
+    menu.classList.remove('open');
+    if(menu.parentElement !== document.body) document.body.appendChild(menu);
+  }
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
 }
@@ -1891,6 +1907,8 @@ function openMessageMenu(event, msg, anchorEl = null){
 
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   const anchor = anchorEl || event.currentTarget || event.target;
+  const host = anchor?.closest?.('.msg-content') || event.target?.closest?.('.msg-content');
+  if(!host) return;
   anchor?.closest?.('.msg-tools')?.classList.add('active');
 
   messageMenuState = { ...msg };
@@ -1905,17 +1923,26 @@ function openMessageMenu(event, msg, anchorEl = null){
   if(deleteMineBtn) deleteMineBtn.disabled = false;
   if(deleteAllBtn) deleteAllBtn.disabled = !msg.out;
 
+  host.appendChild(menu);
   menu.classList.add('open');
-  const pad = 14;
-  const menuWidth = 220;
-  const menuHeight = 168;
-  const maxLeft = window.innerWidth - menuWidth - pad;
-  const maxTop = window.innerHeight - menuHeight - pad;
-  const anchorRect = anchor?.getBoundingClientRect?.();
-  const baseLeft = anchorRect ? anchorRect.left + (anchorRect.width / 2) - (menuWidth / 2) : event.clientX;
-  const baseTop = anchorRect ? anchorRect.bottom + 8 : event.clientY;
-  menu.style.left = `${Math.max(pad, Math.min(baseLeft, maxLeft))}px`;
-  menu.style.top = `${Math.max(pad, Math.min(baseTop, maxTop))}px`;
+  menu.style.top = 'calc(100% + 8px)';
+  menu.style.bottom = 'auto';
+  if(document.documentElement.dir === 'rtl'){
+    menu.style.left = '0px';
+    menu.style.right = 'auto';
+  }else{
+    menu.style.right = '0px';
+    menu.style.left = 'auto';
+  }
+
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    const overflowBottom = rect.bottom - (window.innerHeight - 12);
+    if(overflowBottom > 0){
+      menu.style.top = 'auto';
+      menu.style.bottom = 'calc(100% + 8px)';
+    }
+  });
 }
 
 window.editMessageFromMenu = async function(){
@@ -2457,6 +2484,7 @@ window.startChatFromMain = function(id){
 
 // MESSAGES
 function renderMessages(forceScrollToBottom = false){
+  closeMessageMenu();
   const el=document.getElementById('messages');
   if(!activeContact){
     document.body.classList.add('no-active-chat');
@@ -2753,6 +2781,7 @@ window.onAuthReady = function(){
   }
 };
 
+applyLanguage();
 window.onAuthReady(me.id);
 
 window.addEventListener('beforeunload', async () => {
@@ -2776,10 +2805,8 @@ document.getElementById('messageMenu')?.addEventListener('click', (event) => {
 });
 window.addEventListener('scroll', closeMessageMenu, true);
 window.addEventListener('resize', closeMessageMenu);
-applyLanguage();
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
-renderContacts();renderMessages();
 </script>
 </body>
 </html>
