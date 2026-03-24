@@ -1080,6 +1080,11 @@ function getChatStateKey(){
   }
 }
 
+function getActiveChatKey(){
+  const me = getCurrentUser();
+  return me ? `lm-active-chat-${me.id}` : 'lm-active-chat-guest';
+}
+
 function saveLocalChatState(){
   try{
     const payload = {
@@ -1088,6 +1093,7 @@ function saveLocalChatState(){
       activeContactId: activeContact?.id || null
     };
     localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
+    if(activeContact?.id) localStorage.setItem(getActiveChatKey(), activeContact.id);
   }catch(_e){}
 }
 
@@ -1113,6 +1119,8 @@ function loadLocalChatState(){
       pendingRestoredContactId = parsed.activeContactId;
       const savedActive = contacts.find(x => x.id === parsed.activeContactId);
       if(savedActive) activeContact = savedActive;
+    }else{
+      pendingRestoredContactId = localStorage.getItem(getActiveChatKey()) || null;
     }
   }catch(_e){}
 }
@@ -1952,6 +1960,11 @@ window.onAuthReady = function(){
   startMessagePolling();
   renderContacts();
   renderMessages();
+  if(pendingRestoredContactId){
+    setTimeout(() => {
+      if(typeof window.openChatById === 'function') window.openChatById(pendingRestoredContactId);
+    }, 80);
+  }
 };
 
 window.onAuthReady(me.id);
@@ -1971,8 +1984,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
 
 
 
