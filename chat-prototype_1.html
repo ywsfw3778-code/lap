@@ -583,7 +583,7 @@ background:var(--bg);
     </div>
     <div class="toggle-row">
       <div><div class="toggle-label" id="lblNotify">Notifications</div><div class="toggle-desc" id="descNotify">Sound on new message</div></div>
-      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      <div class="toggle" id="notifyToggle" onclick="toggleNotifications()"></div>
     </div>
     <div class="toggle-row">
       <div><div class="toggle-label" id="lblEnterSend">Enter to send</div><div class="toggle-desc" id="descEnterSend">Press Enter instead of send button</div></div>
@@ -1087,6 +1087,9 @@ let lastRenderedMessageSig = '';
 let mobileSidebarOpen = false;
 let profilesDirectory = window.profilesDirectory || [];
 let pendingRestoredContactId = null;
+let notificationsEnabled = false;
+let inboxNotificationsPrimed = false;
+const seenInboxMessageIds = new Set();
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
@@ -1436,6 +1439,62 @@ function closeProfile(){document.getElementById('profileOverlay').classList.remo
 function openSearchPanel(){document.getElementById('searchOverlay').classList.add('open');}
 function closeSearchPanel(){document.getElementById('searchOverlay').classList.remove('open');}
 
+function getNotifyStoreKey(){
+  const me = getCurrentUser();
+  return me ? `lm-notify-${me.id}` : 'lm-notify-guest';
+}
+
+function syncNotificationToggle(){
+  const toggle = document.getElementById('notifyToggle');
+  if(!toggle) return;
+  toggle.classList.toggle('on', !!notificationsEnabled);
+}
+
+function loadNotificationPreference(){
+  try{
+    const saved = localStorage.getItem(getNotifyStoreKey());
+    if(saved === 'on') notificationsEnabled = true;
+    else if(saved === 'off') notificationsEnabled = false;
+    else notificationsEnabled = false;
+  }catch(_e){
+    notificationsEnabled = false;
+  }
+  if(typeof Notification !== 'undefined' && Notification.permission !== 'granted'){
+    notificationsEnabled = false;
+  }
+  syncNotificationToggle();
+}
+
+window.toggleNotifications = async function(){
+  if(notificationsEnabled){
+    notificationsEnabled = false;
+    try{ localStorage.setItem(getNotifyStoreKey(), 'off'); }catch(_e){}
+    syncNotificationToggle();
+    return;
+  }
+
+  if(typeof Notification === 'undefined'){
+    alert(appLang === 'ar' ? 'المتصفح لا يدعم الإشعارات.' : 'This browser does not support notifications.');
+    return;
+  }
+
+  let permission = Notification.permission;
+  if(permission === 'default'){
+    permission = await Notification.requestPermission();
+  }
+  if(permission !== 'granted'){
+    notificationsEnabled = false;
+    try{ localStorage.setItem(getNotifyStoreKey(), 'off'); }catch(_e){}
+    syncNotificationToggle();
+    alert(appLang === 'ar' ? 'اسمح بالإشعارات من المتصفح أولًا.' : 'Allow browser notifications first.');
+    return;
+  }
+
+  notificationsEnabled = true;
+  try{ localStorage.setItem(getNotifyStoreKey(), 'on'); }catch(_e){}
+  syncNotificationToggle();
+};
+
 function syncActiveHeader(){
   const av = document.getElementById('headerAvatar');
   const nameEl = document.getElementById('headerName');
@@ -1584,6 +1643,48 @@ function formatMessagePreviewText(raw, isOutgoing = false){
 
 function buildVoicePayload(audioUrl, durationSeconds){
   return `[voice:${Math.max(0, Math.floor(durationSeconds || 0))}]${audioUrl}`;
+}
+
+function shouldNotifyForIncomingMessage(message){
+  if(!notificationsEnabled) return false;
+  if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return false;
+  if(!message || !message.sender_id) return false;
+  if(document.visibilityState === 'visible' && document.hasFocus() && activeContact && activeContact.id === message.sender_id){
+    return false;
+  }
+  return true;
+}
+
+function showIncomingNotification(message, profile){
+  if(!shouldNotifyForIncomingMessage(message)) return;
+
+  const senderName = (profile?.full_name || profile?.username || profile?.email || 'New message').trim();
+  const senderId = profile?.id || message.sender_id;
+  const senderCode = window.getLabCode ? window.getLabCode(senderId) : '000';
+  const bodyText = formatMessagePreviewText((message.body || message.content || message.text || message.message || ''), false);
+  const note = new Notification(`${senderName} #${senderCode}`, {
+    body: bodyText || (appLang === 'ar' ? 'رسالة جديدة' : 'New message'),
+    tag: `lm-msg-${senderId}`,
+    renotify: true,
+    icon: profile?.avatar_url || undefined,
+    badge: profile?.avatar_url || undefined
+  });
+  note.onclick = () => {
+    window.focus();
+    const clr = colorFromId(profile?.id || senderId);
+    if(typeof window.startChat === 'function'){
+      window.startChat(
+        profile?.id || senderId,
+        senderName,
+        clr.bg,
+        clr.t,
+        profile?.avatar_url || ''
+      );
+    }else if(typeof window.openChatById === 'function'){
+      window.openChatById(profile?.id || senderId);
+    }
+    note.close();
+  };
 }
 
 function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
@@ -1814,6 +1915,22 @@ async function loadInboxContacts(){
     return;
   }
 
+  const newIncomingMessages = [];
+  (data || []).forEach((m) => {
+    const msgId = String(m?.id || '');
+    if(!msgId) return;
+    if(!inboxNotificationsPrimed){
+      seenInboxMessageIds.add(msgId);
+      return;
+    }
+    if(seenInboxMessageIds.has(msgId)) return;
+    seenInboxMessageIds.add(msgId);
+    if(m.sender_id !== currentUser.id && m.receiver_id === currentUser.id){
+      newIncomingMessages.push(m);
+    }
+  });
+  inboxNotificationsPrimed = true;
+
   const latestByPartner = new Map();
   for(const m of (data || [])){
     const partnerId = m.sender_id === currentUser.id ? m.receiver_id : m.sender_id;
@@ -1831,6 +1948,10 @@ async function loadInboxContacts(){
   const safeProfiles = await queryProfilesByIds(ids);
 
   const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
+  newIncomingMessages.forEach((m) => {
+    const senderProfile = profMap.get(m.sender_id) || null;
+    showIncomingNotification(m, senderProfile);
+  });
 
   for(const id of ids){
     const last = latestByPartner.get(id);
@@ -2319,6 +2440,7 @@ window.onMemberCodesUpdated = function(){
 
 window.onAuthReady = function(){
   if(typeof window.loadMemberCodes === 'function') window.loadMemberCodes();
+  loadNotificationPreference();
   ensureRecordingBars();
   resetRecordingVisualizer();
   loadLocalChatState();
@@ -2357,15 +2479,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
 
 
