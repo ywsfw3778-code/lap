@@ -933,6 +933,29 @@ function formatChatTime(input){
   return `${h12}:${m} ${period}`;
 }
 
+function getMessageDayKey(input){
+  const d = new Date(input || Date.now());
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDayDivider(input){
+  const d = new Date(input || Date.now());
+  const now = new Date();
+  const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((startOfNow - startOfMsg) / 86400000);
+  if(diffDays === 0) return appLang === 'ar' ? 'اليوم' : 'Today';
+  if(diffDays === 1) return appLang === 'ar' ? 'أمس' : 'Yesterday';
+  return d.toLocaleDateString(appLang === 'ar' ? 'ar-EG' : 'en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric'
+  });
+}
+
 function buildMessageSignature(msgs){
   return msgs.map(m => `${m.out ? 1 : 0}|${m.text}|${m.time}|${m.read ? 1 : 0}`).join('||');
 }
@@ -1018,6 +1041,8 @@ async function loadMessagesForContact(contactId){
     out: m.sender_id === currentUser.id,
     text: (m.body || m.content || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
     time: formatChatTime(m.created_at),
+    dayKey: getMessageDayKey(m.created_at),
+    dayLabel: formatDayDivider(m.created_at),
     read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
   }));
 
@@ -1271,13 +1296,17 @@ function renderMessages(forceScrollToBottom = false){
   const previousScrollHeight = el.scrollHeight;
 
   const fragment = document.createDocumentFragment();
-  const divider = document.createElement('div');
-  divider.className = 'date-divider';
-  divider.innerHTML = `<div class="date-line"></div><span>${t('today')}</span><div class="date-line"></div>`;
-  fragment.appendChild(divider);
 
   let i=0;
+  let lastDayKey = null;
   while(i<msgs.length){
+    if(msgs[i].dayKey !== lastDayKey){
+      const divider = document.createElement('div');
+      divider.className = 'date-divider';
+      divider.innerHTML = `<div class="date-line"></div><span>${msgs[i].dayLabel || t('today')}</span><div class="date-line"></div>`;
+      fragment.appendChild(divider);
+      lastDayKey = msgs[i].dayKey;
+    }
     const isOut=msgs[i].out;
     const g=document.createElement('div');g.className=`msg-group ${isOut?'out':'in'}`;
     let j=i;
@@ -1437,7 +1466,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
