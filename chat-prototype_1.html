@@ -843,7 +843,41 @@ await loadMyProfile();
 
 window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
 
+function withTimeout(promise, timeoutMs = 3500){
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve({ data: [], error: new Error('timeout') }), timeoutMs))
+  ]);
+}
+
+function profileMatchesQuery(profile, query){
+  const q = String(query || '').toLowerCase();
+  const username = String(profile?.username || '').toLowerCase();
+  const fullName = String(profile?.full_name || '').toLowerCase();
+  const email = String(profile?.email || '').toLowerCase();
+  return username.includes(q) || fullName.includes(q) || email.includes(q);
+}
+
+async function refreshProfilesDirectory(limit = 300){
+  const broadAttempts = [
+    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(limit),
+    () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(limit),
+    () => sb.from('profiles').select('id,username').neq('id', me.id).limit(limit)
+  ];
+  for(const run of broadAttempts){
+    const res = await withTimeout(run());
+    if(!res.error){
+      profilesDirectory = res.data || [];
+      if(profilesDirectory.length) return profilesDirectory;
+    }
+  }
+  return profilesDirectory;
+}
+
 async function queryProfilesForSearch(query, limit){
+  const cachedMatches = profilesDirectory.filter((u) => profileMatchesQuery(u, query));
+  if(cachedMatches.length) return cachedMatches.slice(0, limit);
+
   const broadAttempts = [
     () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(Math.max(limit * 20, 200)),
     () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(Math.max(limit * 20, 200)),
@@ -852,20 +886,14 @@ async function queryProfilesForSearch(query, limit){
 
   let broadData = [];
   for(const run of broadAttempts){
-    const res = await run();
+    const res = await withTimeout(run());
     if(!res.error){
       broadData = res.data || [];
       if(broadData.length) break;
     }
   }
-
-  const q = String(query || '').toLowerCase();
-  return broadData.filter((u) => {
-    const username = String(u.username || '').toLowerCase();
-    const fullName = String(u.full_name || '').toLowerCase();
-    const email = String(u.email || '').toLowerCase();
-    return username.includes(q) || fullName.includes(q) || email.includes(q);
-  }).slice(0, limit);
+  if(broadData.length) profilesDirectory = broadData;
+  return broadData.filter((u) => profileMatchesQuery(u, query)).slice(0, limit);
 }
 
 async function queryProfilesByIds(ids){
@@ -876,7 +904,7 @@ async function queryProfilesByIds(ids){
     () => sb.from('profiles').select('id,username').in('id', ids)
   ];
   for(const run of attempts){
-    const res = await run();
+    const res = await withTimeout(run());
     if(!res.error) return res.data || [];
   }
   return [];
@@ -961,6 +989,7 @@ const onlineUserIds = new Set();
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
 let mobileSidebarOpen = false;
+let profilesDirectory = [];
 let pendingRestoredContactId = null;
 
 function isMobileView(){
@@ -1861,6 +1890,7 @@ window.onMemberCodesUpdated = function(){
 window.onAuthReady = function(){
   if(typeof window.loadMemberCodes === 'function') window.loadMemberCodes();
   loadLocalChatState();
+  refreshProfilesDirectory();
   loadInboxContacts();
   initPresence();
   startMessagePolling();
@@ -1883,9 +1913,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
 
 
 
