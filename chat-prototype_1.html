@@ -788,6 +788,7 @@ let presenceChannel = null;
 const onlineUserIds = new Set();
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
+let mobileSidebarOpen = false;
 
 function isMobileView(){
   return window.matchMedia('(max-width: 980px)').matches;
@@ -802,6 +803,7 @@ function setMobileChatMode(openChat){
 }
 
 window.openSidebarMobile = function(){
+  mobileSidebarOpen = true;
   setMobileChatMode(false);
 };
 
@@ -1358,6 +1360,7 @@ function renderContacts(list=contacts){
 function selectContact(id){
   activeContact=contacts.find(c=>c.id===id);
   if(!activeContact) return;
+  mobileSidebarOpen = false;
   const hit = contacts.find(c=>c.id===id);
   if(hit) hit.unread=0;
   const av=document.getElementById('headerAvatar');
@@ -1469,7 +1472,7 @@ function renderMessages(forceScrollToBottom = false){
     return;
   }
   document.body.classList.remove('no-active-chat');
-  setMobileChatMode(true);
+  setMobileChatMode(!(isMobileView() && mobileSidebarOpen));
   const msgs=conversations[activeContact.id]||[];
   const nextSig = `${activeContact.id}::${buildMessageSignature(msgs)}`;
   if(lastRenderedChatId === activeContact.id && lastRenderedMessageSig === nextSig){
@@ -1651,7 +1654,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
