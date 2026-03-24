@@ -1120,6 +1120,34 @@ function getActiveChatKey(){
   return me ? `lm-active-chat-${me.id}` : 'lm-active-chat-guest';
 }
 
+function loadFastLocalChatState(){
+  try{
+    const fallbackKey = localStorage.getItem('lm-chat-last-key') || 'lm-chat-state-guest';
+    const rawState = localStorage.getItem(fallbackKey);
+    if(!rawState) return;
+    const parsed = JSON.parse(rawState);
+    if(Array.isArray(parsed?.contacts)){
+      parsed.contacts.forEach(c => {
+        if(!c || !c.id) return;
+        c.init = window.getDisplayInitial(c.init || c.name || c.email || c.id);
+        c.avatar = c.avatar || '';
+        if(!contacts.find(x => x.id === c.id)) contacts.push(c);
+      });
+    }
+    if(parsed?.conversations && typeof parsed.conversations === 'object'){
+      Object.keys(parsed.conversations).forEach(k => {
+        if(!conversations[k] && Array.isArray(parsed.conversations[k])) conversations[k] = parsed.conversations[k];
+      });
+    }
+    const cachedActiveId = parsed?.activeContactId || localStorage.getItem('lm-active-chat-guest');
+    if(cachedActiveId){
+      pendingRestoredContactId = cachedActiveId;
+      const savedActive = contacts.find(x => x.id === cachedActiveId);
+      if(savedActive) activeContact = savedActive;
+    }
+  }catch(_e){}
+}
+
 function saveLocalChatState(){
   try{
     const payload = {
@@ -1159,6 +1187,8 @@ function loadLocalChatState(){
     }
   }catch(_e){}
 }
+
+loadFastLocalChatState();
 
 // THEME
 function setTheme(t){
@@ -2131,12 +2161,16 @@ window.onAuthReady = function(){
 window.onAuthReady(me.id);
 
 window.addEventListener('beforeunload', async () => {
+  saveLocalChatState();
   if(messagePollTimer) clearInterval(messagePollTimer);
   const sbClient = getSbClient();
   if(presenceChannel && sbClient){
     try { await presenceChannel.untrack(); } catch(_e){}
     try { sbClient.removeChannel(presenceChannel); } catch(_e){}
   }
+});
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'hidden') saveLocalChatState();
 });
 applyLanguage();
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
@@ -2145,8 +2179,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
 
 
 
