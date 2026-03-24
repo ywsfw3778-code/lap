@@ -753,9 +753,9 @@ window.handleAvatarPick = async (event) => {
     if(note) note.textContent = file.name;
     saveLocalAvatar(myAvatarUrl);
     applyMyProfileUI();
-    saveLocalChatState();
-    renderContacts();
-    renderMessages();
+    if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
+    if(typeof window.renderContacts === 'function') window.renderContacts();
+    if(typeof window.renderMessages === 'function') window.renderMessages();
   }catch(_e){
     toast('فشل قراءة الصورة', 'error');
   }
@@ -816,7 +816,7 @@ window.saveProfile = async () => {
   myUsername = username;
   saveLocalAvatar(myAvatarUrl);
   applyMyProfileUI();
-  applyLanguage();
+  if(typeof window.applyLanguage === 'function') window.applyLanguage();
 
   // Best-effort sync to profiles table (may fail if RLS doesn't allow updates).
   const profilePayload = { username };
@@ -1006,7 +1006,7 @@ function ensureContactRecord(id, name, bg, textColor, avatarUrl=''){
 
 window.startChat = (id,name,bg,textColor,avatarUrl='') => {
   ensureContactRecord(id, name, bg, textColor, avatarUrl);
-  closeSearchPanel();
+  if(typeof window.closeSearchPanel === 'function') window.closeSearchPanel();
   if(typeof window.openChatById === 'function'){
     window.openChatById(id);
   }
@@ -1961,7 +1961,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
 
 
 
