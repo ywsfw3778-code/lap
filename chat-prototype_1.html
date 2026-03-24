@@ -107,20 +107,21 @@ background:var(--bg);
 .msg-group{display:flex;flex-direction:column;gap:3px;}
 .msg-group.out{align-items:flex-start;}
 .msg-group.in{align-items:flex-end;}
-.msg-row{display:flex;align-items:flex-end;gap:7px;min-width:0;position:relative;}
+.msg-row{display:flex;align-items:flex-end;gap:7px;min-width:0;position:relative;overflow:visible;}
 .msg-content{
   width:fit-content;
   max-width:85%;
   display:flex;
   flex-direction:column;
+  position:relative;
 }
-.msg-tools{display:flex;align-items:center;opacity:0;transform:translateY(2px);transition:opacity .16s ease,transform .16s ease;pointer-events:none;}
+.msg-tools{position:absolute;top:10px;display:flex;align-items:center;opacity:0;transform:translateY(2px);transition:opacity .16s ease,transform .16s ease;pointer-events:none;z-index:4;}
+html[dir="ar"] .msg-tools{left:-38px;}
+html[dir="en"] .msg-tools{right:-38px;}
 .msg-row:hover .msg-tools,
 .msg-row:focus-within .msg-tools{opacity:1;transform:translateY(0);pointer-events:auto;}
 .msg-tool-btn{width:28px;height:28px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;box-shadow:0 6px 14px rgba(0,0,0,.22);}
 .msg-tool-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--surface2);}
-.msg-group.out .msg-tools{order:-1;}
-.msg-group.in .msg-tools{order:3;}
 .msg-group.out .msg-content{align-items:flex-start;}
 .msg-group.in .msg-content{align-items:flex-end;}
 .msg-group.out .msg-row{flex-direction:row;}
@@ -1882,6 +1883,7 @@ function closeMessageMenu(){
 function openMessageMenu(event, msg){
   if(!msg || !msg.id) return;
   event.preventDefault();
+  if(typeof event.stopPropagation === 'function') event.stopPropagation();
   const menu = document.getElementById('messageMenu');
   if(!menu) return;
 
@@ -2084,6 +2086,8 @@ function createMessageRow(msg, isOut, showAvatar){
   menuBtn.title = appLang === 'ar' ? 'خيارات الرسالة' : 'Message options';
   menuBtn.textContent = '⋮';
   menuBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
     openMessageMenu(event, msg);
   });
   tools.appendChild(menuBtn);
@@ -2104,6 +2108,7 @@ function createMessageRow(msg, isOut, showAvatar){
   }
   bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
 
+  content.appendChild(tools);
   content.appendChild(bubble);
 
   if(msg.showMeta){
@@ -2121,7 +2126,6 @@ function createMessageRow(msg, isOut, showAvatar){
   }
 
   row.appendChild(avatar);
-  row.appendChild(tools);
   row.appendChild(content);
   return row;
 }
@@ -2757,6 +2761,9 @@ document.addEventListener('visibilitychange', () => {
 document.addEventListener('click', (event) => {
   const menu = document.getElementById('messageMenu');
   if(menu && menu.classList.contains('open') && !menu.contains(event.target)) closeMessageMenu();
+});
+document.getElementById('messageMenu')?.addEventListener('click', (event) => {
+  event.stopPropagation();
 });
 window.addEventListener('scroll', closeMessageMenu, true);
 window.addEventListener('resize', closeMessageMenu);
