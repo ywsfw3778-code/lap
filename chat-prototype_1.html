@@ -47,6 +47,16 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .contact.active{background:var(--surface2);border:1px solid var(--border2);}
 .contact.active::before{content:'';position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:3px;height:22px;background:var(--accent);border-radius:99px;box-shadow:0 0 8px var(--accent);}
 .avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;flex-shrink:0;position:relative;}
+.avatar img,.profile-av img,.profile-panel-av img,.msg-avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:inherit;
+  display:block;
+}
+.avatar-image{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;}
+.avatar-fallback{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:inherit;font:inherit;color:inherit;}
+.avatar-image + .avatar-fallback{display:none;}
 .avatar-dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;border:2px solid var(--sidebar);}
 .dot-online{background:var(--online);}
 .dot-offline{background:var(--muted);}
@@ -322,6 +332,9 @@ background:var(--bg);
 .pbtn.danger:hover{background:#ff444422;border-color:#ff4444;}
 .profile-edit{margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
 .profile-edit-label{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.profile-avatar-tools{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.profile-avatar-btn{padding:8px 12px;border-radius:10px;border:1px solid var(--accent);background:var(--accent-glow);color:var(--accent);font-family:inherit;font-size:12px;cursor:pointer;}
+.profile-avatar-note{font-size:11px;color:var(--muted);}
 .profile-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:8px;direction:ltr;}
 .profile-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
 .profile-hint{font-size:11px;color:var(--muted);margin:2px 0 10px;}
@@ -527,6 +540,11 @@ background:var(--bg);
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
       <div class="profile-edit">
         <div class="profile-edit-label">Edit profile</div>
+        <div class="profile-avatar-tools">
+          <button class="profile-avatar-btn" type="button" onclick="document.getElementById('avatarInput').click()">اختيار صورة</button>
+          <span class="profile-avatar-note" id="avatarNote">تظهر بعد الحفظ والريفريش</span>
+        </div>
+        <input id="avatarInput" type="file" accept="image/*" style="display:none" onchange="handleAvatarPick(event)" />
         <input class="profile-input" id="editName" type="text" placeholder="Name" />
         <input class="profile-input" id="editUsername" type="text" placeholder="username" />
         <div class="profile-hint" id="usernameHint">username: 3-20 chars (letters/numbers/_), unique</div>
@@ -585,6 +603,74 @@ if(typeof window.onAuthReady === 'function') window.onAuthReady(me.id);
 let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
+let myAvatarUrl = me.user_metadata?.avatar_url || '';
+
+function getAvatarStoreKey(){
+  return `lm-avatar-${me.id}`;
+}
+
+function loadLocalAvatar(){
+  try{
+    return localStorage.getItem(getAvatarStoreKey()) || '';
+  }catch(_e){
+    return '';
+  }
+}
+
+function saveLocalAvatar(value){
+  try{
+    if(value) localStorage.setItem(getAvatarStoreKey(), value);
+    else localStorage.removeItem(getAvatarStoreKey());
+  }catch(_e){}
+}
+
+myAvatarUrl = myAvatarUrl || loadLocalAvatar();
+
+function getDisplayInitial(value, fallback = '?'){
+  const text = String(value || '').trim();
+  if(!text) return fallback;
+  return text.charAt(0).toUpperCase();
+}
+
+function setAvatarNode(el, label, imageUrl){
+  if(!el) return;
+  el.innerHTML = '';
+  const safeLabel = getDisplayInitial(label);
+  if(imageUrl){
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = safeLabel || 'avatar';
+    img.className = 'avatar-image';
+    img.onerror = () => { img.remove(); };
+    el.appendChild(img);
+  }
+  const fallback = document.createElement('span');
+  fallback.className = 'avatar-fallback';
+  fallback.textContent = safeLabel;
+  el.appendChild(fallback);
+}
+
+function avatarMarkup(label, imageUrl, extraDotClass = ''){
+  const safeLabel = getDisplayInitial(label);
+  const image = imageUrl ? `<img class="avatar-image" src="${imageUrl}" alt="${safeLabel}" onerror="this.remove()">` : '';
+  const fallback = `<span class="avatar-fallback">${safeLabel}</span>`;
+  return `${image}${fallback}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
+}
+
+function syncMyAvatarIntoContacts(){
+  const mine = contacts.find(x => x.id === me.id);
+  if(mine) mine.avatar = myAvatarUrl || '';
+  if(activeContact && activeContact.id === me.id) activeContact.avatar = myAvatarUrl || '';
+}
+
+function fileToDataUrl(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('file-read-failed'));
+    reader.readAsDataURL(file);
+  });
+}
 
 function toast(msg, type='success'){
   if(typeof window.showToast === 'function') window.showToast(msg, type);
@@ -620,11 +706,11 @@ window.loadMemberCodes = async () => {
 };
 
 function applyMyProfileUI(){
-  const init = (myName || '?').charAt(0).toUpperCase();
-  document.getElementById('myAvatar').textContent = init;
+  const init = getDisplayInitial(myName);
+  setAvatarNode(document.getElementById('myAvatar'), init, myAvatarUrl);
   document.getElementById('myName').textContent = myName;
   document.getElementById('myEmail').textContent = myEmail;
-  document.getElementById('profileAv').textContent = init;
+  setAvatarNode(document.getElementById('profileAv'), init, myAvatarUrl);
   const myCode = window.getLabCode ? window.getLabCode(me.id) : '001';
   document.getElementById('profileName').textContent = `${myName}  #${myCode}`;
   document.getElementById('profileEmail').textContent = myEmail;
@@ -632,8 +718,26 @@ function applyMyProfileUI(){
   document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
   document.getElementById('editName').value = myName;
   document.getElementById('editUsername').value = myUsername;
+  syncMyAvatarIntoContacts();
 }
 window.refreshMyProfileUI = applyMyProfileUI;
+
+window.handleAvatarPick = async (event) => {
+  const file = event?.target?.files?.[0];
+  if(!file) return;
+  try{
+    myAvatarUrl = await fileToDataUrl(file);
+    const note = document.getElementById('avatarNote');
+    if(note) note.textContent = file.name;
+    saveLocalAvatar(myAvatarUrl);
+    applyMyProfileUI();
+    saveLocalChatState();
+    renderContacts();
+    renderMessages();
+  }catch(_e){
+    toast('فشل قراءة الصورة', 'error');
+  }
+};
 
 async function loadMyProfile(){
   const { data, error } = await sb
@@ -644,6 +748,7 @@ async function loadMyProfile(){
   if(!error && data){
     if(data.username) myUsername = String(data.username).toLowerCase();
   }
+  myAvatarUrl = myAvatarUrl || loadLocalAvatar();
   applyMyProfileUI();
 }
 
@@ -675,7 +780,7 @@ window.saveProfile = async () => {
     return;
   }
 
-  const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username } });
+  const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: myAvatarUrl || null } });
   if(authErr){
     btn.disabled = false;
     btn.textContent = tr('profileSave');
@@ -685,15 +790,25 @@ window.saveProfile = async () => {
 
   myName = name;
   myUsername = username;
+  saveLocalAvatar(myAvatarUrl);
   applyMyProfileUI();
   applyLanguage();
 
   // Best-effort sync to profiles table (may fail if RLS doesn't allow updates).
+  const profilePayload = { username };
+  if(name) profilePayload.full_name = name;
+  if(myAvatarUrl) profilePayload.avatar_url = myAvatarUrl;
   const { error: profileErr } = await sb
     .from('profiles')
-    .update({ username })
+    .update(profilePayload)
     .eq('id', me.id);
-  if(profileErr) console.warn('profiles sync skipped:', profileErr.message);
+  if(profileErr){
+    const { error: retryErr } = await sb
+      .from('profiles')
+      .update({ username })
+      .eq('id', me.id);
+    if(retryErr) console.warn('profiles sync skipped:', retryErr.message);
+  }
 
   btn.disabled = false;
   btn.textContent = tr('profileSave');
@@ -713,7 +828,7 @@ window.searchProfiles = async (q, limit = 8) => {
   // Try rich search first (email/full_name/username). Fallback to username-only schema.
   const rich = await sb
     .from('profiles')
-    .select('id,username,full_name,email')
+    .select('id,username,full_name,email,avatar_url')
     .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
     .neq('id', me.id)
     .limit(limit);
@@ -721,6 +836,15 @@ window.searchProfiles = async (q, limit = 8) => {
   if(!rich.error){
     data = rich.data || [];
   } else {
+    const richFallback = await sb
+      .from('profiles')
+      .select('id,username,full_name,email')
+      .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
+      .neq('id', me.id)
+      .limit(limit);
+    if(!richFallback.error){
+      data = richFallback.data || [];
+    } else {
     const lite = await sb
       .from('profiles')
       .select('id,username')
@@ -728,6 +852,7 @@ window.searchProfiles = async (q, limit = 8) => {
       .neq('id', me.id)
       .limit(limit);
     data = lite.data || [];
+    }
   }
 
   const colors = [
@@ -744,7 +869,8 @@ window.searchProfiles = async (q, limit = 8) => {
     const email = (u.email || '').trim();
     const name = fullName || uname || (email ? email.split('@')[0] : 'User');
     const sub = email || (uname ? '@'+uname : '');
-    return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:name.charAt(0).toUpperCase() };
+    const existing = contacts.find(x => x.id === u.id);
+    return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:getDisplayInitial(name), avatar: existing?.avatar || u.avatar_url || '' };
   });
 };
 window.searchFriends = async () => {
@@ -756,16 +882,24 @@ window.searchFriends = async () => {
   if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+tr('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${tr('chatBtn')}</button>
     </div>`;
   }).join('');
 };
 
-window.startChat = (id,name,bg,textColor) => {
-  if(!window._contacts.find(c=>c.id===id))
-    window._contacts.push({id,name,init:name.charAt(0).toUpperCase(),color:bg,text:textColor,online:false,preview:window.t('startChatPreview'),time:'',unread:0});
+window.startChat = (id,name,bg,textColor,avatarUrl='') => {
+  const existing = window._contacts.find(c=>c.id===id);
+  if(!existing){
+    window._contacts.push({id,name,init:getDisplayInitial(name),color:bg,text:textColor,avatar:avatarUrl || '',online:false,preview:window.t('startChatPreview'),time:'',unread:0});
+  }else{
+    existing.name = name || existing.name;
+    existing.init = getDisplayInitial(existing.name);
+    existing.color = bg || existing.color;
+    existing.text = textColor || existing.text;
+    if(avatarUrl) existing.avatar = avatarUrl;
+  }
   closeSearchPanel();
   selectContact(id);
   saveLocalChatState();
@@ -840,6 +974,8 @@ function loadLocalChatState(){
     if(Array.isArray(parsed?.contacts)){
       parsed.contacts.forEach(c => {
         if(!c || !c.id) return;
+        c.init = getDisplayInitial(c.init || c.name || c.email || c.id);
+        c.avatar = c.avatar || '';
         if(!contacts.find(x => x.id === c.id)) contacts.push(c);
       });
     }
@@ -1166,7 +1302,7 @@ function createMessageRow(msg, isOut, showAvatar){
   avatar.className = `msg-avatar ${showAvatar && !isOut ? '' : 'ghost'}`;
   avatar.style.background = activeContact.color;
   avatar.style.color = activeContact.text;
-  avatar.textContent = activeContact.init;
+  setAvatarNode(avatar, activeContact.init, activeContact.avatar);
 
   const content = document.createElement('div');
   content.className = 'msg-content';
@@ -1300,12 +1436,21 @@ async function loadInboxContacts(){
     return;
   }
 
-  const { data: profiles } = await sbClient
+  const { data: profiles, error: profilesErr } = await sbClient
     .from('profiles')
-    .select('id,username,full_name,email')
+    .select('id,username,full_name,email,avatar_url')
     .in('id', ids);
 
-  const profMap = new Map((profiles || []).map(p => [p.id, p]));
+  let safeProfiles = profiles;
+  if(profilesErr){
+    const fallbackProfiles = await sbClient
+      .from('profiles')
+      .select('id,username,full_name,email')
+      .in('id', ids);
+    safeProfiles = fallbackProfiles.data || [];
+  }
+
+  const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
 
   for(const id of ids){
     const last = latestByPartner.get(id);
@@ -1321,9 +1466,10 @@ async function loadInboxContacts(){
       c = {
         id,
         name,
-        init: name.charAt(0).toUpperCase(),
+        init: getDisplayInitial(name),
         color: clr.bg,
         text: clr.t,
+        avatar: p.avatar_url || '',
         online: false,
         preview: '',
         time: '',
@@ -1333,8 +1479,9 @@ async function loadInboxContacts(){
       contacts.push(c);
     } else if(c.name === id || c.name === 'User'){
       c.name = name;
-      c.init = name.charAt(0).toUpperCase();
+      c.init = getDisplayInitial(name);
     }
+    if(p.avatar_url) c.avatar = p.avatar_url;
 
     c.preview = last?.body || last?.content || last?.text || last?.message || '';
     c.time = t('now');
@@ -1352,7 +1499,7 @@ async function loadInboxContacts(){
 function renderContacts(list=contacts){
   document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
     <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${c.id}')">
-      <div class="avatar" style="background:${c.color};color:${c.text};">${c.init}<div class="avatar-dot ${c.online?'dot-online':'dot-offline'}"></div></div>
+      <div class="avatar" style="background:${c.color};color:${c.text};">${avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${c.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(c.id) : '000'}</span></div><div class="contact-preview">${c.preview}</div></div>
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
@@ -1364,7 +1511,8 @@ function selectContact(id){
   const hit = contacts.find(c=>c.id===id);
   if(hit) hit.unread=0;
   const av=document.getElementById('headerAvatar');
-  av.style.background=activeContact.color;av.style.color=activeContact.text;av.textContent=activeContact.init;
+  av.style.background=activeContact.color;av.style.color=activeContact.text;
+  setAvatarNode(av, activeContact.init, activeContact.avatar);
   document.getElementById('headerName').textContent=`${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
   updateHeaderPresence();
   renderContacts();
@@ -1382,7 +1530,7 @@ function renderSidebarSearchResults(results){
   }
   el.innerHTML = results.map(u => `
     <div class="contact" onclick="startChatFromSidebar('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};">${u.init}<div class="avatar-dot dot-offline"></div></div>
+      <div class="avatar" style="background:${u.color};color:${u.text};">${avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.email}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`).join('');
@@ -1391,7 +1539,7 @@ function renderSidebarSearchResults(results){
 window.startChatFromSidebar = function(id){
   const u = sidebarSearchResults.find(x=>x.id===id);
   if(!u) return;
-  window.startChat(u.id, u.name, u.color, u.text);
+  window.startChat(u.id, u.name, u.color, u.text, u.avatar || '');
   const input = document.getElementById('sidebarSearchInput');
   if(input) input.value='';
 };
@@ -1410,7 +1558,7 @@ async function filterContacts(q){
 
   if(localMatches.length){
     const enriched = localMatches.concat(mergedRemote.map(u => ({
-      id:u.id,name:u.name,init:u.init,color:u.color,text:u.text,online:false,preview:u.email,time:'',unread:0
+      id:u.id,name:u.name,init:u.init,color:u.color,text:u.text,avatar:u.avatar || '',online:false,preview:u.email,time:'',unread:0
     })));
     renderContacts(enriched);
     return;
@@ -1448,7 +1596,7 @@ window.searchFromMainArea = async function(){
   if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
   out.innerHTML = results.map(u => `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${u.init}</div>
+      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;">${avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
       <button class="add-btn">${t('chatBtn')}</button>
     </div>`).join('');
@@ -1457,7 +1605,7 @@ window.startChatFromMain = function(id){
   const list = window._mainSearchResults || [];
   const u = list.find(x => x.id === id);
   if(!u) return;
-  window.startChat(u.id, u.name, u.color, u.text);
+  window.startChat(u.id, u.name, u.color, u.text, u.avatar || '');
 };
 
 // MESSAGES
@@ -1654,20 +1802,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
