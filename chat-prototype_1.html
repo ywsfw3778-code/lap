@@ -846,40 +846,38 @@ await loadMyProfile();
 
 window.handleLogout = async () => { await sb.auth.signOut(); window.location.href='login.html'; };
 
+async function queryProfilesForSearch(query, limit){
+  const attempts = [
+    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`).neq('id', me.id).limit(limit),
+    () => sb.from('profiles').select('id,username,full_name,email').or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`).neq('id', me.id).limit(limit),
+    () => sb.from('profiles').select('id,username').ilike('username', `%${query}%`).neq('id', me.id).limit(limit)
+  ];
+  for(const run of attempts){
+    const res = await run();
+    if(!res.error) return res.data || [];
+  }
+  return [];
+}
+
+async function queryProfilesByIds(ids){
+  if(!ids.length) return [];
+  const attempts = [
+    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').in('id', ids),
+    () => sb.from('profiles').select('id,username,full_name,email').in('id', ids),
+    () => sb.from('profiles').select('id,username').in('id', ids)
+  ];
+  for(const run of attempts){
+    const res = await run();
+    if(!res.error) return res.data || [];
+  }
+  return [];
+}
+
 window.searchProfiles = async (q, limit = 8) => {
   const query = (q || '').trim();
   if(!query) return [];
 
-  let data = null;
-  // Try rich search first (email/full_name/username). Fallback to username-only schema.
-  const rich = await sb
-    .from('profiles')
-    .select('id,username,full_name,email,avatar_url')
-    .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
-    .neq('id', me.id)
-    .limit(limit);
-
-  if(!rich.error){
-    data = rich.data || [];
-  } else {
-    const richFallback = await sb
-      .from('profiles')
-      .select('id,username,full_name,email')
-      .or(`email.ilike.%${query}%,full_name.ilike.%${query}%,username.ilike.%${query}%`)
-      .neq('id', me.id)
-      .limit(limit);
-    if(!richFallback.error){
-      data = richFallback.data || [];
-    } else {
-    const lite = await sb
-      .from('profiles')
-      .select('id,username')
-      .ilike('username', `%${query}%`)
-      .neq('id', me.id)
-      .limit(limit);
-    data = lite.data || [];
-    }
-  }
+  const data = await queryProfilesForSearch(query, limit);
 
   const colors = [
     {bg:'#12123a',t:'#818cf8'},
@@ -1478,23 +1476,12 @@ async function loadInboxContacts(){
 
   const ids = Array.from(latestByPartner.keys());
   if(!ids.length){
+    saveLocalChatState();
     renderContacts();
     return;
   }
 
-  const { data: profiles, error: profilesErr } = await sbClient
-    .from('profiles')
-    .select('id,username,full_name,email,avatar_url')
-    .in('id', ids);
-
-  let safeProfiles = profiles;
-  if(profilesErr){
-    const fallbackProfiles = await sbClient
-      .from('profiles')
-      .select('id,username,full_name,email')
-      .in('id', ids);
-    safeProfiles = fallbackProfiles.data || [];
-  }
+  const safeProfiles = await queryProfilesByIds(ids);
 
   const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
 
@@ -1596,9 +1583,15 @@ async function filterContacts(q){
 
   // Always search by name/email from DB when user types in sidebar search.
   const remote = await window.searchProfiles(query, 8);
+  const lowerQuery = query.toLowerCase();
 
   // Keep local contacts first, then add remote users not already in list.
-  const localMatches = contacts.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+  const localMatches = contacts.filter(c => {
+    const name = String(c.name || '').toLowerCase();
+    const preview = String(c.preview || '').toLowerCase();
+    const id = String(c.id || '').toLowerCase();
+    return name.includes(lowerQuery) || preview.includes(lowerQuery) || id.includes(lowerQuery);
+  });
   const localIds = new Set(localMatches.map(c => c.id));
   const mergedRemote = remote.filter(u => !localIds.has(u.id));
 
@@ -1848,10 +1841,6 @@ renderContacts();renderMessages();
 </script>
 </body>
 </html>
-
-
-
-
 
 
 
