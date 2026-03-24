@@ -115,11 +115,12 @@ background:var(--bg);
   flex-direction:column;
   position:relative;
 }
-.msg-tools{position:absolute;top:10px;display:flex;align-items:center;opacity:0;transform:translateY(2px);transition:opacity .16s ease,transform .16s ease;pointer-events:none;z-index:4;}
-html[dir="ar"] .msg-tools{left:-38px;}
-html[dir="en"] .msg-tools{right:-38px;}
+.msg-tools{position:absolute;top:50%;display:flex;align-items:center;opacity:0;transform:translateY(-50%);transition:opacity .16s ease;pointer-events:none;z-index:4;}
+html[dir="ar"] .msg-tools{left:-42px;}
+html[dir="en"] .msg-tools{right:-42px;}
 .msg-row:hover .msg-tools,
-.msg-row:focus-within .msg-tools{opacity:1;transform:translateY(0);pointer-events:auto;}
+.msg-row:focus-within .msg-tools,
+.msg-tools.active{opacity:1;pointer-events:auto;}
 .msg-tool-btn{width:28px;height:28px;border-radius:10px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;line-height:1;box-shadow:0 6px 14px rgba(0,0,0,.22);}
 .msg-tool-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--surface2);}
 .msg-group.out .msg-content{align-items:flex-start;}
@@ -1877,15 +1878,20 @@ function showIncomingNotification(message, profile){
 function closeMessageMenu(){
   const menu = document.getElementById('messageMenu');
   if(menu) menu.classList.remove('open');
+  document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
 }
 
-function openMessageMenu(event, msg){
+function openMessageMenu(event, msg, anchorEl = null){
   if(!msg || !msg.id) return;
   event.preventDefault();
   if(typeof event.stopPropagation === 'function') event.stopPropagation();
   const menu = document.getElementById('messageMenu');
   if(!menu) return;
+
+  document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
+  const anchor = anchorEl || event.currentTarget || event.target;
+  anchor?.closest?.('.msg-tools')?.classList.add('active');
 
   messageMenuState = { ...msg };
   document.getElementById('messageMenuDate').textContent = formatFullMessageDate(msg.createdAt || Date.now());
@@ -1905,8 +1911,11 @@ function openMessageMenu(event, msg){
   const menuHeight = 168;
   const maxLeft = window.innerWidth - menuWidth - pad;
   const maxTop = window.innerHeight - menuHeight - pad;
-  menu.style.left = `${Math.max(pad, Math.min(event.clientX, maxLeft))}px`;
-  menu.style.top = `${Math.max(pad, Math.min(event.clientY, maxTop))}px`;
+  const anchorRect = anchor?.getBoundingClientRect?.();
+  const baseLeft = anchorRect ? anchorRect.left + (anchorRect.width / 2) - (menuWidth / 2) : event.clientX;
+  const baseTop = anchorRect ? anchorRect.bottom + 8 : event.clientY;
+  menu.style.left = `${Math.max(pad, Math.min(baseLeft, maxLeft))}px`;
+  menu.style.top = `${Math.max(pad, Math.min(baseTop, maxTop))}px`;
 }
 
 window.editMessageFromMenu = async function(){
@@ -2088,7 +2097,7 @@ function createMessageRow(msg, isOut, showAvatar){
   menuBtn.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    openMessageMenu(event, msg);
+    openMessageMenu(event, msg, menuBtn);
   });
   tools.appendChild(menuBtn);
 
