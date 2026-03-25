@@ -835,6 +835,37 @@ function normalizeUsername(v){
   return (v || '').trim().toLowerCase().replace(/^@+/, '');
 }
 const tr = (k) => (typeof window.t === 'function' ? window.t(k) : k);
+const PROFILE_SELECT_ATTEMPTS = [
+  'id,username,full_name,email,avatar_url,member_code,last_seen_at',
+  'id,username,full_name,email,avatar_url,last_seen_at',
+  'id,username,full_name,email,avatar_url',
+  'id,username,full_name,email',
+  'id,username,email'
+];
+
+async function runProfilesQuery(builder){
+  let lastError = null;
+  for(const select of PROFILE_SELECT_ATTEMPTS){
+    const res = await builder(select);
+    if(!res.error) return res;
+    lastError = res.error;
+  }
+  return { data: [], error: lastError };
+}
+
+function formatLastSeenLabel(input){
+  if(!input) return t('offline');
+  const date = new Date(input);
+  if(Number.isNaN(date.getTime())) return t('offline');
+  const formatted = date.toLocaleString(appLang === 'ar' ? 'ar-EG' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  return appLang === 'ar' ? `آخر ظهور ${formatted}` : `Last seen ${formatted}`;
+}
 
 async function upsertMyProfileOnServer(extra = {}){
   const payload = {
@@ -857,26 +888,33 @@ async function upsertMyProfileOnServer(extra = {}){
 }
 
 window.loadMemberCodes = async () => {
-  let rows = [];
-  const lite = await sb.from('profiles').select('id,username,email');
+  const lite = await runProfilesQuery((select) => sb.from('profiles').select(select));
   if(lite.error) return;
-  rows = lite.data || [];
+  const rows = lite.data || [];
 
   const admin = rows.find(r =>
     String(r.username || '').toLowerCase() === ADMIN_USERNAME ||
     String(r.email || '').toLowerCase() === ADMIN_EMAIL
   );
 
-  const others = rows
-    .filter(r => !admin || r.id !== admin.id)
-    .sort((a, b) => {
-      const aKey = String(a.username || a.email || a.id).toLowerCase();
-      const bKey = String(b.username || b.email || b.id).toLowerCase();
-      return aKey.localeCompare(bKey);
-    });
-  const ordered = admin ? [admin, ...others] : rows;
+  const hasMemberCode = rows.some((r) => Number.isFinite(Number(r.member_code)));
+  const ordered = hasMemberCode
+    ? [...rows].sort((a, b) => Number(a.member_code || 999999) - Number(b.member_code || 999999))
+    : (() => {
+        const others = rows
+          .filter(r => !admin || r.id !== admin.id)
+          .sort((a, b) => {
+            const aKey = String(a.username || a.email || a.id).toLowerCase();
+            const bKey = String(b.username || b.email || b.id).toLowerCase();
+            return aKey.localeCompare(bKey);
+          });
+        return admin ? [admin, ...others] : rows;
+      })();
   const map = {};
-  ordered.forEach((r, i) => { map[r.id] = String(i + 1).padStart(3, '0'); });
+  ordered.forEach((r, i) => {
+    const numeric = Number(r.member_code);
+    map[r.id] = Number.isFinite(numeric) && numeric > 0 ? String(numeric).padStart(3, '0') : String(i + 1).padStart(3, '0');
+  });
   window.memberCodeMap = map;
 
   if(typeof window.onMemberCodesUpdated === 'function') window.onMemberCodesUpdated();
@@ -945,11 +983,9 @@ window.handleAvatarPick = async (event) => {
 
 async function loadMyProfile(){
   await upsertMyProfileOnServer();
-  const { data, error } = await sb
-    .from('profiles')
-    .select('username,full_name,email,avatar_url')
-    .eq('id', me.id)
-    .maybeSingle();
+  const { data, error } = await runProfilesQuery((select) =>
+    sb.from('profiles').select(select).eq('id', me.id).maybeSingle()
+  );
   if(!error && data){
     if(data.username) myUsername = String(data.username).toLowerCase();
     if(data.full_name) myName = String(data.full_name).trim() || myName;
@@ -1063,13 +1099,8 @@ function profileMatchesQuery(profile, query){
 
 async function refreshProfilesDirectory(limit = 300){
   const globalDirectory = window.profilesDirectory || [];
-  const broadAttempts = [
-    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(limit),
-    () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(limit),
-    () => sb.from('profiles').select('id,username').neq('id', me.id).limit(limit)
-  ];
-  for(const run of broadAttempts){
-    const res = await withTimeout(run());
+  for(const select of PROFILE_SELECT_ATTEMPTS){
+    const res = await withTimeout(sb.from('profiles').select(select).neq('id', me.id).limit(limit));
     if(!res.error){
       window.profilesDirectory = res.data || [];
       if(window.profilesDirectory.length) return window.profilesDirectory;
@@ -1082,15 +1113,9 @@ async function queryProfilesForSearch(query, limit){
   const cachedMatches = (window.profilesDirectory || []).filter((u) => profileMatchesQuery(u, query));
   if(cachedMatches.length) return cachedMatches.slice(0, limit);
 
-  const broadAttempts = [
-    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').neq('id', me.id).limit(Math.max(limit * 20, 200)),
-    () => sb.from('profiles').select('id,username,full_name,email').neq('id', me.id).limit(Math.max(limit * 20, 200)),
-    () => sb.from('profiles').select('id,username').neq('id', me.id).limit(Math.max(limit * 20, 200))
-  ];
-
   let broadData = [];
-  for(const run of broadAttempts){
-    const res = await withTimeout(run());
+  for(const select of PROFILE_SELECT_ATTEMPTS){
+    const res = await withTimeout(sb.from('profiles').select(select).neq('id', me.id).limit(Math.max(limit * 20, 200)));
     if(!res.error){
       broadData = res.data || [];
       if(broadData.length) break;
@@ -1102,13 +1127,8 @@ async function queryProfilesForSearch(query, limit){
 
 async function queryProfilesByIds(ids){
   if(!ids.length) return [];
-  const attempts = [
-    () => sb.from('profiles').select('id,username,full_name,email,avatar_url').in('id', ids),
-    () => sb.from('profiles').select('id,username,full_name,email').in('id', ids),
-    () => sb.from('profiles').select('id,username').in('id', ids)
-  ];
-  for(const run of attempts){
-    const res = await withTimeout(run());
+  for(const select of PROFILE_SELECT_ATTEMPTS){
+    const res = await withTimeout(sb.from('profiles').select(select).in('id', ids));
     if(!res.error) return res.data || [];
   }
   return [];
@@ -1335,6 +1355,8 @@ function hydrateStoredState(parsed){
         color: c.color || '#12123a',
         text: c.text || '#818cf8',
         avatar: c.avatar || '',
+        memberCode: c.memberCode || '',
+        lastSeenAt: c.lastSeenAt || '',
         online: !!c.online,
         preview: formatMessagePreviewText(c.preview || ''),
         time: c.time || '',
@@ -1410,6 +1432,8 @@ function compactContactForStorage(contact){
     color: contact.color,
     text: contact.text,
     avatar: /^https?:\/\//i.test(String(contact.avatar || '')) ? contact.avatar : '',
+    memberCode: contact.memberCode || '',
+    lastSeenAt: contact.lastSeenAt || '',
     online: !!contact.online,
     preview: formatMessagePreviewText(contact.preview || ''),
     time: contact.time || '',
@@ -1599,7 +1623,9 @@ function applyLanguage(){
   if(byId('profileRoleText')) byId('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
   const profileOverlay = byId('profileOverlay');
   if(byId('profileStatusText') && profileOverlay){
-    byId('profileStatusText').textContent = profileOverlay.dataset.isOnline === 'true' ? t('online') : t('offline');
+    byId('profileStatusText').textContent = profileOverlay.dataset.isOnline === 'true'
+      ? t('online')
+      : formatLastSeenLabel(profileOverlay.dataset.lastSeenAt || '');
   }
 }
 
@@ -1660,13 +1686,15 @@ function fillProfileOverlay(data){
   const avatar = data?.avatar || '';
   const isSelf = !!data?.isSelf;
   const isOnline = !!data?.online;
-  const code = window.getLabCode ? window.getLabCode(id) : '000';
+  const code = data?.memberCode || (window.getLabCode ? window.getLabCode(id) : '000');
+  const lastSeenAt = data?.lastSeenAt || '';
 
   overlay.dataset.userId = id;
   overlay.dataset.isSelf = isSelf ? 'true' : 'false';
   overlay.dataset.isOnline = isOnline ? 'true' : 'false';
   overlay.dataset.avatar = avatar || '';
   overlay.dataset.name = name || '';
+  overlay.dataset.lastSeenAt = lastSeenAt || '';
   overlay.classList.toggle('profile-overlay-user', !isSelf);
 
   document.getElementById('profileName').textContent = `${name} #${code}`;
@@ -1674,7 +1702,7 @@ function fillProfileOverlay(data){
   document.getElementById('profileEmail2').textContent = email || '—';
   document.getElementById('profileUsername').textContent = username ? `@${username}` : '@—';
   document.getElementById('profileCodeValue').textContent = `#${code}`;
-  document.getElementById('profileStatusText').textContent = isOnline ? t('online') : t('offline');
+  document.getElementById('profileStatusText').textContent = isOnline ? t('online') : formatLastSeenLabel(lastSeenAt);
   document.getElementById('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
   window.setAvatarNode(document.getElementById('profileAv'), name, avatar);
   setProfileCover(avatar);
@@ -1701,6 +1729,7 @@ window.openProfile = function(){
     email: mine.email || me.email || '—',
     username: mine.username || '',
     avatar: mine.avatar || '',
+    memberCode: window.getLabCode ? window.getLabCode(me.id) : '001',
     online: true,
     isSelf: true
   });
@@ -1714,6 +1743,8 @@ window.openActiveProfile = function(){
     email: activeContact.preview || '—',
     username: activeContact.username || '',
     avatar: activeContact.avatar || '',
+    memberCode: window.getLabCode ? window.getLabCode(activeContact.id) : '000',
+    lastSeenAt: activeContact.lastSeenAt || '',
     online: onlineUserIds.has(activeContact.id),
     isSelf: false
   });
@@ -1748,6 +1779,8 @@ window.openUserProfile = async function(userId){
     email: email || '—',
     username: uname,
     avatar,
+    memberCode: window.getLabCode ? window.getLabCode(userId) : '000',
+    lastSeenAt: profile.last_seen_at || existing.lastSeenAt || '',
     online: onlineUserIds.has(userId),
     isSelf: false
   });
@@ -1865,7 +1898,7 @@ function syncActiveHeader(){
   av.style.background = activeContact.color || 'var(--surface2)';
   av.style.color = activeContact.text || 'var(--accent)';
   window.setAvatarNode(av, activeContact.init || activeContact.name, activeContact.avatar || '');
-  nameEl.textContent = `${activeContact.name} #${window.getLabCode ? window.getLabCode(activeContact.id) : '000'}`;
+  nameEl.textContent = `${activeContact.name} #${activeContact.memberCode || (window.getLabCode ? window.getLabCode(activeContact.id) : '000')}`;
   updateHeaderPresence();
 }
 
@@ -1879,13 +1912,27 @@ function updateHeaderPresence(){
   }
   const isOn = onlineUserIds.has(activeContact.id);
   st.classList.toggle('offline', !isOn);
-  st.innerHTML = `<span class="status-pulse ${isOn ? '' : 'offline'}"></span> ${isOn ? t('online') : t('offline')}`;
+  const label = isOn ? t('online') : formatLastSeenLabel(activeContact.lastSeenAt || '');
+  st.innerHTML = `<span class="status-pulse ${isOn ? '' : 'offline'}"></span> ${label}`;
 }
 
 function applyPresenceToContacts(){
-  contacts.forEach(c => { c.online = onlineUserIds.has(c.id); });
+  contacts.forEach(c => {
+    const isOn = onlineUserIds.has(c.id);
+    c.online = isOn;
+    if(isOn) c.lastSeenAt = new Date().toISOString();
+  });
   updateHeaderPresence();
   renderContacts();
+}
+
+async function updateMyLastSeen(){
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
+  if(!sbClient || !currentUser) return;
+  try{
+    await sbClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
+  }catch(_e){}
 }
 
 function initPresence(){
@@ -1914,6 +1961,7 @@ function initPresence(){
     .subscribe(async (status) => {
       if(status === 'SUBSCRIBED'){
         try { await presenceChannel.track({ online_at: new Date().toISOString() }); } catch(_e){}
+        updateMyLastSeen();
       }
     });
 }
@@ -2472,6 +2520,8 @@ async function loadInboxContacts(){
         color: clr.bg,
         text: clr.t,
         avatar: p.avatar_url || '',
+        memberCode: Number.isFinite(Number(p.member_code)) ? String(Number(p.member_code)).padStart(3, '0') : '',
+        lastSeenAt: p.last_seen_at || '',
         online: false,
         preview: '',
         time: '',
@@ -2484,6 +2534,8 @@ async function loadInboxContacts(){
       c.init = window.getDisplayInitial(name);
     }
     if(p.avatar_url) c.avatar = p.avatar_url;
+    if(Number.isFinite(Number(p.member_code))) c.memberCode = String(Number(p.member_code)).padStart(3, '0');
+    if(p.last_seen_at) c.lastSeenAt = p.last_seen_at;
 
     c.preview = formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id);
     c.time = t('now');
@@ -2501,6 +2553,8 @@ async function loadInboxContacts(){
     if(restored){
       activeContact = restored;
     }
+  }else if(!activeContact && contacts.length){
+    activeContact = contacts[0];
   }
 
   saveLocalChatState();
@@ -3000,6 +3054,7 @@ window.addEventListener('pageshow', () => {
 
 window.addEventListener('beforeunload', async () => {
   saveLocalChatState();
+  updateMyLastSeen();
   if(messagePollTimer) clearInterval(messagePollTimer);
   const sbClient = getSbClient();
   if(presenceChannel && sbClient){
@@ -3008,7 +3063,10 @@ window.addEventListener('beforeunload', async () => {
   }
 });
 document.addEventListener('visibilitychange', () => {
-  if(document.visibilityState === 'hidden') saveLocalChatState();
+  if(document.visibilityState === 'hidden'){
+    saveLocalChatState();
+    updateMyLastSeen();
+  }
   if(document.visibilityState === 'visible'){
     const nextLang = getStoredLang();
     if(nextLang !== appLang){
