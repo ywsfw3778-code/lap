@@ -39,12 +39,12 @@ body {
   color: var(--text);
   margin: 0;
   padding: 0;
-  height: 100dvh; 
+  height: 100dvh; /* بياخد طول الشاشة الحقيقي */
   width: 100vw;
-  overflow: hidden; 
+  overflow: hidden; /* بيقفل أي حركة جانبية */
   position: fixed;
   display: flex;
-  touch-action: pan-y;
+  touch-action: pan-y; /* سكرول فوق وتحت بس */
 }
 body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
 
