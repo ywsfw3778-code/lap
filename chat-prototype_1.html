@@ -1056,19 +1056,29 @@ await loadMyProfile();
 
 window.handleLogout = async () => {
   try{
-    updateMyLastSeen();
-    if(messagePollTimer) clearInterval(messagePollTimer);
-    const sbClient = getSbClient();
-    if(presenceChannel && sbClient){
-      try { await presenceChannel.untrack(); } catch(_e){}
-      try { sbClient.removeChannel(presenceChannel); } catch(_e){}
+    if(typeof window.updateMyLastSeen === 'function') window.updateMyLastSeen();
+    if(window.messagePollTimer) clearInterval(window.messagePollTimer);
+    const sbClient = window.sb || null;
+    const channel = window.presenceChannel || null;
+    if(channel && sbClient){
+      try { await channel.untrack(); } catch(_e){}
+      try { sbClient.removeChannel(channel); } catch(_e){}
     }
-    try{ localStorage.removeItem(getChatStateKey()); }catch(_e){}
+    try{
+      const key = typeof window.getChatStateKey === 'function' ? window.getChatStateKey() : '';
+      if(key) localStorage.removeItem(key);
+    }catch(_e){}
     try{ localStorage.removeItem('lm-chat-state-last'); }catch(_e){}
     try{ localStorage.removeItem('lm-chat-last-key'); }catch(_e){}
-    try{ localStorage.removeItem(getActiveChatKey()); }catch(_e){}
+    try{
+      const key = typeof window.getActiveChatKey === 'function' ? window.getActiveChatKey() : '';
+      if(key) localStorage.removeItem(key);
+    }catch(_e){}
     try{ localStorage.removeItem('lm-active-chat-guest'); }catch(_e){}
-    try{ localStorage.removeItem(getHiddenMessagesKey()); }catch(_e){}
+    try{
+      const key = typeof window.getHiddenMessagesKey === 'function' ? window.getHiddenMessagesKey() : '';
+      if(key) localStorage.removeItem(key);
+    }catch(_e){}
     try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
     try{
       Object.keys(localStorage).forEach((key) => {
@@ -1168,6 +1178,9 @@ async function queryProfilesByIds(ids){
   }
   return [];
 }
+
+window.refreshProfilesDirectory = refreshProfilesDirectory;
+window.queryProfilesByIds = queryProfilesByIds;
 
 window.searchProfiles = async (q, limit = 8) => {
   const query = (q || '').trim();
@@ -1354,6 +1367,10 @@ function getHiddenMessagesKey(){
   const me = getCurrentUser();
   return me ? `lm-hidden-messages-${me.id}` : 'lm-hidden-messages-guest';
 }
+
+window.getChatStateKey = getChatStateKey;
+window.getActiveChatKey = getActiveChatKey;
+window.getHiddenMessagesKey = getHiddenMessagesKey;
 
 function saveHiddenMessageIds(){
   try{
@@ -1801,7 +1818,7 @@ window.openUserProfile = async function(userId){
   const existing = contacts.find((c) => c.id === userId) || {};
   let profileRows = [];
   try{
-    profileRows = await queryProfilesByIds([userId]);
+    profileRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([userId]) : [];
   }catch(_e){
     profileRows = [];
   }
@@ -1856,7 +1873,7 @@ window.openUserAvatarOrProfile = async function(userId){
     return;
   }
   const existing = contacts.find((c) => c.id === userId) || {};
-  const profileRows = await queryProfilesByIds([userId]);
+  const profileRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([userId]) : [];
   const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
   const avatar = profile.avatar_url || existing.avatar || '';
   const label = String(profile.full_name || '').trim() || existing.name || String(profile.username || '').trim() || 'User';
@@ -1973,6 +1990,7 @@ async function updateMyLastSeen(){
     await sbClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
   }catch(_e){}
 }
+window.updateMyLastSeen = updateMyLastSeen;
 
 function initPresence(){
   const sbClient = getSbClient();
@@ -1982,11 +2000,13 @@ function initPresence(){
   if(presenceChannel){
     try { sbClient.removeChannel(presenceChannel); } catch(_e){}
     presenceChannel = null;
+    window.presenceChannel = null;
   }
 
   presenceChannel = sbClient.channel('online-users', {
     config: { presence: { key: me.id } }
   });
+  window.presenceChannel = presenceChannel;
 
   presenceChannel
     .on('presence', { event: 'sync' }, () => {
@@ -2469,6 +2489,7 @@ function startMessagePolling(){
     loadInboxContacts();
     if(activeContact) loadMessagesForContact(activeContact.id);
   }, 2500);
+  window.messagePollTimer = messagePollTimer;
 }
 
 function colorFromId(id){
@@ -2592,7 +2613,7 @@ async function loadInboxContacts(){
     loadMessagesForContact(activeContact.id);
   }
 
-  const safeProfiles = await queryProfilesByIds(ids);
+  const safeProfiles = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(ids) : [];
   const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
 
   newIncomingMessages.forEach((m) => {
@@ -3084,7 +3105,9 @@ window.onAuthReady = async function(){
   renderContacts();
   renderMessages();
   await loadInboxContacts();
-  refreshProfilesDirectory().catch(() => {});
+  if(typeof window.refreshProfilesDirectory === 'function'){
+    window.refreshProfilesDirectory().catch(() => {});
+  }
   initPresence();
   startMessagePolling();
   syncActiveHeader();
