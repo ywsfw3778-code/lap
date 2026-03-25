@@ -894,29 +894,22 @@ window.loadMemberCodes = async () => {
   if(lite.error) return;
   const rows = lite.data || [];
 
-  const admin = rows.find(r =>
-    String(r.username || '').toLowerCase() === ADMIN_USERNAME ||
-    String(r.email || '').toLowerCase() === ADMIN_EMAIL
-  );
+  // ترتيب المستخدمين حسب تاريخ الإنشاء لضمان تسلسل الأرقام
+  const ordered = [...rows].sort((a, b) => {
+    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+  });
 
-  const hasMemberCode = rows.some((r) => Number.isFinite(Number(r.member_code)));
-  const ordered = hasMemberCode
-    ? [...rows].sort((a, b) => Number(a.member_code || 999999) - Number(b.member_code || 999999))
-    : (() => {
-        const others = rows
-          .filter(r => !admin || r.id !== admin.id)
-          .sort((a, b) => {
-            const aKey = String(a.username || a.email || a.id).toLowerCase();
-            const bKey = String(b.username || b.email || b.id).toLowerCase();
-            return aKey.localeCompare(bKey);
-          });
-        return admin ? [admin, ...others] : rows;
-      })();
   const map = {};
   ordered.forEach((r, i) => {
+    // لو المستخدم ليه رقم يدوي في القاعدة هنستخدمه، غير كدة بياخد رقم ترتيبه + 1
     const numeric = Number(r.member_code);
-    map[r.id] = Number.isFinite(numeric) && numeric > 0 ? String(numeric).padStart(3, '0') : String(i + 1).padStart(3, '0');
+    const finalCode = (Number.isFinite(numeric) && numeric > 0) 
+      ? String(numeric).padStart(3, '0') 
+      : String(i + 1).padStart(3, '0');
+    
+    map[r.id] = finalCode;
   });
+  
   window.memberCodeMap = map;
 
   if(typeof window.onMemberCodesUpdated === 'function') window.onMemberCodesUpdated();
