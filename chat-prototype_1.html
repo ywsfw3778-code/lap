@@ -2384,7 +2384,12 @@ function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
 function createMessageRow(msg, isOut, showAvatar){
   const row = document.createElement('div');
   row.className = 'msg-row';
+  
+  // السطر اللي هنضيفه هنا:
+  row.dataset.id = String(msg.id); 
+
   row.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
+  // باقي الكود اللي في الصورة بيكمل عادي...
 
   const avatar = document.createElement('div');
   avatar.className = `msg-avatar ${showAvatar && !isOut ? '' : 'ghost'}`;
@@ -2817,18 +2822,47 @@ window.startChatFromMain = function(id){
 };
 
 // MESSAGES
+function appendNewMessagesOnly(container, allMessages) {
+  const currentDisplayedIds = new Set(Array.from(container.querySelectorAll('.msg-row')).map(row => row.dataset.id));
+  
+  allMessages.forEach(msg => {
+    if(!currentDisplayedIds.has(String(msg.id))) {
+      const isOut = msg.out;
+      const g = document.createElement('div');
+      g.className = `msg-group ${isOut ? 'out' : 'in'}`;
+      const row = createMessageRow({ ...msg, showMeta: true }, isOut, true);
+      row.dataset.id = msg.id;
+      g.appendChild(row);
+      container.appendChild(g);
+      container.scrollTop = container.scrollHeight;
+    }
+  });
+}
+
 function renderMessages(forceScrollToBottom = false){
-  closeMessageMenu();
-  const el=document.getElementById('messages');
-  if(!activeContact){
+  const el = document.getElementById('messages');
+  if(!activeContact) {
     document.body.classList.add('no-active-chat');
-    setMobileChatMode(false);
-    lastRenderedChatId = null;
-    lastRenderedMessageSig = '';
-    syncActiveHeader();
     renderMainSearch();
     return;
   }
+
+  const msgs = conversations[activeContact.id] || [];
+  const nextSig = `${activeContact.id}::${buildMessageSignature(msgs)}`;
+
+  // إذا لم يتغير شيء، لا تفعل شيئاً
+  if(lastRenderedChatId === activeContact.id && lastRenderedMessageSig === nextSig){
+    return;
+  }
+
+  // إضافة كيوما: إذا كان هناك صوت يعمل، أضف الرسائل الجديدة فقط دون مسح الشاشة
+  const isPlaying = !!document.querySelector('.voice-player.playing');
+  if(isPlaying && !forceScrollToBottom) {
+    appendNewMessagesOnly(el, msgs); 
+    lastRenderedMessageSig = nextSig;
+    return;
+  }
+  // ... (باقي الكود الأصلي للدالة يبدأ من هنا)
   document.body.classList.remove('no-active-chat');
   syncActiveHeader();
   setMobileChatMode(!(isMobileView() && mobileSidebarOpen));
