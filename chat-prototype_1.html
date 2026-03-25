@@ -624,12 +624,6 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   <div class="messages" id="messages"></div>
  <div class="input-area">
     <div class="input-wrap">
-        </div>
-    <button class="voice-btn" ...>🎤</button> <button class="send-btn" ...>➤</button>   </div>
-    <div class="record-panel" id="recordPanel"> ... </div> <button class="voice-btn" ...>🎤</button> <button class="send-btn" ...>➤</button>   </div> ```
-
-<div class="input-area">
-    <div class="input-wrap">
         <button class="emoji-btn" onclick="addEmoji()">😊</button>
         <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
         <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
@@ -637,6 +631,8 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
     <button class="send-btn" onclick="sendMessage()">➤</button>
 </div>
+
+
 
 <!-- SETTINGS OVERLAY -->
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
