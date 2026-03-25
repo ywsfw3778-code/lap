@@ -857,15 +857,17 @@ function formatLastSeenLabel(input){
   if(!input) return t('offline');
   const date = new Date(input);
   if(Number.isNaN(date.getTime())) return t('offline');
-  const formatted = date.toLocaleString(appLang === 'ar' ? 'ar-EG' : 'en-US', {
+  const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
+  const formatted = date.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
     day: 'numeric',
     month: 'short',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true
   });
-  return appLang === 'ar' ? `آخر ظهور ${formatted}` : `Last seen ${formatted}`;
+  return lang === 'ar' ? `آخر ظهور ${formatted}` : `Last seen ${formatted}`;
 }
+window.formatLastSeenLabel = formatLastSeenLabel;
 
 async function upsertMyProfileOnServer(extra = {}){
   const payload = {
@@ -1187,7 +1189,7 @@ window.searchProfiles = async (q, limit = 8) => {
   if(!query) return [];
 
   const data = await queryProfilesForSearch(query, limit);
-  profilesDirectory = window.profilesDirectory || profilesDirectory;
+  window.profilesDirectory = window.profilesDirectory || [];
 
   const colors = [
     {bg:'#12123a',t:'#818cf8'},
@@ -1262,6 +1264,11 @@ window.startChat = (id,name,bg,textColor,avatarUrl='') => {
     window.openChatById(id);
   }
 };
+
+if(typeof window.bootstrapLabMembers === 'function'){
+  window.bootstrapLabMembers();
+}
+window.dispatchEvent(new Event('lab-auth-ready'));
 </script>
 
 <script>
@@ -1287,6 +1294,16 @@ let inboxNotificationsPrimed = false;
 const seenInboxMessageIds = new Set();
 let messageMenuState = null;
 const hiddenMessageIds = new Set();
+window.__labBootstrapStarted = window.__labBootstrapStarted || false;
+window.bootstrapLabMembers = function(){
+  if(window.__labBootstrapStarted) return;
+  if(!window.me || typeof window.onAuthReady !== 'function') return;
+  window.__labBootstrapStarted = true;
+  Promise.resolve(window.onAuthReady()).catch((error) => {
+    console.error('auth bootstrap failed:', error);
+    window.__labBootstrapStarted = false;
+  });
+};
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
@@ -1681,7 +1698,7 @@ function applyLanguage(){
   if(byId('profileStatusText') && profileOverlay){
     byId('profileStatusText').textContent = profileOverlay.dataset.isOnline === 'true'
       ? t('online')
-      : formatLastSeenLabel(profileOverlay.dataset.lastSeenAt || '');
+      : window.formatLastSeenLabel(profileOverlay.dataset.lastSeenAt || '');
   }
 }
 
@@ -1758,7 +1775,7 @@ function fillProfileOverlay(data){
   document.getElementById('profileEmail2').textContent = email || '—';
   document.getElementById('profileUsername').textContent = username ? `@${username}` : '@—';
   document.getElementById('profileCodeValue').textContent = `#${code}`;
-  document.getElementById('profileStatusText').textContent = isOnline ? t('online') : formatLastSeenLabel(lastSeenAt);
+  document.getElementById('profileStatusText').textContent = isOnline ? t('online') : window.formatLastSeenLabel(lastSeenAt);
   document.getElementById('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
   window.setAvatarNode(document.getElementById('profileAv'), name, avatar);
   setProfileCover(avatar);
@@ -1968,7 +1985,7 @@ function updateHeaderPresence(){
   }
   const isOn = onlineUserIds.has(activeContact.id);
   st.classList.toggle('offline', !isOn);
-  const label = isOn ? t('online') : formatLastSeenLabel(activeContact.lastSeenAt || '');
+  const label = isOn ? t('online') : window.formatLastSeenLabel(activeContact.lastSeenAt || '');
   st.innerHTML = `<span class="status-pulse ${isOn ? '' : 'offline'}"></span> ${label}`;
 }
 
@@ -3121,8 +3138,11 @@ window.onAuthReady = async function(){
 };
 
 applyLanguage();
-window.onAuthReady(me.id).catch((error) => {
-  console.error('auth bootstrap failed:', error);
+window.addEventListener('lab-auth-ready', () => {
+  if(typeof window.bootstrapLabMembers === 'function') window.bootstrapLabMembers();
+});
+document.addEventListener('DOMContentLoaded', () => {
+  if(typeof window.bootstrapLabMembers === 'function') window.bootstrapLabMembers();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
