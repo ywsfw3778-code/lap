@@ -481,80 +481,59 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .ts{position:fixed;top:14px;left:14px;display:flex;gap:6px;z-index:100;}
 .ts-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;}
 .ts-dot:hover,.ts-dot.active{border-color:white;transform:scale(1.2);}
-/* MOBILE RESPONSIVE */
-/* MOBILE RESPONSIVE - FINAL AMADEUS FIX */
+/* --- AMADEUS FINAL CLEAN UI --- */
 @media (max-width: 980px) {
   body { height: 100dvh; overflow: hidden; position: fixed; touch-action: pan-y; }
-  .sidebar, .chat-area { width: 100%; height: 100dvh; }
+  .sidebar, .chat-area { width: 100%; height: 100dvh; position: fixed; top: 0; left: 0; }
   body.mobile-chat-active .sidebar { display: none; }
   body.mobile-chat-active .chat-area { display: flex; }
 
-  /* منطقة الكتابة: منع التكرار والتداخل */
+  /* تنسيق منطقة الكتابة للموبايل فقط */
   .input-area {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    padding: 10px !important;
+    padding: 8px 10px !important;
     gap: 8px !important;
     width: 100% !important;
     box-sizing: border-box !important;
     background: var(--surface) !important;
-    position: relative !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    z-index: 1000;
   }
 
-  /* الكبسولة تنكمش لتوفير مساحة */
   .input-wrap {
     flex: 1 !important;
     min-width: 0 !important;
-    margin: 0 !important;
     position: relative !important;
+    height: 40px !important;
   }
 
-  /* الزراير تقف جنب الكبسولة باحترام */
   .voice-btn, .send-btn {
-    position: static !important; /* بيلغي أي أماكن طايرة قديمة */
+    position: static !important;
     flex-shrink: 0 !important;
-    width: 42px !important;
-    height: 42px !important;
+    width: 40px !important;
+    height: 40px !important;
     display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
     margin: 0 !important;
+    transform: none !important;
   }
-
+  
   .messages { padding-bottom: 80px !important; }
 }
 
-  .voice-play{width:34px;height:34px;font-size:13px;}
-  .voice-track{height:36px;padding:0 10px;gap:8px;}
-  .voice-time{min-width:40px;font-size:10px;}
-  .input-area{padding:8px 10px;gap:6px;}
-  .input-wrap{padding:5px 8px;}
-  .send-btn{width:36px;height:36px;}
-  .record-panel{padding:7px 8px;gap:8px;}
-  .record-action{width:34px;height:34px;border-radius:10px;font-size:14px;}
-  .record-bars{height:24px;gap:2px;}
-  .icon-btn{width:28px;height:28px;}
-  .empty-search-wrap{padding:10px;}
-  .empty-search-box{padding:12px;border-radius:12px;}
-  .empty-search-row{flex-direction:column;}
-  .empty-search-btn{width:100%;}
-  .overlay{align-items:flex-end;}
-  .panel{width:100%;max-width:100%;border-radius:16px 16px 0 0;padding:18px;max-height:88dvh;animation:panelUp .2s ease;}
-  @keyframes panelUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
-  .theme-grid{grid-template-columns:1fr;}
-  .ts{top:8px;left:8px;gap:5px;}
-  .ts-dot{width:18px;height:18px;}
-
-@media (max-width: 560px){
-  .sidebar{height:100dvh;min-height:0;}
-  .chat-area{height:100dvh;}
-  .logo{font-size:17px;}
-  .contact-name{font-size:12px;}
-  .contact-preview{font-size:10px;}
-  .chat-user-name{font-size:13px;}
-  .chat-user-status{font-size:10px;}
-  .empty-search-title{font-size:13px;}
+/* إعدادات الـ PC (عشان الزراير متظهرش مرتين) */
+@media (min-width: 981px) {
+  .input-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    gap: 12px;
+  }
+  .input-wrap { flex: 1; position: relative; }
+  .voice-btn, .send-btn { position: static; flex-shrink: 0; }
 }
 </style>
 </head>
