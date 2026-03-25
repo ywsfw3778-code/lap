@@ -1056,6 +1056,7 @@ await loadMyProfile();
 
 window.handleLogout = async () => {
   try{
+    updateMyLastSeen();
     if(messagePollTimer) clearInterval(messagePollTimer);
     const sbClient = getSbClient();
     if(presenceChannel && sbClient){
@@ -1069,12 +1070,26 @@ window.handleLogout = async () => {
     try{ localStorage.removeItem('lm-active-chat-guest'); }catch(_e){}
     try{ localStorage.removeItem(getHiddenMessagesKey()); }catch(_e){}
     try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
-    await sb.auth.signOut({ scope: 'local' });
+    try{
+      Object.keys(localStorage).forEach((key) => {
+        if(key.includes('fetmbjnehfdtousenflp') && key.includes('auth-token')){
+          localStorage.removeItem(key);
+        }
+      });
+    }catch(_e){}
+    try{
+      Object.keys(sessionStorage).forEach((key) => {
+        if(key.includes('fetmbjnehfdtousenflp') && key.includes('auth-token')){
+          sessionStorage.removeItem(key);
+        }
+      });
+    }catch(_e){}
+    await sb.auth.signOut();
   }catch(_e){}
-  window.location.replace('login.html');
+  window.location.replace(`login.html?logout=${Date.now()}`);
 };
 
-function withTimeout(promise, timeoutMs = 12000){
+function withTimeout(promise, timeoutMs = 4500){
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(() => resolve({ data: [], error: new Error('timeout') }), timeoutMs))
@@ -2523,36 +2538,22 @@ async function loadInboxContacts(){
     return;
   }
 
-  const safeProfiles = await queryProfilesByIds(ids);
-
-  const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
-  newIncomingMessages.forEach((m) => {
-    const senderProfile = profMap.get(m.sender_id) || null;
-    showIncomingNotification(m, senderProfile);
-  });
-
   for(const id of ids){
     const last = latestByPartner.get(id);
-    const p = profMap.get(id) || {};
-    const uname = (p.username || '').trim();
-    const fullName = (p.full_name || '').trim();
-    const email = (p.email || '').trim();
-    const name = fullName || uname || (email ? email.split('@')[0] : 'User');
-
     let c = contacts.find(x => x.id === id);
     if(!c){
       const clr = colorFromId(id);
       c = {
         id,
-        name,
-        username: uname,
-        email: email,
-        init: window.getDisplayInitial(name),
+        name: 'User',
+        username: '',
+        email: '',
+        init: window.getDisplayInitial('User'),
         color: clr.bg,
         text: clr.t,
-        avatar: p.avatar_url || '',
-        memberCode: Number.isFinite(Number(p.member_code)) ? String(Number(p.member_code)).padStart(3, '0') : '',
-        lastSeenAt: p.last_seen_at || '',
+        avatar: '',
+        memberCode: '',
+        lastSeenAt: '',
         online: false,
         preview: '',
         time: '',
@@ -2560,15 +2561,7 @@ async function loadInboxContacts(){
         _lastInboxAt: ''
       };
       contacts.push(c);
-    } else if(c.name === id || c.name === 'User'){
-      c.name = name;
-      c.init = window.getDisplayInitial(name);
     }
-    if(uname) c.username = uname;
-    if(email) c.email = email;
-    if(p.avatar_url) c.avatar = p.avatar_url;
-    if(Number.isFinite(Number(p.member_code))) c.memberCode = String(Number(p.member_code)).padStart(3, '0');
-    if(p.last_seen_at) c.lastSeenAt = p.last_seen_at;
 
     c.preview = formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id);
     c.time = t('now');
@@ -2597,6 +2590,48 @@ async function loadInboxContacts(){
     lastRenderedMessageSig = '';
     renderMessages();
     loadMessagesForContact(activeContact.id);
+  }
+
+  const safeProfiles = await queryProfilesByIds(ids);
+  const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
+
+  newIncomingMessages.forEach((m) => {
+    const senderProfile = profMap.get(m.sender_id) || null;
+    showIncomingNotification(m, senderProfile);
+  });
+
+  let enriched = false;
+  for(const id of ids){
+    const p = profMap.get(id) || {};
+    const c = contacts.find(x => x.id === id);
+    if(!c) continue;
+    const uname = (p.username || '').trim();
+    const fullName = (p.full_name || '').trim();
+    const email = (p.email || '').trim();
+    const name = fullName || uname || (email ? email.split('@')[0] : c.name || 'User');
+
+    if(name && (c.name === 'User' || c.name === id || !c.name)){
+      c.name = name;
+      c.init = window.getDisplayInitial(name);
+      enriched = true;
+    }
+    if(uname && c.username !== uname){ c.username = uname; enriched = true; }
+    if(email && c.email !== email){ c.email = email; enriched = true; }
+    if(p.avatar_url && c.avatar !== p.avatar_url){ c.avatar = p.avatar_url; enriched = true; }
+    if(Number.isFinite(Number(p.member_code))){
+      const code = String(Number(p.member_code)).padStart(3, '0');
+      if(c.memberCode !== code){ c.memberCode = code; enriched = true; }
+    }
+    if(p.last_seen_at && c.lastSeenAt !== p.last_seen_at){ c.lastSeenAt = p.last_seen_at; enriched = true; }
+  }
+
+  if(enriched){
+    saveLocalChatState();
+    renderContacts();
+    if(activeContact){
+      syncActiveHeader();
+      renderMessages();
+    }
   }
 }
 // CONTACTS
@@ -2667,9 +2702,11 @@ async function filterContacts(q){
   // Keep local contacts first, then add remote users not already in list.
   const localMatches = contacts.filter(c => {
     const name = String(c.name || '').toLowerCase();
+    const username = String(c.username || '').toLowerCase();
+    const email = String(c.email || '').toLowerCase();
     const preview = String(c.preview || '').toLowerCase();
     const id = String(c.id || '').toLowerCase();
-    return name.includes(lowerQuery) || preview.includes(lowerQuery) || id.includes(lowerQuery);
+    return name.includes(lowerQuery) || username.includes(lowerQuery) || email.includes(lowerQuery) || preview.includes(lowerQuery) || id.includes(lowerQuery);
   });
   const localIds = new Set(localMatches.map(c => c.id));
   const mergedRemote = remote.filter(u => !localIds.has(u.id));
@@ -3046,8 +3083,8 @@ window.onAuthReady = async function(){
   syncActiveHeader();
   renderContacts();
   renderMessages();
-  await refreshProfilesDirectory();
   await loadInboxContacts();
+  refreshProfilesDirectory().catch(() => {});
   initPresence();
   startMessagePolling();
   syncActiveHeader();
