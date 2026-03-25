@@ -532,16 +532,18 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
         justify-content: flex-start !important;
     }
 
-    /* الريكورد لما يسجل: أيقونة "إيقاف" نيون */
-    .input-area.recording .voice-btn {
-        background: transparent !important;
-        box-shadow: none !important;
-        color: #ff3c41 !important; /* لون أحمر نيون للتنبيه */
-        font-size: 20px !important;
-        border: none !important;
-    }
-    .input-area.recording .voice-btn::before { content: "◼"; font-weight: bold; } /* زرار مربع */
-    .input-area.recording .voice-btn span { display: none; }
+    /* ستايل الريكورد المتوافق مع الثيم + حركة إضاءة */
+  .input-area.recording {
+    background: var(--surface2) !important;
+    border-top: 2px solid var(--accent) !important;
+    animation: recGlow 1.5s infinite alternate !important;
+  }
+  @keyframes recGlow {
+    from { box-shadow: 0 -2px 10px var(--accent-glow); }
+    to { box-shadow: 0 -8px 25px var(--accent-glow); }
+  }
+  .input-area.recording .input-wrap, 
+  .input-area.recording .send-btn { display: none !important; }
 
     /* بانل التسجيل الجديد: وقت نيون + تموج */
     .voice-rec-panel {
@@ -1304,12 +1306,13 @@ window.updateVoiceRecordingUI = function(isRecording) {
         area.classList.add('recording');
         if (!document.getElementById('voiceRecPanel')) {
             area.insertAdjacentHTML('afterbegin', `
-                <div id="voiceRecPanel" class="voice-rec-panel">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <span class="neon-pulse"></span>
-                        <span class="voice-time" id="voiceTime">0:00</span>
+                <div id="voiceRecPanel" style="flex:1; display:flex; align-items:center; justify-content:space-between; padding:0 5px;">
+                    <div style="display:flex; align-items:center; gap:15px; flex:1; overflow:hidden;">
+                        <div id="recordBars" class="record-bars" style="flex:1; display:flex; align-items:center; height:30px;"></div>
+                        
+                        <span id="voiceTime" style="font-family:'Share Tech Mono'; font-size:1.2rem; color:var(--accent); min-width:45px; text-shadow:0 0 8px var(--accent-glow);">0:00</span>
                     </div>
-                    <button class="voice-cancel" onclick="discardRecording()">إلغاء</button>
+                    <button onclick="discardRecording()" style="background:var(--surface); color:var(--text); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; margin-right:12px; cursor:pointer; transition:0.2s;">إلغاء</button>
                 </div>
             `);
         }
