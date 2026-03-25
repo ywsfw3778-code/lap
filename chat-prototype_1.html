@@ -894,24 +894,21 @@ window.loadMemberCodes = async () => {
   if(lite.error) return;
   const rows = lite.data || [];
 
-  // ترتيب المستخدمين حسب تاريخ الإنشاء لضمان تسلسل الأرقام
+  // ترتيب الناس حسب وقت التسجيل عشان الأرقام تطلع صح
   const ordered = [...rows].sort((a, b) => {
     return new Date(a.created_at || 0) - new Date(b.created_at || 0);
   });
 
   const map = {};
   ordered.forEach((r, i) => {
-    // لو المستخدم ليه رقم يدوي في القاعدة هنستخدمه، غير كدة بياخد رقم ترتيبه + 1
     const numeric = Number(r.member_code);
-    const finalCode = (Number.isFinite(numeric) && numeric > 0) 
+    // لو مفيش رقم يدوي (#001 مثلاً)، هندي له رقم ترتيبه في الـ 6 أشخاص
+    map[r.id] = (Number.isFinite(numeric) && numeric > 0) 
       ? String(numeric).padStart(3, '0') 
       : String(i + 1).padStart(3, '0');
-    
-    map[r.id] = finalCode;
   });
   
   window.memberCodeMap = map;
-
   if(typeof window.onMemberCodesUpdated === 'function') window.onMemberCodesUpdated();
 };
 
