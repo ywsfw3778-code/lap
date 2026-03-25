@@ -1074,7 +1074,7 @@ window.handleLogout = async () => {
   window.location.replace('login.html');
 };
 
-function withTimeout(promise, timeoutMs = 3500){
+function withTimeout(promise, timeoutMs = 12000){
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(() => resolve({ data: [], error: new Error('timeout') }), timeoutMs))
@@ -1111,7 +1111,27 @@ async function refreshProfilesDirectory(limit = 300){
 
 async function queryProfilesForSearch(query, limit){
   const cachedMatches = (window.profilesDirectory || []).filter((u) => profileMatchesQuery(u, query));
-  if(cachedMatches.length) return cachedMatches.slice(0, limit);
+  const contactMatches = (window._contacts || [])
+    .filter((u) => profileMatchesQuery({
+      username: u.username || '',
+      full_name: u.name || '',
+      email: u.email || u.preview || ''
+    }, query))
+    .map((u) => ({
+      id: u.id,
+      username: u.username || '',
+      full_name: u.name || '',
+      email: u.email || '',
+      avatar_url: u.avatar || '',
+      member_code: u.memberCode || '',
+      last_seen_at: u.lastSeenAt || ''
+    }));
+
+  const mergedCached = [...cachedMatches];
+  contactMatches.forEach((row) => {
+    if(!mergedCached.some((x) => x.id === row.id)) mergedCached.push(row);
+  });
+  if(mergedCached.length) return mergedCached.slice(0, limit);
 
   let broadData = [];
   for(const select of PROFILE_SELECT_ATTEMPTS){
@@ -1351,6 +1371,8 @@ function hydrateStoredState(parsed){
       const nextContact = {
         id: c.id,
         name: c.name || c.email || 'User',
+        username: c.username || '',
+        email: c.email || '',
         init: window.getDisplayInitial(c.init || c.name || c.email || c.id),
         color: c.color || '#12123a',
         text: c.text || '#818cf8',
@@ -1428,6 +1450,8 @@ function compactContactForStorage(contact){
   return {
     id: contact.id,
     name: contact.name,
+    username: contact.username || '',
+    email: contact.email || '',
     init: contact.init,
     color: contact.color,
     text: contact.text,
@@ -2489,7 +2513,12 @@ async function loadInboxContacts(){
 
   const ids = Array.from(latestByPartner.keys());
   if(!ids.length){
-    saveLocalChatState();
+    if(!activeContact && contacts.length){
+      activeContact = contacts[0];
+      window.activeContactRef = activeContact;
+      syncActiveHeader();
+      renderMessages();
+    }
     renderContacts();
     return;
   }
@@ -2516,6 +2545,8 @@ async function loadInboxContacts(){
       c = {
         id,
         name,
+        username: uname,
+        email: email,
         init: window.getDisplayInitial(name),
         color: clr.bg,
         text: clr.t,
@@ -2533,6 +2564,8 @@ async function loadInboxContacts(){
       c.name = name;
       c.init = window.getDisplayInitial(name);
     }
+    if(uname) c.username = uname;
+    if(email) c.email = email;
     if(p.avatar_url) c.avatar = p.avatar_url;
     if(Number.isFinite(Number(p.member_code))) c.memberCode = String(Number(p.member_code)).padStart(3, '0');
     if(p.last_seen_at) c.lastSeenAt = p.last_seen_at;
