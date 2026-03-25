@@ -2616,9 +2616,13 @@ async function loadInboxContacts(){
     const restored = contacts.find(x => x.id === pendingRestoredContactId);
     if(restored){
       activeContact = restored;
+      window.activeContactRef = restored;
+      // الحل السحري هنا: بنصفر الـ ID عشان ما يفضلش يفتح نفس الشات كل ثانيتين
+      pendingRestoredContactId = null; 
     }
   }else if(!activeContact && contacts.length){
     activeContact = contacts[0];
+    window.activeContactRef = activeContact;
   }
 
   saveLocalChatState();
