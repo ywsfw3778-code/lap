@@ -485,12 +485,12 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 /* MOBILE RESPONSIVE - CLEAN VERSION BY AMADEUS */
 @media (max-width: 980px) {
   body { height: 100dvh; overflow: hidden; position: fixed; touch-action: pan-y; }
-  .sidebar { width: 100%; height: 100dvh; }
+  .sidebar { width: 100%; height: 100dvh; min-height: 0; }
   .chat-area { width: 100%; height: 100dvh; display: none; }
   body.mobile-chat-active .sidebar { display: none; }
   body.mobile-chat-active .chat-area { display: flex; }
 
-  /* تنسيق منطقة الكتابة */
+  /* تنسيق منطقة الكتابة - الحل النهائي */
   .input-area, .composer-area {
     display: flex !important;
     flex-direction: row !important;
@@ -502,7 +502,6 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     background: var(--surface) !important;
   }
 
-  /* إجبار الكبسولة على الانكماش */
   .input-wrap, .composer-input-wrapper {
     flex: 1 !important;
     min-width: 0 !important;
@@ -510,9 +509,8 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     margin: 0 !important;
   }
 
-  /* تثبيت الزراير جنب الكبسولة */
   .voice-btn, .send-btn, .composer-btn {
-    position: static !important;
+    position: static !important; /* بيلغي أي ركوب فوق الكبسولة */
     flex-shrink: 0 !important;
     width: 40px !important;
     height: 40px !important;
@@ -522,7 +520,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   }
 
   .messages { padding-bottom: 80px !important; }
-}
+} /* تأكد إن القوس ده موجود عشان يقفل الميديا كويري */
 /* الحل النهائي يا كيوما لظهور الزراير جنب الكبسولة */
   .composer-area {
     display: flex !important;
@@ -567,7 +565,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   .theme-grid{grid-template-columns:1fr;}
   .ts{top:8px;left:8px;gap:5px;}
   .ts-dot{width:18px;height:18px;}
-  
+
 @media (max-width: 560px){
   .sidebar{height:100dvh;min-height:0;}
   .chat-area{height:100dvh;}
