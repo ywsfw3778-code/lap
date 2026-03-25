@@ -2840,12 +2840,22 @@ function appendNewMessagesOnly(container, allMessages) {
 }
 
 function renderMessages(forceScrollToBottom = false){
+  closeMessageMenu();
   const el = document.getElementById('messages');
-  if(!activeContact) {
+  
+  if(!activeContact){
     document.body.classList.add('no-active-chat');
+    setMobileChatMode(false);
+    lastRenderedChatId = null;
+    lastRenderedMessageSig = '';
+    syncActiveHeader();
     renderMainSearch();
     return;
   }
+
+  document.body.classList.remove('no-active-chat');
+  syncActiveHeader();
+  setMobileChatMode(!(isMobileView() && mobileSidebarOpen));
 
   const msgs = conversations[activeContact.id] || [];
   const nextSig = `${activeContact.id}::${buildMessageSignature(msgs)}`;
@@ -2855,20 +2865,13 @@ function renderMessages(forceScrollToBottom = false){
     return;
   }
 
-  // إضافة كيوما: إذا كان هناك صوت يعمل، أضف الرسائل الجديدة فقط دون مسح الشاشة
+  // إضافة كيوما: لو فيه ريكورد شغال، ضيف الجديد بس عشان ما يقطعش الصوت
   const isPlaying = !!document.querySelector('.voice-player.playing');
   if(isPlaying && !forceScrollToBottom) {
-    appendNewMessagesOnly(el, msgs); 
+    if(typeof appendNewMessagesOnly === 'function') {
+        appendNewMessagesOnly(el, msgs); 
+    }
     lastRenderedMessageSig = nextSig;
-    return;
-  }
-  // ... (باقي الكود الأصلي للدالة يبدأ من هنا)
-  document.body.classList.remove('no-active-chat');
-  syncActiveHeader();
-  setMobileChatMode(!(isMobileView() && mobileSidebarOpen));
-  const msgs=conversations[activeContact.id]||[];
-  const nextSig = `${activeContact.id}::${buildMessageSignature(msgs)}`;
-  if(lastRenderedChatId === activeContact.id && lastRenderedMessageSig === nextSig){
     return;
   }
 
@@ -2877,10 +2880,10 @@ function renderMessages(forceScrollToBottom = false){
   const previousScrollHeight = el.scrollHeight;
 
   const fragment = document.createDocumentFragment();
-
-  let i=0;
+  let i = 0;
   let lastDayKey = null;
-  while(i<msgs.length){
+
+  while(i < msgs.length){
     if(msgs[i].dayKey !== lastDayKey){
       const divider = document.createElement('div');
       divider.className = 'date-divider';
@@ -2888,17 +2891,18 @@ function renderMessages(forceScrollToBottom = false){
       fragment.appendChild(divider);
       lastDayKey = msgs[i].dayKey;
     }
-    const isOut=msgs[i].out;
-    const g=document.createElement('div');g.className=`msg-group ${isOut?'out':'in'}`;
-    let j=i;
-    while(j<msgs.length&&msgs[j].out===isOut){
-      const last=j===msgs.length-1||msgs[j+1]?.out!==isOut;
-      const row = createMessageRow({ ...msgs[j], showMeta: last }, isOut, j===i);
+    const isOut = msgs[i].out;
+    const g = document.createElement('div');
+    g.className = `msg-group ${isOut ? 'out' : 'in'}`;
+    let j = i;
+    while(j < msgs.length && msgs[j].out === isOut){
+      const last = j === msgs.length - 1 || msgs[j+1]?.out !== isOut;
+      const row = createMessageRow({ ...msgs[j], showMeta: last }, isOut, j === i);
       g.appendChild(row);
       j++;
     }
     fragment.appendChild(g);
-    i=j;
+    i = j;
   }
 
   el.replaceChildren(fragment);
@@ -2907,7 +2911,7 @@ function renderMessages(forceScrollToBottom = false){
 
   if(keepBottom){
     el.scrollTop = el.scrollHeight;
-  }else{
+  } else {
     el.scrollTop = previousScrollTop + (el.scrollHeight - previousScrollHeight);
   }
 }
