@@ -33,7 +33,19 @@ body.theme-white{--bg:#f5f7fb;--sidebar:#ffffff;--surface:#f0f3fa;--surface2:#e6
 body.theme-black{--bg:#050505;--sidebar:#0b0b0b;--surface:#111111;--surface2:#181818;--border:#ffffff12;--border2:#ffffff1f;--accent:#f1f5f9;--accent2:#d4d4d8;--accent-glow:#ffffff1f;--text:#f5f5f5;--muted:#a1a1aa;--online:#22c55e;--msg-out:#1f1f1f;--msg-in:#141414;--logo-font:'Share Tech Mono',monospace;--crt:none;}
 
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'IBM Plex Sans Arabic',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;display:flex;position:relative;transition:background .3s,color .3s;}
+body {
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+  height: 100dvh; 
+  width: 100vw;
+  overflow: hidden; 
+  position: fixed;
+  display: flex;
+  touch-action: pan-y;
+}
 body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
 
 /* SIDEBAR */
@@ -1287,13 +1299,18 @@ const hiddenMessageIds = new Set();
 window.__labBootstrapStarted = window.__labBootstrapStarted || false;
 window.bootstrapLabMembers = function(){
   if(window.__labBootstrapStarted) return;
-  if(!window.me || typeof window.onAuthReady !== 'function') return;
   window.__labBootstrapStarted = true;
-  Promise.resolve(window.onAuthReady()).catch((error) => {
-    console.error('auth bootstrap failed:', error);
-    window.__labBootstrapStarted = false;
-  });
-};
+
+  // تعديل كيوما: فتح آخر شات لمرة واحدة فقط عند بداية دخول الموقع
+  if(pendingRestoredContactId && !window.__alreadyRestored){
+    setTimeout(() => {
+      if(typeof window.openChatById === 'function') {
+          window.openChatById(pendingRestoredContactId);
+          window.__alreadyRestored = true; // علامة عشان ما يكررش الحركة دي تاني
+      }
+    }, 80);
+  }
+}; // القوس ده مع السيميكولون بيقفل الدالة بالكامل ويشيل الخطأ
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
