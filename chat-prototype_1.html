@@ -745,6 +745,7 @@ window.sb = sb;
 window.me = me;
 window.memberCodeMap = {};
 const ADMIN_USERNAME = 'ywsfw3778';
+const ADMIN_EMAIL = 'ywsfw3778@gmail.com';
 window.getLabCode = function(uid){
   return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
@@ -857,16 +858,22 @@ async function upsertMyProfileOnServer(extra = {}){
 
 window.loadMemberCodes = async () => {
   let rows = [];
-  const lite = await sb.from('profiles').select('id,username');
+  const lite = await sb.from('profiles').select('id,username,email');
   if(lite.error) return;
   rows = lite.data || [];
 
-  let admin = rows.find(r => String(r.username || '').toLowerCase() === ADMIN_USERNAME);
-  if(!admin) admin = rows.find(r => r.id === me.id);
+  const admin = rows.find(r =>
+    String(r.username || '').toLowerCase() === ADMIN_USERNAME ||
+    String(r.email || '').toLowerCase() === ADMIN_EMAIL
+  );
 
   const others = rows
     .filter(r => !admin || r.id !== admin.id)
-    .sort((a, b) => String(a.username || a.id).localeCompare(String(b.username || b.id)));
+    .sort((a, b) => {
+      const aKey = String(a.username || a.email || a.id).toLowerCase();
+      const bKey = String(b.username || b.email || b.id).toLowerCase();
+      return aKey.localeCompare(bKey);
+    });
   const ordered = admin ? [admin, ...others] : rows;
   const map = {};
   ordered.forEach((r, i) => { map[r.id] = String(i + 1).padStart(3, '0'); });
@@ -2486,6 +2493,8 @@ async function loadInboxContacts(){
     }
     c._lastInboxAt = stamp;
   }
+
+  contacts.sort((a, b) => String(b._lastInboxAt || '').localeCompare(String(a._lastInboxAt || '')));
 
   if(pendingRestoredContactId){
     const restored = contacts.find(x => x.id === pendingRestoredContactId);
