@@ -502,6 +502,24 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     min-width:210px;
     max-width:min(300px, 100%);
   }
+  /* تعديل كيوما: تصغير منطقة الكتابة لإظهار الزرار */
+  .composer-area {
+    padding: 8px 12px !important;
+    padding-bottom: env(safe-area-inset-bottom, 12px) !important;
+    gap: 8px !important;
+  }
+  .composer-input {
+    min-height: 38px !important;
+    font-size: 14px !important;
+  }
+  .composer-btn {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .messages {
+    /* التأكد إن الرسايل مش نازلة تحت منطقة الكتابة */
+    padding-bottom: 80px !important; 
+  }
   .voice-play{width:34px;height:34px;font-size:13px;}
   .voice-track{height:36px;padding:0 10px;gap:8px;}
   .voice-time{min-width:40px;font-size:10px;}
