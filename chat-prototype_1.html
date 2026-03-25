@@ -670,7 +670,6 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
       <div class="profile-pemail" id="profileEmail">—</div>
       <div class="profile-avatar-caption" id="profileAvatarCaption">اضغط على الصورة لعرضها</div>
       <div class="profile-row"><span class="picon">🪪</span><span id="profileCodeValue">#000</span></div>
-<div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
       <div class="profile-edit" id="profileEditBlock">
         <div class="profile-edit-label">Edit profile</div>
@@ -937,8 +936,12 @@ function applyMyProfileUI(){
   setAvatarNode(document.getElementById('profileAv'), init, myAvatarUrl);
   const myCode = window.getLabCode ? window.getLabCode(me.id) : '001';
   document.getElementById('profileName').textContent = `${myName}  #${myCode}`;
-  document.getElementById('profileEmail').textContent = myUsername ? '@'+myUsername : myEmail;
-  document.getElementById('profileEmail2').textContent = myEmail;
+// هيعرض اليوزرنيم بس، ولو مفيش مش هيعرض حاجة (عشان نخفي الجيميل)
+  document.getElementById('profileEmail').textContent = username ? `@${username}` : ''; 
+  
+  // السطر ده بيتأكد إن خانة الجيميل التانية مخفية تماماً حتى لو السطر موجود
+  const emailRow = document.getElementById('profileEmail2')?.parentElement;
+  if(emailRow) emailRow.style.display = 'none';
   document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
   if(document.getElementById('profileCodeValue')) document.getElementById('profileCodeValue').textContent = `#${myCode}`;
   if(document.getElementById('profileStatusText')) document.getElementById('profileStatusText').textContent = typeof window.t === 'function' ? window.t('online') : 'متصل الآن';
@@ -1786,9 +1789,11 @@ function fillProfileOverlay(data){
   if(logoutBtn) logoutBtn.style.display = isSelf ? '' : 'none';
 }
 
-document.getElementById('profileName').textContent = `${name} #${code}`; // الاسم والرقم (001، 002)
-  document.getElementById('profileUsername').textContent = username ? `@${username}` : '@—'; // اليوزرنيم
-  window.setAvatarNode(document.getElementById('profileAv'), name, avatar); // الصورة
+function openProfileOverlayWithData(data){
+  fillProfileOverlay(data);
+  document.body.classList.add('profile-overlay-open');
+  document.getElementById('profileOverlay').classList.add('open');
+}
 
 window.openProfile = function(){
   const me = getCurrentUser();
