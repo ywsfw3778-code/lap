@@ -622,7 +622,17 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     </div>
   </div>
   <div class="messages" id="messages"></div>
-  <div class="input-area">
+ <div class="input-area">
+    <div class="input-wrap">
+        </div>
+    <button class="voice-btn" ...>🎤</button> <button class="send-btn" ...>➤</button>   </div>
+    <div class="record-panel" id="recordPanel"> ... </div> <button class="voice-btn" ...>🎤</button> <button class="send-btn" ...>➤</button>   </div> ```
+
+### 2. الإصلاح النهائي (HTML)
+امسح منطقة الـ `input-area` بالكامل (من سطر **640** حتى سطر **665**) واستبدلها بهذا الكود النظيف والموحد:
+
+```html
+<div class="input-area">
     <div class="input-wrap">
         <button class="emoji-btn" onclick="addEmoji()">😊</button>
         <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
@@ -630,24 +640,6 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     </div>
     <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
     <button class="send-btn" onclick="sendMessage()">➤</button>
-</div>
-    <div class="record-panel" id="recordPanel">
-      <button class="record-action delete" type="button" onclick="discardRecording()" title="حذف">🗑</button>
-      <div class="record-visual">
-        <div class="record-head">
-          <div class="record-live">
-            <span class="record-dot"></span>
-            <span class="record-time" id="recordTime">0:00</span>
-          </div>
-          <div class="record-status" id="recordStatus">Recording...</div>
-        </div>
-        <div class="record-bars" id="recordBars"></div>
-      </div>
-      <button class="record-action send" type="button" onclick="finishRecording()" title="إرسال">➤</button>
-    </div>
-    <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" title="تسجيل صوتي">🎤</button>
-    <button class="send-btn" onclick="sendMessage()">➤</button>
-  </div>
 </div>
 
 <!-- SETTINGS OVERLAY -->
@@ -1316,25 +1308,22 @@ window.dispatchEvent(new Event('lab-auth-ready'));
 window.updateVoiceRecordingUI = function(isRecording) {
     const area = document.querySelector('.input-area');
     if (!area) return;
-
     if (isRecording) {
         area.classList.add('recording');
-        // إنشاء بانل التسجيل النيون إذا لم يكن موجوداً
         if (!document.getElementById('voiceRecPanel')) {
             area.insertAdjacentHTML('afterbegin', `
-                <div class="voice-rec-panel" id="voiceRecPanel">
+                <div id="voiceRecPanel" class="voice-rec-panel">
                     <div style="display:flex; align-items:center; gap:12px;">
                         <span class="neon-pulse"></span>
                         <span class="voice-time" id="voiceTime">0:00</span>
                     </div>
-                    <button class="voice-cancel" onclick="cancelRecording()">إلغاء</button>
+                    <button class="voice-cancel" onclick="discardRecording()">إلغاء</button>
                 </div>
             `);
         }
     } else {
         area.classList.remove('recording');
-        const panel = document.getElementById('voiceRecPanel');
-        if (panel) panel.remove();
+        document.getElementById('voiceRecPanel')?.remove();
     }
 };
 </script>
