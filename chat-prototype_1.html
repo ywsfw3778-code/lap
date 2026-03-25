@@ -670,6 +670,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
       <div class="profile-pemail" id="profileEmail">—</div>
       <div class="profile-avatar-caption" id="profileAvatarCaption">اضغط على الصورة لعرضها</div>
       <div class="profile-row"><span class="picon">🪪</span><span id="profileCodeValue">#000</span></div>
+      <div class="profile-row"><span class="picon">📧</span><span id="profileEmail2">—</span></div>
       <div class="profile-row"><span class="picon">#</span><span id="profileUsername">@username</span></div>
       <div class="profile-edit" id="profileEditBlock">
         <div class="profile-edit-label">Edit profile</div>
@@ -936,12 +937,8 @@ function applyMyProfileUI(){
   setAvatarNode(document.getElementById('profileAv'), init, myAvatarUrl);
   const myCode = window.getLabCode ? window.getLabCode(me.id) : '001';
   document.getElementById('profileName').textContent = `${myName}  #${myCode}`;
-// هيعرض اليوزرنيم بس، ولو مفيش مش هيعرض حاجة (عشان نخفي الجيميل)
-  document.getElementById('profileEmail').textContent = username ? `@${username}` : ''; 
-  
-  // السطر ده بيتأكد إن خانة الجيميل التانية مخفية تماماً حتى لو السطر موجود
-  const emailRow = document.getElementById('profileEmail2')?.parentElement;
-  if(emailRow) emailRow.style.display = 'none';
+  document.getElementById('profileEmail').textContent = myUsername ? '@'+myUsername : myEmail;
+  document.getElementById('profileEmail2').textContent = myEmail;
   document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
   if(document.getElementById('profileCodeValue')) document.getElementById('profileCodeValue').textContent = `#${myCode}`;
   if(document.getElementById('profileStatusText')) document.getElementById('profileStatusText').textContent = typeof window.t === 'function' ? window.t('online') : 'متصل الآن';
@@ -2270,30 +2267,17 @@ window.deleteMessageAllFromMenu = async function(){
   const msg = messageMenuState;
   closeMessageMenu();
   if(!msg || !msg.id || !msg.out) return;
-  
   const confirmed = confirm(appLang === 'ar' ? 'تحذف الرسالة لدى الجميع؟' : 'Delete this message for everyone?');
   if(!confirmed) return;
-
-  // إضافة كيوما: اخفي الرسالة من الشاشة فوراً عشان اليوزر يحس بالسرعة
-  hiddenMessageIds.add(String(msg.id));
-  saveHiddenMessageIds();
-  renderMessages(); 
-
   const sbClient = getSbClient();
   if(!sbClient) return;
-  
   const { error } = await sbClient.from('messages').delete().eq('id', msg.id);
-  
   if(error){
-    // لو فشل الحذف في السيرفر، رجع الرسالة تاني
-    hiddenMessageIds.delete(String(msg.id));
-    saveHiddenMessageIds();
-    renderMessages();
     alert((appLang === 'ar' ? 'فشل حذف الرسالة: ' : 'Delete failed: ') + error.message);
     return;
   }
-
-  // تحديث البيانات
+  hiddenMessageIds.delete(String(msg.id));
+  saveHiddenMessageIds();
   if(activeContact) await loadMessagesForContact(activeContact.id);
   await loadInboxContacts();
 };
