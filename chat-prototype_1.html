@@ -482,59 +482,46 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .ts-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .2s;}
 .ts-dot:hover,.ts-dot.active{border-color:white;transform:scale(1.2);}
 /* MOBILE RESPONSIVE */
-@media (max-width: 980px){
-  body{height:100dvh;overflow:hidden;}
-  .sidebar{width:100%;height:100dvh;min-height:0;border-left:none;border-bottom:none;}
-  .chat-area{width:100%;height:100dvh;display:none;}
-  body.mobile-chat-active .sidebar{display:none;}
-  body.mobile-chat-active .chat-area{display:flex;}
-  .mobile-back{display:inline-flex;}
-  .sidebar-header{padding:12px 12px 10px;}
-  .search-box{margin:8px 10px 6px;}
-  .section-label{padding:6px 12px 4px;}
-  .contact{margin:2px 6px;padding:8px 10px;}
-  .profile-bar{padding:8px 10px;}
-  .chat-header{padding:10px 12px;}
-  .messages{padding:12px;}
-  .msg-content{max-width:86%;width:auto;}
-  .bubble{max-width:100%;font-size:12px;padding:8px 10px;}
-  .voice-bubble{
-    min-width:210px;
-    max-width:min(300px, 100%);
-  }
-  /* تعديل كيوما: إجبار الكبسولة على الانكماش لإظهار الزراير */
-  @media (max-width: 980px){
-  body{height:100dvh;overflow:hidden;}
-  .sidebar{width:100%;height:100dvh;min-height:0;border-left:none;border-bottom:none;}
-  .chat-area{width:100%;height:100dvh;display:none;}
-  body.mobile-chat-active .sidebar{display:none;}
-  body.mobile-chat-active .chat-area{display:flex;}
+/* MOBILE RESPONSIVE - CLEAN VERSION BY AMADEUS */
+@media (max-width: 980px) {
+  body { height: 100dvh; overflow: hidden; position: fixed; touch-action: pan-y; }
+  .sidebar { width: 100%; height: 100dvh; }
+  .chat-area { width: 100%; height: 100dvh; display: none; }
+  body.mobile-chat-active .sidebar { display: none; }
+  body.mobile-chat-active .chat-area { display: flex; }
 
-  /* التعديل اللي هيخلي الزراير تظهر جنب الكبسولة من غير تداخل */
-  .input-area {
-    padding: 10px !important;
-    gap: 8px !important;
+  /* تنسيق منطقة الكتابة */
+  .input-area, .composer-area {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    background: var(--surface) !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
     width: 100% !important;
     box-sizing: border-box !important;
+    background: var(--surface) !important;
   }
 
-  .input-wrap {
+  /* إجبار الكبسولة على الانكماش */
+  .input-wrap, .composer-input-wrapper {
     flex: 1 !important;
     min-width: 0 !important;
     position: relative !important;
-  }
-
-  .voice-btn, .send-btn {
-    position: static !important; /* بيلغي الركوب فوق بعضه */
-    flex-shrink: 0 !important;
-    width: 42px !important;
-    height: 42px !important;
     margin: 0 !important;
   }
+
+  /* تثبيت الزراير جنب الكبسولة */
+  .voice-btn, .send-btn, .composer-btn {
+    position: static !important;
+    flex-shrink: 0 !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .messages { padding-bottom: 80px !important; }
 }
 /* الحل النهائي يا كيوما لظهور الزراير جنب الكبسولة */
   .composer-area {
@@ -580,7 +567,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   .theme-grid{grid-template-columns:1fr;}
   .ts{top:8px;left:8px;gap:5px;}
   .ts-dot{width:18px;height:18px;}
-}
+  
 @media (max-width: 560px){
   .sidebar{height:100dvh;min-height:0;}
   .chat-area{height:100dvh;}
