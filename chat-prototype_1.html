@@ -835,6 +835,26 @@ function normalizeUsername(v){
 }
 const tr = (k) => (typeof window.t === 'function' ? window.t(k) : k);
 
+async function upsertMyProfileOnServer(extra = {}){
+  const payload = {
+    id: me.id,
+    email: me.email || null,
+    username: myUsername || null,
+    full_name: myName || null,
+    avatar_url: myAvatarUrl || null,
+    ...extra
+  };
+  const cleanPayload = Object.fromEntries(Object.entries(payload).map(([k, v]) => [k, v || null]));
+  const { error } = await sb
+    .from('profiles')
+    .upsert(cleanPayload, { onConflict: 'id' });
+  if(error){
+    console.warn('profile upsert failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
 window.loadMemberCodes = async () => {
   let rows = [];
   const lite = await sb.from('profiles').select('id,username');
@@ -902,15 +922,22 @@ window.handleAvatarPick = async (event) => {
     if(note) note.textContent = file.name;
     saveLocalAvatar(myAvatarUrl);
     applyMyProfileUI();
+    try{
+      await sb.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
+    }catch(_e){}
+    await upsertMyProfileOnServer({ avatar_url: myAvatarUrl || null });
     if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
     if(typeof window.renderContacts === 'function') window.renderContacts();
     if(typeof window.renderMessages === 'function') window.renderMessages();
+    if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
+    toast(document.documentElement.lang === 'en' ? 'Photo saved to server' : 'تم حفظ الصورة على السيرفر');
   }catch(_e){
     toast('فشل قراءة الصورة', 'error');
   }
 };
 
 async function loadMyProfile(){
+  await upsertMyProfileOnServer();
   const { data, error } = await sb
     .from('profiles')
     .select('username,full_name,email,avatar_url')
@@ -967,21 +994,14 @@ window.saveProfile = async () => {
   applyMyProfileUI();
   if(typeof window.applyLanguage === 'function') window.applyLanguage();
 
-  // Best-effort sync to profiles table (may fail if RLS doesn't allow updates).
-  const profilePayload = { username };
-  if(name) profilePayload.full_name = name;
-  if(myAvatarUrl) profilePayload.avatar_url = myAvatarUrl;
-  const { error: profileErr } = await sb
-    .from('profiles')
-    .update(profilePayload)
-    .eq('id', me.id);
-  if(profileErr){
-    const { error: retryErr } = await sb
-      .from('profiles')
-      .update({ username })
-      .eq('id', me.id);
-    if(retryErr) console.warn('profiles sync skipped:', retryErr.message);
-  }
+  await upsertMyProfileOnServer({
+    username,
+    full_name: name,
+    avatar_url: myAvatarUrl || null
+  });
+  try{
+    if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
+  }catch(_e){}
 
   btn.disabled = false;
   btn.textContent = tr('profileSave');
@@ -2899,15 +2919,18 @@ window.onMemberCodesUpdated = function(){
   renderMessages();
 };
 
-window.onAuthReady = function(){
-  if(typeof window.loadMemberCodes === 'function') window.loadMemberCodes();
+window.onAuthReady = async function(){
+  if(typeof window.loadMemberCodes === 'function') await window.loadMemberCodes();
   loadNotificationPreference();
   loadHiddenMessageIds();
   ensureRecordingBars();
   resetRecordingVisualizer();
   loadLocalChatState();
-  refreshProfilesDirectory();
-  loadInboxContacts();
+  syncActiveHeader();
+  renderContacts();
+  renderMessages();
+  await refreshProfilesDirectory();
+  await loadInboxContacts();
   initPresence();
   startMessagePolling();
   syncActiveHeader();
@@ -2921,7 +2944,9 @@ window.onAuthReady = function(){
 };
 
 applyLanguage();
-window.onAuthReady(me.id);
+window.onAuthReady(me.id).catch((error) => {
+  console.error('auth bootstrap failed:', error);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const nextLang = getStoredLang();
