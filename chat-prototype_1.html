@@ -502,6 +502,30 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     min-width:210px;
     max-width:min(300px, 100%);
   }
+  /* تعديل كيوما: إجبار الكبسولة على الانكماش لإظهار الزراير */
+  .input-area {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .input-wrap {
+    flex: 1 !important; /* الكبسولة تاخد المساحة الفاضية بس */
+    min-width: 0 !important; /* أهم سطر عشان الكبسولة تنكمش */
+  }
+
+  .voice-btn, .send-btn {
+    flex-shrink: 0 !important; /* يمنع الزراير من الانضغاط أو الاختفاء */
+    width: 38px !important;
+    height: 38px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
 /* الحل النهائي يا كيوما لظهور الزراير جنب الكبسولة */
   .composer-area {
     display: flex !important;
@@ -609,11 +633,14 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   </div>
   <div class="messages" id="messages"></div>
   <div class="input-area">
-    <div class="input-wrap">
-      <button class="emoji-btn" onclick="addEmoji()">😊</button>
-      <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
-      <button class="attach-btn">📎</button>
-    </div>
+  <div class="input-wrap">
+    <button class="emoji-btn">😊</button>
+    <input type="text" id="msgInput" placeholder="اكتب رسالة...">
+    <button class="attach-btn">📎</button>
+  </div>
+  <button class="voice-btn" id="voiceBtn">🎤</button>
+  <button class="send-btn" onclick="sendMessage()">➤</button>
+</div>
     <div class="record-panel" id="recordPanel">
       <button class="record-action delete" type="button" onclick="discardRecording()" title="حذف">🗑</button>
       <div class="record-visual">
