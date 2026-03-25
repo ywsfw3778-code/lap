@@ -483,6 +483,13 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .ts-dot:hover,.ts-dot.active{border-color:white;transform:scale(1.2);}
 /* --- AMADEUS FINAL CLEAN UI --- */
 @media (max-width: 980px) {
+  .mobile-back {
+    display: flex !important; /* بيظهر السهم في الموبايل */
+    align-items: center;
+    justify-content: center;
+    margin-right: 5px;
+  }
+}
     body { height: 100dvh; overflow: hidden; position: fixed; touch-action: pan-y; }
     .sidebar, .chat-area { width: 100%; height: 100dvh; }
     body.mobile-chat-active .sidebar { display: none; }
@@ -565,7 +572,6 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     .voice-cancel { color: var(--text-secondary) !important; }
 
     .messages { padding-bottom: 75px !important; }
-}
 
 /* إعدادات الـ PC (عشان الزراير متظهرش مرتين) */
 @media (min-width: 981px) {
@@ -618,12 +624,13 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
         <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
       </div>
     </div>
-    <div class="chat-actions">
-      <div class="icon-btn mobile-back" onclick="openSidebarMobile()" title="رجوع">←</div>
-      <div class="icon-btn">📞</div>
-      <div class="icon-btn">📹</div>
-      <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
-    </div>
+ <div class="chat-actions">
+  <div class="icon-btn mobile-back" onclick="openSidebarMobile()" title="رجوع">←</div>
+  
+  <div class="icon-btn">📞</div>
+  <div class="icon-btn">📹</div>
+  <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
+</div>
     <div class="chat-menu" id="chatHeaderMenu">
       <button type="button" onclick="openActiveProfileFromMenu()"><span id="chatMenuProfileText">إظهار البروفايل</span><span>👤</span></button>
       <button type="button" onclick="openActiveAvatarFromMenu()"><span id="chatMenuImageText">عرض الصورة</span><span>🖼️</span></button>
