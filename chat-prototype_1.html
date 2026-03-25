@@ -2711,6 +2711,25 @@ function renderMessages(forceScrollToBottom = false){
     el.scrollTop = previousScrollTop + (el.scrollHeight - previousScrollHeight);
   }
 }
+
+function bumpActiveChatToTop(previewText, createdAt = new Date().toISOString()){
+  if(!activeContact) return;
+  const idx = contacts.findIndex((c) => c.id === activeContact.id);
+  const target = idx >= 0 ? contacts[idx] : activeContact;
+  target.preview = previewText || target.preview || '';
+  target.time = t('now');
+  target._lastInboxAt = createdAt;
+  if(idx > -1){
+    contacts.splice(idx, 1);
+  }
+  contacts.unshift(target);
+  activeContact = target;
+  window.activeContactRef = target;
+  renderContacts();
+  syncActiveHeader();
+  saveLocalChatState();
+}
+
 async function sendMessage(){
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
@@ -2727,6 +2746,7 @@ async function sendMessage(){
     return;
   }
 
+  bumpActiveChatToTop(formatMessagePreviewText(txt, true));
   lastRenderedMessageSig = '';
   await loadMessagesForContact(activeContact.id);
   await loadInboxContacts();
@@ -2916,6 +2936,7 @@ async function sendVoiceMessage(blob, durationSeconds = 0){
     alert((appLang === 'ar' ? 'فشل إرسال الريكورد: ' : 'Voice send failed: ') + insertError.message);
     return;
   }
+  bumpActiveChatToTop(formatMessagePreviewText(voicePayload, true));
   lastRenderedMessageSig = '';
   await loadMessagesForContact(activeContact.id);
   await loadInboxContacts();
