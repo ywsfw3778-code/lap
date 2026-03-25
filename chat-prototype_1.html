@@ -502,23 +502,30 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     min-width:210px;
     max-width:min(300px, 100%);
   }
-  /* تعديل كيوما: تصغير منطقة الكتابة لإظهار الزرار */
+ /* تعديل كيوما: تصغير العرض عشان الزراير تبان */
   .composer-area {
-    padding: 8px 12px !important;
-    padding-bottom: env(safe-area-inset-bottom, 12px) !important;
-    gap: 8px !important;
+    padding: 8px 10px !important;
+    gap: 6px !important; /* تقليل المسافات بين الزراير */
+    display: flex !important;
+    align-items: center !important;
+    width: 100vw !important;
+    box-sizing: border-box !important;
   }
+
   .composer-input {
-    min-height: 38px !important;
+    flex: 1 !important; /* يخلي الصندوق ياخد المساحة المتاحة بس */
+    min-width: 0 !important; /* يمنعه إنه يزق الزراير لبره الشاشة */
     font-size: 14px !important;
+    padding: 8px !important;
   }
+
   .composer-btn {
-    width: 36px !important;
-    height: 36px !important;
-  }
-  .messages {
-    /* التأكد إن الرسايل مش نازلة تحت منطقة الكتابة */
-    padding-bottom: 80px !important; 
+    flex-shrink: 0 !important; /* يمنع تصغير الزرار أو اختفاءه */
+    width: 34px !important; /* تصغير القطر سنة */
+    height: 34px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
   }
   .voice-play{width:34px;height:34px;font-size:13px;}
   .voice-track{height:36px;padding:0 10px;gap:8px;}
