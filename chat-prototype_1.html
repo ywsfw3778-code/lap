@@ -1409,23 +1409,30 @@ let messageMenuState = null;
 const hiddenMessageIds = new Set();
 window.__labBootstrapStarted = window.__labBootstrapStarted || false;
 window.bootstrapLabMembers = function(){
-  // 👈 السطر السحري: نمنع التشغيل المبكر قبل ما السيرفر (Supabase) يخلص تحميل
-  if(!window.sb || !window.me) return; 
-
+  // لو اشتغلنا قبل كدة، اخرج
   if(window.__labBootstrapStarted) return;
-  window.__labBootstrapStarted = true;
 
-  // --- محرك أماديوس الأساسي ---
+  // لو البيانات لسه مجتش من Supabase، استنى 100ms وحاول تاني أوتوماتيك
+  if(!window.sb || !window.me) {
+    console.log("Amadeus: Waiting for session...");
+    setTimeout(window.bootstrapLabMembers, 100); 
+    return;
+  } 
+
+  window.__labBootstrapStarted = true;
+  console.log("Amadeus: System Online!");
+
+  // تشغيل المحرك الأساسي (ده اللي بيظهر الشاتات والبحث)
   if(typeof window.onAuthReady === 'function') window.onAuthReady();
 
-  // تعديل كيوما: فتح آخر شات لمرة واحدة فقط عند بداية دخول الموقع
+  // تعديل كيوما: فتح آخر شات
   if(pendingRestoredContactId && !window.__alreadyRestored){
     setTimeout(() => {
       if(typeof window.openChatById === 'function') {
           window.openChatById(pendingRestoredContactId);
           window.__alreadyRestored = true; 
       }
-    }, 80);
+    }, 200);
   }
 };
 
