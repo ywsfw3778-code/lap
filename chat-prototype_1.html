@@ -603,20 +603,23 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     /* شيلنا الـ height الثابت عشان ما يزقش المحتوى لبره */
   }
   
-  /* السر هنا: بنجبر الرسايل إنها متتخطاش الشاشة وتعمل سكرول داخلي */
+/* السر هنا: بنجبر الرسايل إنها متتخطاش الشاشة وتعمل سكرول + تقليل الفراغ */
   .messages {
     flex: 1 !important;
     min-height: 0 !important; 
     overflow-y: auto !important;
+    padding-bottom: 10px !important; /* 👈 السطر ده هيسحب الرسايل لتحت ويقلل الفراغ */
   }
   
-  /* بنثبت شريط الكتابة وبنمنعه من الانكماش أو الطيران بره الشاشة */
+  /* بنثبت شريط الكتابة وبنمنعه من الانكماش + بنقلل الفراغ اللي فوقه */
   .input-area {
     position: relative !important;
     display: flex !important;
     flex-shrink: 0 !important;
     width: 100% !important;
     z-index: 10 !important;
+    padding-top: 10px !important; /* 👈 السطر ده هيشد شريط الكتابة لفوق شوية */
+    padding-bottom: 15px !important;
   }
   
   .mobile-back { display: none !important; }
