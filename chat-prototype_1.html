@@ -1925,9 +1925,14 @@ function fillProfileOverlay(data){
   overlay.dataset.lastSeenAt = lastSeenAt || '';
   overlay.classList.toggle('profile-overlay-user', !isSelf);
 
+  // --- نظام الحماية لأماديوس (إخفاء الإيميل) ---
+  const isAdmin = (window.me && window.me.email === 'ywsfw3778@gmail.com');
+  const canSeeEmail = isSelf || isAdmin;
+  const displayEmail = canSeeEmail ? email : 'مخفي 🔒';
+
   document.getElementById('profileName').textContent = `${name} #${code}`;
-  document.getElementById('profileEmail').textContent = username ? `@${username}` : email;
-  document.getElementById('profileEmail2').textContent = email || '—';
+  document.getElementById('profileEmail').textContent = username ? `@${username}` : (canSeeEmail ? email : 'عضو مخفي');
+  document.getElementById('profileEmail2').textContent = displayEmail;
   document.getElementById('profileUsername').textContent = username ? `@${username}` : '@—';
   document.getElementById('profileCodeValue').textContent = `#${code}`;
   document.getElementById('profileStatusText').textContent = isOnline ? t('online') : window.formatLastSeenLabel(lastSeenAt);
