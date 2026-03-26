@@ -483,13 +483,25 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .ts-dot:hover,.ts-dot.active{border-color:white;transform:scale(1.2);}
 /* --- AMADEUS FINAL CLEAN UI --- */
 @media (max-width: 980px) {
+  /* إظهار الشات وإخفاء القائمة في الموبايل عند التفعيل */
+  body.mobile-chat-active .sidebar { display: none !important; }
+  body.mobile-chat-active .chat-area { display: flex !important; width: 100% !important; }
+  
+  /* تأكيد ظهور منطقة الرسائل */
+  .messages {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
   .mobile-back {
     display: flex !important; /* بيظهر السهم في الموبايل */
     align-items: center;
     justify-content: center;
     margin-right: 5px;
   }
-}
     body { height: 100dvh; overflow: hidden; position: fixed; touch-action: pan-y; }
     .sidebar, .chat-area { width: 100%; height: 100dvh; }
     body.mobile-chat-active .sidebar { display: none; }
@@ -1421,6 +1433,7 @@ function setMobileChatMode(openChat){
     document.body.classList.remove('mobile-chat-active');
     return;
   }
+  // إضافة الكلاس اللي بيظهر الشات
   document.body.classList.toggle('mobile-chat-active', !!openChat);
 }
 
