@@ -1965,9 +1965,10 @@ window.openUserProfile = async function(userId){
     return;
   }
 
+  // 1. جلب البيانات اللي موجودة حالياً في القائمة الجانبية (عشان ما تروحش)
   const existing = contacts.find((c) => c.id === userId) || {};
   
-  // عرض سريع قبل ما السيرفر يرد
+  // 2. عرض البيانات المتوفرة فوراً
   openProfileOverlayWithData({
     id: userId,
     name: existing.name && existing.name !== 'User' ? existing.name : (existing.email ? existing.email.split('@')[0] : 'جارِ التحميل...'),
@@ -1980,6 +1981,7 @@ window.openUserProfile = async function(userId){
     isSelf: false
   });
 
+  // 3. محاولة تحديث البيانات من السيرفر بهدوء
   let profileRows = [];
   try{
     profileRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([userId]) : [];
@@ -1988,25 +1990,25 @@ window.openUserProfile = async function(userId){
   }
   
   const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
-  const uname = String(profile.username || '').trim();
-  const fullName = String(profile.full_name || '').trim();
-  const email = String(profile.email || existing.email || '').trim();
   
-  // الاستنتاج الذكي: لو السيرفر فاضي، هنصنعله اسم من الإيميل مؤقتاً
-  let smartName = fullName || existing.name || uname;
+  // 4. دمج ذكي: لو السيرفر فاضي، خد اللي موجود في الـ existing
+  const uname = String(profile.username || existing.username || '').trim();
+  const fullName = String(profile.full_name || existing.name || '').trim();
+  const email = String(profile.email || existing.email || '').trim();
+  const avatar = profile.avatar_url || existing.avatar || '';
+
+  let smartName = fullName;
   if (!smartName || smartName === 'User') {
       smartName = email ? email.split('@')[0] : 'عضو المعمل';
   }
 
-  const avatar = profile.avatar_url || existing.avatar || '';
-
-  // التحديث النهائي للبروفايل
+  // 5. التحديث النهائي (بدون مسح القديم)
   openProfileOverlayWithData({
     id: userId,
     name: smartName,
     email: email || '—',
     username: uname || '',
-    avatar,
+    avatar: avatar,
     memberCode: window.getLabCode ? window.getLabCode(userId) : '000',
     lastSeenAt: profile.last_seen_at || existing.lastSeenAt || '',
     online: onlineUserIds.has(userId),
