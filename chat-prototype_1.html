@@ -585,17 +585,25 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 
     .messages { padding-bottom: 75px !important; }
 
-/* إعدادات الـ PC (عشان الزراير متظهرش مرتين) */
+/* إعدادات الـ PC النهائية - معمل المستقبل */
 @media (min-width: 981px) {
-  .input-area {
-    position: relative;
-    display: flex;
-    align-items: center;
-    padding: 15px 20px;
-    gap: 12px;
+  .sidebar { 
+    display: flex !important; 
+    width: 290px !important; 
+    position: relative !important; 
+    flex-shrink: 0 !important;
   }
-  .input-wrap { flex: 1; position: relative; }
-  .voice-btn, .send-btn { position: static; flex-shrink: 0; }
+  .chat-area { 
+    display: flex !important; 
+    flex-direction: column !important; /* 👈 ده السطر السحري اللي هيفرد الشات */
+    flex: 1 !important; 
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+    width: auto !important;
+    height: 100dvh !important;
+  }
+  .mobile-back { display: none !important; }
 }
 </style>
 </head>
