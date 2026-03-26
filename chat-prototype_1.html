@@ -595,14 +595,30 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   }
   .chat-area { 
     display: flex !important; 
-    flex-direction: column !important; /* 👈 ده السطر السحري اللي هيفرد الشات */
+    flex-direction: column !important; 
     flex: 1 !important; 
     visibility: visible !important;
-    opacity: 1 !important;
     position: relative !important;
     width: auto !important;
-    height: 100dvh !important;
+    /* شيلنا الـ height الثابت عشان ما يزقش المحتوى لبره */
   }
+  
+  /* السر هنا: بنجبر الرسايل إنها متتخطاش الشاشة وتعمل سكرول داخلي */
+  .messages {
+    flex: 1 !important;
+    min-height: 0 !important; 
+    overflow-y: auto !important;
+  }
+  
+  /* بنثبت شريط الكتابة وبنمنعه من الانكماش أو الطيران بره الشاشة */
+  .input-area {
+    position: relative !important;
+    display: flex !important;
+    flex-shrink: 0 !important;
+    width: 100% !important;
+    z-index: 10 !important;
+  }
+  
   .mobile-back { display: none !important; }
 }
 </style>
