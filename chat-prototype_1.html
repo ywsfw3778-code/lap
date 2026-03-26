@@ -3298,7 +3298,8 @@ window.onAuthReady = async function(){
   await loadInboxContacts();
   if(typeof window.refreshProfilesDirectory === 'function'){
     window.refreshProfilesDirectory().catch(() => {});
-  }
+}
+}
   initPresence();
   startMessagePolling();
   syncActiveHeader();
@@ -3309,7 +3310,6 @@ window.onAuthReady = async function(){
       if(typeof window.openChatById === 'function') window.openChatById(pendingRestoredContactId);
     }, 80);
   }
-};
 
 applyLanguage();
 window.addEventListener('lab-auth-ready', () => {
