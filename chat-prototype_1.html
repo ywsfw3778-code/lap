@@ -17,6 +17,20 @@
 <title>Lab Members</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Share+Tech+Mono&family=VT323&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
+  /* إخفاء الحروف القديمة ورسم أيقونة فيسبوك بأمان تام */
+  .avatar-fallback { display: none !important; }
+  
+  .avatar {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='%23ffffff' fill-opacity='0.6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E") !important;
+    background-size: 60% !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+  }
+  
+  .avatar img {
+    position: relative;
+    z-index: 2;
+  }
 :root{
   --bg:#07070f;--sidebar:#0b0b18;--surface:#10101e;--surface2:#16162a;
   --border:#ffffff0c;--border2:#ffffff16;
@@ -3368,29 +3382,7 @@ window.addEventListener('resize', () => {
 });
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
-// --- AMADEUS FACEBOOK-STYLE AVATAR OVERRIDE ---
-window.setAvatarNode = function(el, label, imageUrl){
-  if(!el) return;
-  el.innerHTML = '';
-  // أيقونة المستخدم الافتراضية
-  const svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:65%;height:65%;opacity:0.7"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
-  
-  if(imageUrl){
-    const img = document.createElement('img');
-    img.src = imageUrl;
-    img.className = 'avatar-image';
-    img.onerror = () => { img.remove(); el.innerHTML = svgIcon; };
-    el.appendChild(img);
-  } else {
-    el.innerHTML = svgIcon;
-  }
-};
 
-window.avatarMarkup = function(label, imageUrl, extraDotClass = ''){
-  const svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:65%;height:65%;opacity:0.7"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
-  const image = imageUrl ? `<img class="avatar-image" src="${imageUrl}" onerror="this.outerHTML='${svgIcon}'">` : svgIcon;
-  return `${image}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
-};
 </script>
 </body>
 </html>
