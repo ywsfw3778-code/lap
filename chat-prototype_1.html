@@ -17,17 +17,18 @@
 <title>Lab Members</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Share+Tech+Mono&family=VT323&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* إخفاء الحروف القديمة ورسم أيقونة فيسبوك بأمان تام */
+ /* إخفاء الحروف القديمة ورسم أيقونة فيسبوك بأمان تام */
   .avatar-fallback { display: none !important; }
   
-  .avatar {
+  /* السر هنا: ضفنا كلاسات البروفايل عشان الأيقونة تظهر جوه */
+  .avatar, .profile-panel-av, .profile-av, .msg-avatar {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='%23ffffff' fill-opacity='0.6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E") !important;
     background-size: 60% !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
   }
   
-  .avatar img {
+  .avatar img, .profile-panel-av img, .profile-av img, .msg-avatar img {
     position: relative;
     z-index: 2;
   }
@@ -1965,24 +1966,46 @@ window.openUserProfile = async function(userId){
   }
 
   const existing = contacts.find((c) => c.id === userId) || {};
+  
+  // عرض سريع قبل ما السيرفر يرد
+  openProfileOverlayWithData({
+    id: userId,
+    name: existing.name && existing.name !== 'User' ? existing.name : (existing.email ? existing.email.split('@')[0] : 'جارِ التحميل...'),
+    email: existing.email || '—',
+    username: existing.username || '',
+    avatar: existing.avatar || '',
+    memberCode: window.getLabCode ? window.getLabCode(userId) : '000',
+    lastSeenAt: existing.lastSeenAt || '',
+    online: onlineUserIds.has(userId),
+    isSelf: false
+  });
+
   let profileRows = [];
   try{
     profileRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([userId]) : [];
   }catch(_e){
     profileRows = [];
   }
+  
   const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
   const uname = String(profile.username || '').trim();
   const fullName = String(profile.full_name || '').trim();
-  const email = String(profile.email || '').trim();
-  const name = fullName || existing.name || uname || (email ? email.split('@')[0] : 'User');
+  const email = String(profile.email || existing.email || '').trim();
+  
+  // الاستنتاج الذكي: لو السيرفر فاضي، هنصنعله اسم من الإيميل مؤقتاً
+  let smartName = fullName || existing.name || uname;
+  if (!smartName || smartName === 'User') {
+      smartName = email ? email.split('@')[0] : 'عضو المعمل';
+  }
+
   const avatar = profile.avatar_url || existing.avatar || '';
 
+  // التحديث النهائي للبروفايل
   openProfileOverlayWithData({
     id: userId,
-    name,
+    name: smartName,
     email: email || '—',
-    username: uname,
+    username: uname || '',
     avatar,
     memberCode: window.getLabCode ? window.getLabCode(userId) : '000',
     lastSeenAt: profile.last_seen_at || existing.lastSeenAt || '',
