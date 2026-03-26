@@ -1409,10 +1409,13 @@ let messageMenuState = null;
 const hiddenMessageIds = new Set();
 window.__labBootstrapStarted = window.__labBootstrapStarted || false;
 window.bootstrapLabMembers = function(){
+  // 👈 السطر السحري: نمنع التشغيل المبكر قبل ما السيرفر (Supabase) يخلص تحميل
+  if(!window.sb || !window.me) return; 
+
   if(window.__labBootstrapStarted) return;
   window.__labBootstrapStarted = true;
 
-  // --- محرك أماديوس الأساسي (السطر ده اللي كان ممسوح وموقف البحث والرسايل) ---
+  // --- محرك أماديوس الأساسي ---
   if(typeof window.onAuthReady === 'function') window.onAuthReady();
 
   // تعديل كيوما: فتح آخر شات لمرة واحدة فقط عند بداية دخول الموقع
@@ -1420,7 +1423,7 @@ window.bootstrapLabMembers = function(){
     setTimeout(() => {
       if(typeof window.openChatById === 'function') {
           window.openChatById(pendingRestoredContactId);
-          window.__alreadyRestored = true; // علامة عشان ما يكررش الحركة دي تاني
+          window.__alreadyRestored = true; 
       }
     }, 80);
   }
