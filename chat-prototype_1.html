@@ -1053,22 +1053,44 @@ window.handleAvatarPick = async (event) => {
   const file = event?.target?.files?.[0];
   if(!file) return;
   try{
-    myAvatarUrl = await fileToDataUrl(file);
+    toast(document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ رفع الصورة للسيرفر...');
+    
+    // استخراج امتداد واسم الصورة
+    const fileExt = file.name.split('.').pop();
+    const fileName = `avatar_${me.id}_${Date.now()}.${fileExt}`;
+    const sbClient = window.sb;
+    
+    // الرفع الفعلي لمساحة تخزين Supabase
+    const { data, error } = await sbClient.storage.from('avatars').upload(fileName, file, { upsert: true });
+    
+    if(error) {
+       toast('فشل الرفع: ' + error.message, 'error');
+       return;
+    }
+
+    // الحصول على رابط الصورة السريع
+    const { data: urlData } = sbClient.storage.from('avatars').getPublicUrl(fileName);
+    myAvatarUrl = urlData.publicUrl;
+
     const note = document.getElementById('avatarNote');
-    if(note) note.textContent = file.name;
+    if(note) note.textContent = 'تم الرفع بنجاح';
+    
+    // تحديث الواجهة والبيانات
     saveLocalAvatar(myAvatarUrl);
     applyMyProfileUI();
-    try{
-      await sb.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
-    }catch(_e){}
+    
+    await sbClient.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
     await upsertMyProfileOnServer({ avatar_url: myAvatarUrl || null });
+    
     if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
     if(typeof window.renderContacts === 'function') window.renderContacts();
     if(typeof window.renderMessages === 'function') window.renderMessages();
     if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
-    toast(document.documentElement.lang === 'en' ? 'Photo saved to server' : 'تم حفظ الصورة على السيرفر');
+    
+    toast(document.documentElement.lang === 'en' ? 'Photo saved to server' : '✅ تم حفظ الصورة وستظهر للجميع!');
   }catch(_e){
-    toast('فشل قراءة الصورة', 'error');
+    console.error(_e);
+    toast('حدث خطأ أثناء الرفع', 'error');
   }
 };
 
