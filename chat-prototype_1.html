@@ -1412,6 +1412,9 @@ window.bootstrapLabMembers = function(){
   if(window.__labBootstrapStarted) return;
   window.__labBootstrapStarted = true;
 
+  // --- محرك أماديوس الأساسي (السطر ده اللي كان ممسوح وموقف البحث والرسايل) ---
+  if(typeof window.onAuthReady === 'function') window.onAuthReady();
+
   // تعديل كيوما: فتح آخر شات لمرة واحدة فقط عند بداية دخول الموقع
   if(pendingRestoredContactId && !window.__alreadyRestored){
     setTimeout(() => {
@@ -1421,7 +1424,7 @@ window.bootstrapLabMembers = function(){
       }
     }, 80);
   }
-}; // القوس ده مع السيميكولون بيقفل الدالة بالكامل ويشيل الخطأ
+};
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
