@@ -632,9 +632,10 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 <div class="sidebar">
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
-    <div class="header-actions">
+    <<div class="header-actions">
       <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
       <div class="icon-btn" onclick="openSettings()">⚙️</div>
+      <div class="avatar" id="myAvatar" style="width:30px;height:30px;cursor:pointer;background:var(--surface2);color:var(--accent);" onclick="openProfile()" title="الملف الشخصي"></div>
     </div>
   </div>
   <div class="search-box">
@@ -643,8 +644,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
-  <div class="profile-bar" onclick="openProfile()">
-    <div class="profile-av" id="myAvatar">?</div>
+  <div class="profile-av" id="myAvatar">?</div>
     <div class="profile-info">
       <div class="profile-name" id="myName">جارِ التحميل...</div>
       <div class="profile-email" id="myEmail">—</div>
@@ -2609,7 +2609,7 @@ async function loadMessagesForContact(contactId){
   if(c && rows.length){
     const last = rows[rows.length-1];
     c.preview = last.previewText || formatMessagePreviewText(last.text, !!last.out);
-    c.time = t('now');
+   c.time = formatChatTime(last.createdAt || new Date());
   }
 
   saveLocalChatState();
@@ -2719,7 +2719,7 @@ async function loadInboxContacts(){
     }
 
     c.preview = formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id);
-    c.time = t('now');
+    c.time = formatChatTime(last.createdAt || new Date());
     const stamp = String(last?.created_at || '');
     if(last && last.sender_id !== currentUser.id && (!activeContact || activeContact.id !== id) && c._lastInboxAt !== stamp){
       c.unread = Math.min((c.unread || 0) + 1, 99);
@@ -3033,7 +3033,7 @@ function bumpActiveChatToTop(previewText, createdAt = new Date().toISOString()){
   const idx = contacts.findIndex((c) => c.id === activeContact.id);
   const target = idx >= 0 ? contacts[idx] : activeContact;
   target.preview = previewText || target.preview || '';
-  target.time = t('now');
+  target.time = formatChatTime(createdAt || new Date());
   target._lastInboxAt = createdAt;
   if(idx > -1){
     contacts.splice(idx, 1);
@@ -3375,6 +3375,29 @@ window.addEventListener('resize', () => {
 });
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
+// --- AMADEUS FACEBOOK-STYLE AVATAR OVERRIDE ---
+window.setAvatarNode = function(el, label, imageUrl){
+  if(!el) return;
+  el.innerHTML = '';
+  // أيقونة المستخدم الافتراضية
+  const svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:65%;height:65%;opacity:0.7"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+  
+  if(imageUrl){
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.className = 'avatar-image';
+    img.onerror = () => { img.remove(); el.innerHTML = svgIcon; };
+    el.appendChild(img);
+  } else {
+    el.innerHTML = svgIcon;
+  }
+};
+
+window.avatarMarkup = function(label, imageUrl, extraDotClass = ''){
+  const svgIcon = `<svg viewBox="0 0 24 24" fill="currentColor" style="width:65%;height:65%;opacity:0.7"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
+  const image = imageUrl ? `<img class="avatar-image" src="${imageUrl}" onerror="this.outerHTML='${svgIcon}'">` : svgIcon;
+  return `${image}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
+};
 </script>
 </body>
 </html>
