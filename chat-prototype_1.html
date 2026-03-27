@@ -1692,12 +1692,13 @@ function saveLocalChatState(){
   const payload = {
     contacts: contacts.map(compactContactForStorage),
     conversations: compactConversationsForStorage(conversations),
-    activeContactId: null // 👈 السحر هنا: منعنا حفظه في الذاكرة الدائمة
+    activeContactId: null // السحر هنا: بنمنعه يحفظ الشات في الذاكرة الدائمة
   };
   try{
     localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
     localStorage.setItem(getLastSnapshotKey(), JSON.stringify(payload));
-    // 👈 حفظ الشات في ذاكرة الجلسة المؤقتة (عشان الريفريش بس)
+    
+    // حفظ في الجلسة المؤقتة فقط (عشان الريفريش)
     if(activeId) sessionStorage.setItem(getActiveChatKey(), activeId);
     else sessionStorage.removeItem(getActiveChatKey());
   }catch(_e){
@@ -2755,7 +2756,7 @@ async function loadInboxContacts(){
   }
 
   const ids = Array.from(latestByPartner.keys());
- if(!ids.length){
+if(!ids.length){
     renderContacts();
     return;
   }
