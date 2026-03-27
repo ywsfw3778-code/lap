@@ -1618,8 +1618,7 @@ function hydrateStoredState(parsed){
     });
   }
 
-  const restoredActiveId = parsed.activeContactId || localStorage.getItem(getActiveChatKey()) || localStorage.getItem('lm-active-chat-guest') || null;
-  if(restoredActiveId){
+const restoredActiveId = sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest') || null;  if(restoredActiveId){
     pendingRestoredContactId = restoredActiveId;
     const savedActive = contacts.find((x) => x.id === restoredActiveId);
     if(savedActive){
@@ -1693,22 +1692,24 @@ function saveLocalChatState(){
   const payload = {
     contacts: contacts.map(compactContactForStorage),
     conversations: compactConversationsForStorage(conversations),
-    activeContactId: activeId
+    activeContactId: null // 👈 السحر هنا: منعنا حفظه في الذاكرة الدائمة
   };
   try{
     localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
     localStorage.setItem(getLastSnapshotKey(), JSON.stringify(payload));
-    if(activeId) localStorage.setItem(getActiveChatKey(), activeId);
+    // 👈 حفظ الشات في ذاكرة الجلسة المؤقتة (عشان الريفريش بس)
+    if(activeId) sessionStorage.setItem(getActiveChatKey(), activeId);
+    else sessionStorage.removeItem(getActiveChatKey());
   }catch(_e){
     try{
       const fallbackPayload = {
         contacts: contacts.map(compactContactForStorage),
         conversations: {},
-        activeContactId: activeId
+        activeContactId: null
       };
       localStorage.setItem(getChatStateKey(), JSON.stringify(fallbackPayload));
       localStorage.setItem(getLastSnapshotKey(), JSON.stringify(fallbackPayload));
-      if(activeId) localStorage.setItem(getActiveChatKey(), activeId);
+      if(activeId) sessionStorage.setItem(getActiveChatKey(), activeId);
     }catch(_ignore){}
   }
 }
@@ -2754,13 +2755,7 @@ async function loadInboxContacts(){
   }
 
   const ids = Array.from(latestByPartner.keys());
-  if(!ids.length){
-    if(!activeContact && contacts.length){
-      activeContact = contacts[0];
-      window.activeContactRef = activeContact;
-      syncActiveHeader();
-      renderMessages();
-    }
+ if(!ids.length){
     renderContacts();
     return;
   }
@@ -2809,9 +2804,6 @@ async function loadInboxContacts(){
       // الحل السحري هنا: بنصفر الـ ID عشان ما يفضلش يفتح نفس الشات كل ثانيتين
       pendingRestoredContactId = null; 
     }
-  }else if(!activeContact && contacts.length){
-    activeContact = contacts[0];
-    window.activeContactRef = activeContact;
   }
 
   saveLocalChatState();
