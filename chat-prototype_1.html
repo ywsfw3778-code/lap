@@ -1488,25 +1488,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
   }
 };
 
-  btn.disabled = true;
-  btn.textContent = 'جاري الإرسال...';
 
-  const { error } = await window.sb
-    .from('friend_requests')
-    .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }]);
-
-  if (error) {
-    console.error("Request Error:", error);
-    alert('حدث خطأ');
-    btn.disabled = false;
-    btn.textContent = 'إضافة صديق ➕';
-  } else {
-    btn.textContent = 'تم الإرسال ⏳';
-    btn.style.background = 'transparent';
-    btn.style.color = 'var(--muted)';
-    btn.style.borderColor = 'var(--border2)';
-    btn.disabled = false;
-  }
 
 
 </script>
@@ -3686,57 +3668,9 @@ async function loadPendingRequests() {
       </div>
     </div>
   `).join('');
-}
+} 
 
-// فتح وقفل لوحة الطلبات
-window.toggleFriendRequestsPanel = function() {
-  const panel = document.getElementById('friendRequestsPanel');
-  panel.classList.toggle('active');
-  if(panel.classList.contains('active')) window.loadPendingRequests();
-};
 
-// تحميل الطلبات من سوبابيز
-window.loadPendingRequests = async function() {
-  const listDiv = document.getElementById('friendRequestsList');
-  listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
-
-  const { data, error } = await window.sb
-    .from('friend_requests')
-    .select('*, sender:sender_id(id, full_name, avatar_url, color)')
-    .eq('receiver_id', window.me.id)
-    .eq('status', 'pending');
-
-  if(error || !data || data.length === 0) {
-    listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
-    return;
-  }
-
-  listDiv.innerHTML = data.map(req => `
-    <div class="req-row">
-      <div class="avatar" style="width:30px; height:30px; background:${req.sender?.color || 'var(--surface2)'}">${window.avatarMarkup(req.sender?.full_name, req.sender?.avatar_url)}</div>
-      <div style="font-size:13px;"><b>${req.sender?.full_name || 'مستخدم'}</b></div>
-      <div class="req-btns">
-        <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
-        <button class="decline-btn" onclick="window.respondRequest('${req.id}', 'declined')">✖</button>
-      </div>
-    </div>
-  `).join('');
-};
-
-// الرد على الطلب (قبول/رفض)
-window.respondRequest = async function(requestId, newStatus) {
-  const { error } = await window.sb
-    .from('friend_requests')
-    .update({ status: newStatus })
-    .eq('id', requestId);
-
-  if(!error) {
-    alert(newStatus === 'accepted' ? 'تم قبول الصديق! 🎉' : 'تم رفض الطلب');
-    window.loadPendingRequests();
-  } else {
-    alert('حدث خطأ في الرد على الطلب');
-  }
-};
 </script>
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
