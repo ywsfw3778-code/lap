@@ -838,10 +838,9 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
       </div>
       <div class="profile-row"><span class="picon">🟢</span><span id="profileStatusText">متصل الآن</span></div>
       <div class="profile-row"><span class="picon">🧪</span><span id="profileRoleText">Lab Member</span></div>
-      <div class="profile-acts">
-        <button class="pbtn" id="profileCloseBtn" onclick="closeProfile()">إغلاق</button>
-        <button class="pbtn danger" id="profileLogoutBtn" onclick="handleLogout()">خروج 🚪</button>
-      </div>
+     <div class="profile-acts">
+  <button class="pbtn" id="profileCloseBtn">إغلاق</button>
+</div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
       <div class="panel-close" onclick="closeProfile()">×</div>
@@ -1484,6 +1483,28 @@ if(typeof window.bootstrapLabMembers === 'function'){
   window.bootstrapLabMembers();
 }
 window.dispatchEvent(new Event('lab-auth-ready'));
+document.addEventListener("click", function(e){
+
+  if(e.target.classList.contains("add-btn")){
+
+    let btn = e.target;
+    let userId = btn.dataset.userid || "test";
+
+    let status = localStorage.getItem("friend_" + userId) || "none";
+
+    if(status === "none"){
+      btn.innerText = "تم الإرسال";
+      localStorage.setItem("friend_" + userId, "pending");
+    }
+
+    else if(status === "pending"){
+      btn.innerText = "إضافة صديق";
+      localStorage.setItem("friend_" + userId, "none");
+    }
+
+  }
+
+});
 
 </script>
 
@@ -3154,7 +3175,6 @@ window.searchFromMainArea = async function(){
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
-    <button class="add-btn" data-status="none">إضافة صديق</button>
     </div>`).join('');
 };
 window.startChatFromMain = function(id){
