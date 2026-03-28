@@ -1431,35 +1431,33 @@ let inboxNotificationsPrimed = false;
 const seenInboxMessageIds = new Set();
 let messageMenuState = null;
 const hiddenMessageIds = new Set();
-window.openChatById = function(id){
-  pendingRestoredContactId = id;
-  // الحماية المطلقة: لو الشات لسه محملش، هنكريتله شات مؤقت يمسك مكانه!
-  let found = contacts.find(c => c.id === id);
-  if(!found) {
-     found = {
-        id: id, name: 'جارِ التحميل...', username: '', email: '', init: '؟',
-        color: 'var(--surface2)', text: 'var(--accent)', avatar: '', memberCode: '000',
-        lastSeenAt: '', online: false, preview: '', time: '', unread: 0, _lastInboxAt: ''
-     };
-     contacts.push(found);
-     // سحب البيانات الحقيقية من السيرفر في الخلفية
-     if(typeof window.queryProfilesByIds === 'function') {
-         window.queryProfilesByIds([id]).then(rows => {
-             const p = rows[0];
-             if(p){
-                 found.name = p.full_name || p.username || (p.email ? p.email.split('@')[0] : 'User');
-                 found.init = window.getDisplayInitial(found.name);
-                 found.username = p.username || '';
-                 found.email = p.email || '';
-                 found.avatar = p.avatar_url || '';
-                 found.memberCode = p.member_code ? String(Number(p.member_code)).padStart(3, '0') : '000';
-                 if(typeof window.renderContacts === 'function') window.renderContacts();
-                 if(activeContact && activeContact.id === id && typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-             }
-         });
-     }
+window.__labBootstrapStarted = window.__labBootstrapStarted || false;
+window.bootstrapLabMembers = function(){
+  if(window.__labBootstrapStarted) return;
+
+  // لو السيرفر لسه ماردش، استنى وحاول تاني
+  if(!window.sb || !window.me) {
+    setTimeout(window.bootstrapLabMembers, 100); 
+    return;
+  } 
+
+  window.__labBootstrapStarted = true;
+  console.log("Amadeus: System Online!");
+
+  // تشغيل المحرك الأساسي
+  if(typeof window.onAuthReady === 'function') window.onAuthReady();
+
+  // سحب الـ ID من الجلسة المؤقتة بأمان تام
+  const safeId = pendingRestoredContactId || sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest');
+  
+  if(safeId && !window.__alreadyRestored){
+    setTimeout(() => {
+      if(typeof window.openChatById === 'function') {
+          window.openChatById(safeId);
+          window.__alreadyRestored = true; 
+      }
+    }, 200);
   }
-  if(typeof window.selectContact === 'function') window.selectContact(id);
 };
 
   window.__labBootstrapStarted = true;
@@ -3384,24 +3382,18 @@ window.onAuthReady = async function(){
   ensureRecordingBars();
   resetRecordingVisualizer();
   loadLocalChatState();
-  syncActiveHeader();
-  renderContacts();
-  renderMessages();
+  
+  // تحميل الرسايل والأسماء أولاً
   await loadInboxContacts();
-  if(typeof window.refreshProfilesDirectory === 'function'){
-    window.refreshProfilesDirectory().catch(() => {});
-}
-}
+  
+  // تشغيل المراقبة والتحديث المباشر (بعد ما نتأكد من التحميل)
   initPresence();
   startMessagePolling();
-  syncActiveHeader();
-  renderContacts();
-  renderMessages();
-  if(pendingRestoredContactId){
-    setTimeout(() => {
-      if(typeof window.openChatById === 'function') window.openChatById(pendingRestoredContactId);
-    }, 80);
+  
+  if(typeof window.refreshProfilesDirectory === 'function'){
+    window.refreshProfilesDirectory().catch(() => {});
   }
+};
 
 applyLanguage();
 window.addEventListener('lab-auth-ready', () => {
