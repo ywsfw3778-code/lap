@@ -1435,29 +1435,28 @@ window.__labBootstrapStarted = window.__labBootstrapStarted || false;
 window.bootstrapLabMembers = function(){
   if(window.__labBootstrapStarted) return;
 
-  // لو السيرفر لسه ماردش، استنى وحاول تاني
+  // لو السيرفر لسه ماردش، استنى 50 جزء من الثانية وحاول تاني
   if(!window.sb || !window.me) {
-    setTimeout(window.bootstrapLabMembers, 100); 
+    setTimeout(window.bootstrapLabMembers, 50); 
     return;
   } 
 
   window.__labBootstrapStarted = true;
-  console.log("Amadeus: System Online!");
+  console.log("Amadeus: Core Engine Online!");
 
-  // تشغيل المحرك الأساسي
+  // تشغيل المحرك الأساسي للبحث والشات
   if(typeof window.onAuthReady === 'function') window.onAuthReady();
 
-  // سحب الـ ID من الجلسة المؤقتة بأمان تام
-  const safeId = pendingRestoredContactId || sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest');
-  
-  if(safeId && !window.__alreadyRestored){
-    setTimeout(() => {
+  // الحماية المطلقة للريفريش: هندي السيرفر ربع ثانية يجمع الداتا قبل ما نفتح الشات
+  setTimeout(() => {
+    const safeId = pendingRestoredContactId || sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest');
+    if(safeId && !window.__alreadyRestored){
       if(typeof window.openChatById === 'function') {
           window.openChatById(safeId);
           window.__alreadyRestored = true; 
       }
-    }, 200);
-  }
+    }
+  }, 250); 
 };
 
 
