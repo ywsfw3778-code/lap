@@ -364,10 +364,17 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .record-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;}
 .record-live{display:flex;align-items:center;gap:8px;color:var(--text);}
 .record-container.active{display:flex;}
- .record-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);animation:recordBlink 1s ease-in-out infinite;}
+.record-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);animation:recordBlink 1s ease-in-out infinite;}
 .record-timer{font-size:13px;color:var(--text-meta);margin-right:12px;width:35px;text-align:center;}
-.record-bars{display:flex;align-items:center;gap:3px;margin-right:12px;}
-.record-bar{width:3px;height:12px;background:var(--accent-glow);border-radius:1px;transform:scaleY(1);transition:height 0.1s ease;}
+.record-bars{display:flex;align-items:center;gap:3px;margin-right:12px;flex:1;height:28px;}
+.record-bars span{width:4px;border-radius:99px;background:var(--accent-glow);transition:height 0.05s ease;}
+.recording-mode .record-bars span.active{background:var(--accent);box-shadow:0 0 6px var(--accent-glow);}
+.record-right{display:flex;align-items:center;gap:12px;}
+.record-right .icon-btn{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;background:transparent;border:1px solid var(--border);transition:all 0.2s;}
+.record-right .cancel-btn{color:#EF4444;}
+.record-right .cancel-btn:hover{background:rgba(239, 68, 68, 0.1);border-color:#EF4444;}
+.record-right .send-record-btn{color:var(--accent);border-color:var(--accent);}
+.record-right .send-record-btn:hover{background:var(--accent-glow);}
 @keyframes recordBlink{0%,100%{opacity:1;}50%{opacity:0.5;}}
 @keyframes recordPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow);}50%{box-shadow:0 0 0 6px transparent;}}
 .no-active-chat .chat-header,
