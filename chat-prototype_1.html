@@ -1460,22 +1460,6 @@ window.bootstrapLabMembers = function(){
   }
 };
 
-  window.__labBootstrapStarted = true;
-  console.log("Amadeus: System Online!");
-
-  // تشغيل المحرك الأساسي (ده اللي بيظهر الشاتات والبحث)
-  if(typeof window.onAuthReady === 'function') window.onAuthReady();
-
-  // تعديل كيوما: فتح آخر شات
-  if(pendingRestoredContactId && !window.__alreadyRestored){
-    setTimeout(() => {
-      if(typeof window.openChatById === 'function') {
-          window.openChatById(pendingRestoredContactId);
-          window.__alreadyRestored = true; 
-      }
-    }, 200);
-  }
-
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
