@@ -348,7 +348,9 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .send-btn:active{transform:scale(.96);} 
 .voice-btn{width:40px;height:40px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .2s;flex-shrink:0;}
 .voice-btn:hover{border-color:#ef4444;color:#ef4444;}
-.voice-btn.recording{background:#ef444422;border-color:#ef4444;color:#ef4444;animation:recPulse 1s infinite;}
+.voice-btn.recording{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);animation:recPulse 1s infinite;}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow);}50%{box-shadow:0 0 0 6px transparent;}}
+.record-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);animation:recordBlink 1s ease-in-out infinite;}
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 #ef444444;}50%{box-shadow:0 0 0 6px #ef444400;}}
 .input-area.recording-mode .input-wrap,
 .input-area.recording-mode .voice-btn,
@@ -2099,14 +2101,27 @@ function syncNotificationToggle(){
 function loadNotificationPreference(){
   try{
     const saved = localStorage.getItem(getNotifyStoreKey());
-    if(saved === 'on') notificationsEnabled = true;
-    else if(saved === 'off') notificationsEnabled = false;
-    else notificationsEnabled = false;
+    // هنخلي الافتراضي شغال (true) إلا لو المستخدم قفلها بنفسه صراحة
+    if(saved === 'off') notificationsEnabled = false;
+    else notificationsEnabled = true;
   }catch(_e){
-    notificationsEnabled = false;
+    notificationsEnabled = true;
   }
-  if(typeof Notification !== 'undefined' && Notification.permission !== 'granted'){
-    notificationsEnabled = false;
+  
+  if(typeof Notification !== 'undefined') {
+    if(Notification.permission === 'granted'){
+       notificationsEnabled = true;
+    } else if(Notification.permission !== 'denied' && notificationsEnabled) {
+       // لو لسه ما اخدناش الصلاحية، نطلبها فوراً
+       Notification.requestPermission().then(p => {
+         if(p === 'granted') {
+           notificationsEnabled = true;
+           syncNotificationToggle();
+         }
+       });
+    } else {
+       notificationsEnabled = false;
+    }
   }
   syncNotificationToggle();
 }
@@ -2633,10 +2648,16 @@ function createMessageRow(msg, isOut, showAvatar){
     const meta = document.createElement('div');
     meta.className = 'bubble-meta';
     meta.append(document.createTextNode(msg.time || ''));
-    if(isOut){
+if(isOut){
       const tick = document.createElement('span');
       tick.className = 'tick';
-      tick.textContent = msg.read ? '✓✓' : '✓';
+      if (msg.read) {
+        tick.innerHTML = appLang === 'ar' ? 'شوهد 👁️' : 'Seen 👁️';
+        tick.style.fontSize = '10px';
+        tick.style.fontWeight = '600';
+      } else {
+        tick.textContent = '✓';
+      }
       meta.append(document.createTextNode(' '));
       meta.appendChild(tick);
     }
