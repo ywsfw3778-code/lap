@@ -1432,15 +1432,28 @@ let messageMenuState = null;
 const hiddenMessageIds = new Set();
 window.__labBootstrapStarted = window.__labBootstrapStarted || false;
 window.bootstrapLabMembers = function(){
-  // لو اشتغلنا قبل كدة، اخرج
   if(window.__labBootstrapStarted) return;
 
-  // لو البيانات لسه مجتش من Supabase، استنى 100ms وحاول تاني أوتوماتيك
   if(!window.sb || !window.me) {
-    console.log("Amadeus: Waiting for session...");
     setTimeout(window.bootstrapLabMembers, 100); 
     return;
   } 
+
+  window.__labBootstrapStarted = true;
+  if(typeof window.onAuthReady === 'function') window.onAuthReady();
+
+  // سحبنا الـ ID في متغير ثابت (safeId) عشان نأمنه
+  const safeId = pendingRestoredContactId || sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest');
+  
+  if(safeId && !window.__alreadyRestored){
+    setTimeout(() => {
+      if(typeof window.openChatById === 'function') {
+          window.openChatById(safeId);
+          window.__alreadyRestored = true; 
+      }
+    }, 200);
+  }
+};
 
   window.__labBootstrapStarted = true;
   console.log("Amadeus: System Online!");
@@ -1457,7 +1470,7 @@ window.bootstrapLabMembers = function(){
       }
     }, 200);
   }
-};
+
 
 function fallbackDisplayInitial(value, fallback = '?'){
   const text = String(value || '').trim();
@@ -2868,12 +2881,18 @@ function renderContacts(list=contacts){
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
 function selectContact(id){
-  activeContact=contacts.find(c=>c.id===id);
-  if(!activeContact) return;
+  // 1. نبحث عن الشات الأول
+  const found = contacts.find(c => c.id === id);
+  
+  // 2. الحماية السحرية: لو ملقاش الشات (أو اتبعت null)، يخرج من غير ما يمسح الشات القديم!
+  if(!found) return; 
+
+  // 3. لو لقاه، يعتمده كشات نشط
+  activeContact = found;
   window.activeContactRef = activeContact;
   mobileSidebarOpen = false;
-  const hit = contacts.find(c=>c.id===id);
-  if(hit) hit.unread=0;
+  found.unread = 0; // تصفير العداد
+  
   syncActiveHeader();
   renderContacts();
   lastRenderedMessageSig = '';
@@ -2882,7 +2901,6 @@ function selectContact(id){
   saveLocalChatState();
   loadMessagesForContact(id);
 }
-
 window.openChatById = function(id){
   pendingRestoredContactId = id;
   selectContact(id);
