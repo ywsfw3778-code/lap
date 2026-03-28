@@ -1375,49 +1375,51 @@ window.searchProfiles = async (q, limit = 8) => {
   });
 };
 window.searchFriends = async function() {
-  const q = document.getElementById('searchQuery').value.trim().toLowerCase();
+  const q = document.getElementById('friendInput').value.trim().toLowerCase(); // تأكد من الـ ID الصح
   const resDiv = document.getElementById('searchResults');
   
-  if(!q) { resDiv.innerHTML = ''; return; }
+  if(!q) { resDiv.innerHTML = '<div class="s-empty">اكتب شيئاً للبحث</div>'; return; }
   
-  resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جاري البحث...</div>';
+  resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جاري البحث عن أعضاء المعمل...</div>';
 
-  // البحث في السيرفر
+  // الإصلاح: البحث في جدول profiles بالأعمدة الصحيحة
   const { data: users, error } = await sb
-    .from('users')
-    .select('id, name, email, avatar, color, text')
-    .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+    .from('profiles')
+    .select('id, full_name, email, avatar_url, color')
+    .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,username.ilike.%${q}%`)
     .limit(10);
 
   if (error) {
     console.error("Search Error:", error);
-    resDiv.innerHTML = '<div style="color:red; text-align:center;">حدث خطأ أثناء البحث</div>';
+    resDiv.innerHTML = '<div style="color:red; text-align:center;">خطأ في السيرفر: تأكد من جدول profiles</div>';
     return;
   }
 
-  // فلترة عشان متبحثش عن نفسك
   const filtered = users.filter(u => u.id !== me.id);
 
   if (filtered.length === 0) {
-    resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على أحد</div>';
+    resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على أحد بهذا الاسم</div>';
     return;
   }
 
-  resDiv.innerHTML = filtered.map(u => `
+  resDiv.innerHTML = filtered.map(u => {
+    const name = u.full_name || u.email.split('@')[0];
+    const init = name.charAt(0).toUpperCase();
+    return `
     <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-      <div class="avatar" style="background:${u.color || 'var(--surface2)'}; color:${u.text || 'var(--accent)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
-        ${avatarMarkup(u.name, u.avatar)}
+      <div class="avatar" style="background:${u.color || 'var(--surface2)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+        ${window.avatarMarkup(init, u.avatar_url)}
       </div>
       <div style="flex:1;">
-        <div style="font-weight:600; font-size:14px; color:var(--text);">${u.name}</div>
+        <div style="font-weight:600; font-size:14px; color:var(--text);">${name}</div>
         <div style="font-size:12px; color:var(--muted);">${u.email}</div>
       </div>
       <button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" 
-        style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; transition:0.2s;">
+        style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">
         إضافة صديق ➕
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 };
 window.sendFriendRequest = async function(targetId) {
   const btn = document.getElementById(`btn-add-${targetId}`);
