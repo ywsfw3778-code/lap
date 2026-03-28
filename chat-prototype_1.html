@@ -3380,23 +3380,30 @@ window.onMemberCodesUpdated = function(){
 };
 
 window.onAuthReady = async function(){
-  // 1. تحميل الشات من الكاش والرسم فوراً بدون انتظار صاب باس نهائياً
+  // 1. تحميل الشات من الكاش والرسم فوراً
   loadLocalChatState();
-  if(typeof window.renderContacts === 'function') window.renderContacts();
-  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-  if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
 
-  // 2. تحديثات السيرفر تتم في الخلفية براحتها بدون ما توقف الشاشة
+  // 🔥 السر هنا: بنستدعي الشات فوراً بنفس أوامر الفتح عشان الموبايل والكمبيوتر يظبطوا 🔥
+  const restoredId = activeContact?.id || sessionStorage.getItem(typeof getActiveChatKey === 'function' ? getActiveChatKey() : '') || sessionStorage.getItem('lm-active-chat-guest');
+
+  if (restoredId && typeof selectContact === 'function') {
+     selectContact(restoredId); // ده بيعمل كل حاجة (بيظبط الشاشة والموبايل والهيدر)
+  } else {
+     if(typeof window.renderContacts === 'function') window.renderContacts();
+     if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+  }
+
+  // 2. تحديثات السيرفر تتم في الخلفية براحتها
   if(typeof window.loadMemberCodes === 'function') await window.loadMemberCodes();
   loadNotificationPreference();
   loadHiddenMessageIds();
   ensureRecordingBars();
   resetRecordingVisualizer();
-  
+
   await loadInboxContacts();
   initPresence();
   startMessagePolling();
-  
+
   if(typeof window.refreshProfilesDirectory === 'function'){
     window.refreshProfilesDirectory().catch(() => {});
   }
@@ -3415,20 +3422,21 @@ window.addEventListener('lab-auth-ready', () => {
   if(typeof window.bootstrapLabMembers === 'function') window.bootstrapLabMembers();
 });
 document.addEventListener('DOMContentLoaded', () => {
-  if(typeof window.bootstrapLabMembers === 'function') window.bootstrapLabMembers();
-});
-
-document.addEventListener('DOMContentLoaded', () => {
   const nextLang = getStoredLang();
   if(nextLang !== appLang){
     appLang = nextLang;
   }
   applyLanguage();
   
-  // إجبار الواجهة على الظهور في أول جزء من الثانية
-  if(typeof window.renderContacts === 'function') window.renderContacts();
-  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-  if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
+  // تأمين فوري للواجهة أول ما الصفحة تفتح عشان الريفريش
+  const restoredId = activeContact?.id || sessionStorage.getItem('lm-active-chat-guest') || (typeof getActiveChatKey === 'function' ? sessionStorage.getItem(getActiveChatKey()) : null);
+  
+  if (restoredId && typeof selectContact === 'function') {
+     selectContact(restoredId);
+  } else {
+     if(typeof window.renderContacts === 'function') window.renderContacts();
+     if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+  }
 });
 
 window.addEventListener('pageshow', () => {
