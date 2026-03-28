@@ -989,19 +989,20 @@ async function upsertMyProfileOnServer(extra = {}){
 }
 
 window.loadMemberCodes = async () => {
-  const lite = await runProfilesQuery((select) => sb.from('profiles').select(select));
-  if(lite.error) return;
-  const rows = lite.data || [];
-
-  // ترتيب الناس حسب وقت التسجيل عشان الأرقام تطلع صح
-  const ordered = [...rows].sort((a, b) => {
-    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
-  });
+  // سحب البيانات مرتبة من السيرفر مباشرة عشان الأرقام ماتتلخبطش
+  let { data, error } = await sb.from('profiles').select('id, member_code, created_at').order('created_at', { ascending: true });
+  
+  let rows = data || [];
+  // كود طوارئ لو السيرفر رفض يجيب التاريخ
+  if(error || !rows.length) {
+     const lite = await runProfilesQuery((select) => sb.from('profiles').select(select));
+     rows = lite.data || [];
+     rows.sort((a, b) => a.id.localeCompare(b.id)); // ترتيب ثابت كبديل
+  }
 
   const map = {};
-  ordered.forEach((r, i) => {
+  rows.forEach((r, i) => {
     const numeric = Number(r.member_code);
-    // لو مفيش رقم يدوي (#001 مثلاً)، هندي له رقم ترتيبه في الـ 6 أشخاص
     map[r.id] = (Number.isFinite(numeric) && numeric > 0) 
       ? String(numeric).padStart(3, '0') 
       : String(i + 1).padStart(3, '0');
@@ -2887,17 +2888,39 @@ function renderContacts(list=contacts){
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
 function selectContact(id){
-  // 1. نبحث عن الشات الأول
-  const found = contacts.find(c => c.id === id);
+  let found = contacts.find(c => c.id === id);
   
-  // 2. الحماية السحرية: لو ملقاش الشات (أو اتبعت null)، يخرج من غير ما يمسح الشات القديم!
-  if(!found) return; 
+  // الحماية السحرية: لو الشات مش موجود لسه، اصنعه كشات وهمي (Ghost) عشان يمسك الشاشة
+  if(!found) {
+     found = {
+        id: id, name: 'جارِ التحميل...', username: '', email: '', init: '؟',
+        color: 'var(--surface2)', text: 'var(--accent)', avatar: '', memberCode: '000',
+        lastSeenAt: '', online: false, preview: 'يتم استرجاع المحادثة...', time: '', unread: 0, _lastInboxAt: ''
+     };
+     contacts.push(found);
+     
+     // سحب البيانات الحقيقية من السيرفر في الخلفية
+     if(typeof window.queryProfilesByIds === 'function') {
+         window.queryProfilesByIds([id]).then(rows => {
+             if(rows && rows[0]){
+                 const p = rows[0];
+                 found.name = p.full_name || p.username || (p.email ? p.email.split('@')[0] : 'User');
+                 found.init = window.getDisplayInitial(found.name);
+                 found.username = p.username || '';
+                 found.email = p.email || '';
+                 found.avatar = p.avatar_url || '';
+                 found.memberCode = p.member_code ? String(Number(p.member_code)).padStart(3, '0') : '000';
+                 if(typeof window.renderContacts === 'function') window.renderContacts();
+                 if(activeContact && activeContact.id === id && typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+             }
+         });
+     }
+  }
 
-  // 3. لو لقاه، يعتمده كشات نشط
   activeContact = found;
   window.activeContactRef = activeContact;
   mobileSidebarOpen = false;
-  found.unread = 0; // تصفير العداد
+  found.unread = 0;
   
   syncActiveHeader();
   renderContacts();
@@ -2907,11 +2930,11 @@ function selectContact(id){
   saveLocalChatState();
   loadMessagesForContact(id);
 }
+
 window.openChatById = function(id){
   pendingRestoredContactId = id;
   selectContact(id);
 };
-
 function renderSidebarSearchResults(results){
   const el = document.getElementById('contacts');
   if(!results.length){
