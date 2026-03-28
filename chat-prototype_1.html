@@ -1218,8 +1218,19 @@ window.saveProfile = async () => {
   toast(tr('saveDone'));
 };
 
-await window.loadMemberCodes();
-await loadMyProfile();
+window.__profileBootPromise = (async () => {
+  try{
+    await window.loadMemberCodes();
+  }catch(err){
+    console.warn('member codes init failed:', err?.message || err);
+  }
+  try{
+    await loadMyProfile();
+  }catch(err){
+    console.warn('profile init failed:', err?.message || err);
+    try{ applyMyProfileUI(); }catch(_e){}
+  }
+})();
 
 window.handleLogout = async () => {
   try{
@@ -2126,6 +2137,7 @@ async function fillProfileOverlay(data){
   if (actsDiv && friendSlot) {
     friendSlot.innerHTML = '';
     if (!isSelf && id) {
+      friendSlot.innerHTML = `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${id}', this)">إضافة صديق ➕</button>`;
       let request = null;
       try{
         request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
@@ -3607,6 +3619,11 @@ window.onMemberCodesUpdated = function(){
 };
 
 window.onAuthReady = async function(){
+  if(window.__profileBootPromise){
+    try{
+      await window.__profileBootPromise;
+    }catch(_e){}
+  }
   // 1. تحميل الشات من الكاش والرسم فوراً
   loadLocalChatState();
 
@@ -3621,7 +3638,6 @@ window.onAuthReady = async function(){
   }
 
   // 2. تحديثات السيرفر تتم في الخلفية براحتها
-  if(typeof window.loadMemberCodes === 'function') await window.loadMemberCodes();
   loadNotificationPreference();
   loadHiddenMessageIds();
   ensureRecordingBars();
