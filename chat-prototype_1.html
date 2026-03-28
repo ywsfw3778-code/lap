@@ -604,7 +604,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
         color: #ff3c41 !important;
         font-weight: bold !important;
     }
-    .voice-time { color: #ff3c41 !important; }
+    .voice-time { color: var(--accent) !important; }
     .voice-cancel { color: var(--text-secondary) !important; }
 
     .messages { padding-bottom: 75px !important; }
@@ -1378,14 +1378,38 @@ window.searchFriends = async () => {
     results = [];
   }
   window._mainSearchResults = results;
-  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+tr('searchEmpty')+'</div>'; return; }
+// الكود الجديد لعرض النتائج بطلب إضافة بدل شات فوري
+  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+t('searchEmpty')+'</div>'; return; }
   document.getElementById('searchResults').innerHTML=results.map((u)=>{
     return `<div class="result-row">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn" onclick="window.startChatFromMain('${u.id}')">${tr('chatBtn')}</button>
+      <button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')">إضافة صديق ➕</button>
     </div>`;
   }).join('');
+};
+window.sendFriendRequest = async function(targetId) {
+  const btn = document.getElementById(`btn-add-${targetId}`);
+  if(!btn) return;
+  
+  btn.disabled = true;
+  btn.textContent = 'جاري الإرسال...';
+
+  // إرسال الطلب لجدول friend_requests في Supabase
+  const { error } = await sb
+    .from('friend_requests')
+    .insert([{ sender_id: me.id, receiver_id: targetId, status: 'pending' }]);
+
+  if (error) {
+    console.error('Request Error:', error);
+    alert('الطلب مرسل بالفعل أو حدث خطأ في السيرفر');
+    btn.disabled = false;
+    btn.textContent = 'إضافة صديق ➕';
+  } else {
+    btn.textContent = 'تم إرسال الطلب ✅';
+    btn.style.borderColor = 'var(--online)';
+    btn.style.color = 'var(--online)';
+  }
 };
 
 function ensureContactRecord(id, name, bg, textColor, avatarUrl=''){
@@ -2909,8 +2933,22 @@ function renderContacts(list=contacts){
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
-function selectContact(id){
+async function selectContact(id){
+  // تأمين الشات: التأكد إن الطرفين أصدقاء أولاً
+  const { data: isFriend, error: friendErr } = await sb
+    .from('friend_requests')
+    .select('status')
+    .or(`and(sender_id.eq.${me.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${me.id})`)
+    .eq('status', 'accepted')
+    .maybeSingle();
+
+  if (!isFriend || friendErr) {
+    alert('عذراً، يجب أن يتم قبول طلب الصداقة أولاً لتتمكن من المراسلة!');
+    return;
+  }
+
   let found = contacts.find(c => c.id === id);
+  // ... باقي الكود القديم يكمل عادي ...
   
   // الحماية السحرية: لو الشات مش موجود لسه، اصنعه كشات وهمي (Ghost) عشان يمسك الشاشة
   if(!found) {
