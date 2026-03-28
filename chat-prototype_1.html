@@ -2049,11 +2049,9 @@ async function fillProfileOverlay(data){
   if(logoutBtn) logoutBtn.style.display = isSelf ? '' : 'none';
 
   // --- زرار طلب الصداقة في البروفايل ---
+  // --- زرار طلب الصداقة في البروفايل ---
   const actsDiv = overlay.querySelector('.profile-acts');
   if (actsDiv) {
-    const oldAddBtn = actsDiv.querySelector('.add-friend-btn');
-    if (oldAddBtn) oldAddBtn.remove();
-    
     if (!isSelf && id) {
       const { data: request } = await window.sb
         .from('friend_requests')
@@ -2069,6 +2067,10 @@ async function fillProfileOverlay(data){
       } else if (request.status === 'accepted') {
         friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--online); color:var(--online);" disabled>أنتما أصدقاء ✅</button>`;
       }
+      
+      // 🔥 السر هنا: التنظيف الحقيقي بيتم في اللحظة الأخيرة قبل الإضافة 🔥
+      const existingBtns = actsDiv.querySelectorAll('.add-friend-btn');
+      existingBtns.forEach(b => b.remove());
       
       if(friendBtnHtml) actsDiv.insertAdjacentHTML('afterbegin', friendBtnHtml);
     }
@@ -3691,35 +3693,6 @@ window.respondRequest = async function(requestId, newStatus) {
     loadPendingRequests();
   }
 };
-</script>
-<script>
-
-document.addEventListener("click", function(e){
-
-  // يمسك أي زرار فيه كلمة إضافة
-  if(e.target.innerText.includes("إضافة")){
-
-    let btn = e.target;
-
-    if(!btn.dataset.status){
-      btn.dataset.status = "none";
-    }
-
-    let status = btn.dataset.status;
-
-    if(status === "none"){
-      btn.innerText = "تم الإرسال";
-      btn.dataset.status = "pending";
-    }
-
-    else if(status === "pending"){
-      btn.innerText = "إضافة صديق";
-      btn.dataset.status = "none";
-    }
-
-  }
-
-});
 </script>
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
