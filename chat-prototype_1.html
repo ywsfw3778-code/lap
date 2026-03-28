@@ -1381,73 +1381,71 @@ window.searchFriends = async function() {
   if(!q) { resDiv.innerHTML = '<div class="s-empty">اكتب الاسم أو الإيميل للبحث</div>'; return; }
   resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جارِ البحث...</div>';
 
-  // التعديل هنا: استخدمنا window.sb
-  const { data: users, error } = await window.sb
-    .from('profiles')
-    .select('id, full_name, email, avatar_url, color')
-    .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,username.ilike.%${q}%`)
-    .limit(10);
+  try {
+    const { data: users, error } = await window.sb
+      .from('profiles')
+      .select('id, full_name, email, avatar_url, color')
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,username.ilike.%${q}%`)
+      .limit(10);
 
-  if (error) {
-    resDiv.innerHTML = '<div style="color:red; text-align:center;">خطأ في البحث</div>';
-    return;
-  }
+    if (error) throw error;
 
-  // التعديل هنا: استخدمنا window.me
-  const filtered = users.filter(u => u.id !== window.me.id);
-  if (filtered.length === 0) {
-    resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على مستخدم</div>';
-    return;
-  }
-
-  const { data: requests } = await window.sb
-    .from('friend_requests')
-    .select('sender_id, receiver_id, status')
-    .or(`sender_id.eq.${window.me.id},receiver_id.eq.${window.me.id}`);
-
-  resDiv.innerHTML = filtered.map(u => {
-    const name = u.full_name || u.email.split('@')[0];
-    const init = name.charAt(0).toUpperCase();
-    
-    // فحص حالة الصداقة
-    const req = requests?.find(r => (r.sender_id === window.me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === window.me.id));
-    
-    let btnHtml = '';
-    if (!req) {
-      btnHtml = `<button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
-    } else if (req.status === 'pending') {
-      if (req.sender_id === window.me.id) {
-        btnHtml = `<button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">تم الإرسال ⏳</button>`;
-      } else {
-        btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; font-size:12px;">لديك طلب منه ⏳</button>`;
-      }
-    } else if (req.status === 'accepted') {
-      btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
+    const filtered = (users || []).filter(u => u.id !== window.me.id);
+    if (filtered.length === 0) {
+      resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على مستخدم</div>';
+      return;
     }
 
-    return `
-    <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-      <div class="avatar" style="background:${u.color || 'var(--surface2)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
-        ${window.avatarMarkup(init, u.avatar_url)}
-      </div>
-      <div style="flex:1;">
-        <div style="font-weight:600; font-size:14px; color:var(--text);">${name}</div>
-        <div style="font-size:12px; color:var(--muted);">${u.email}</div>
-      </div>
-      ${btnHtml}
-    </div>`;
-  }).join('');
+    const { data: requests } = await window.sb
+      .from('friend_requests')
+      .select('sender_id, receiver_id, status')
+      .or(`sender_id.eq.${window.me.id},receiver_id.eq.${window.me.id}`);
+
+    resDiv.innerHTML = filtered.map(u => {
+      const name = u.full_name || u.email.split('@')[0];
+      const init = window.getDisplayInitial(name);
+      
+      const req = (requests || []).find(r => (r.sender_id === window.me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === window.me.id));
+      
+      let btnHtml = '';
+      if (!req) {
+        btnHtml = `<button class="add-btn" onclick="window.sendFriendRequest('${u.id}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
+      } else if (req.status === 'pending') {
+        if (req.sender_id === window.me.id) {
+          btnHtml = `<button class="add-btn" onclick="window.sendFriendRequest('${u.id}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">تم الإرسال ⏳</button>`;
+        } else {
+          btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; font-size:12px;">لديك طلب ⏳</button>`;
+        }
+      } else if (req.status === 'accepted') {
+        btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
+      }
+
+      return `
+      <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
+        <div class="avatar" style="background:${u.color || 'var(--surface2)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+          ${window.avatarMarkup(init, u.avatar_url)}
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:14px; color:var(--text);">${name}</div>
+          <div style="font-size:12px; color:var(--muted);">${u.email}</div>
+        </div>
+        ${btnHtml}
+      </div>`;
+    }).join('');
+  } catch(err) {
+    console.error(err);
+    resDiv.innerHTML = '<div style="color:red; text-align:center;">خطأ في السيرفر أو جدول الطلبات مفقود</div>';
+  }
 };
 
-window.sendFriendRequest = async function(targetId) {
-  const btn = document.getElementById(`btn-add-${targetId}`) || document.querySelector('.add-friend-btn');
-  if(!btn) return;
+window.sendFriendRequest = async function(targetId, btnElement) {
+  if(!btnElement) return;
   
-  if (btn.textContent.includes('الإرسال') || btn.textContent.includes('⏳')) {
+  if (btnElement.textContent.includes('الإرسال') || btnElement.textContent.includes('⏳')) {
     if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
-      const oldText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = 'جاري الإلغاء...';
+      const oldText = btnElement.textContent;
+      btnElement.disabled = true;
+      btnElement.textContent = 'جاري الإلغاء...';
 
       const { error } = await window.sb
         .from('friend_requests')
@@ -1455,18 +1453,40 @@ window.sendFriendRequest = async function(targetId) {
         .match({ sender_id: window.me.id, receiver_id: targetId });
 
       if (!error) {
-        btn.textContent = 'إضافة صديق ➕';
-        btn.style.background = 'var(--accent-glow)';
-        btn.style.color = 'var(--accent)';
-        btn.style.borderColor = 'var(--accent)';
-        btn.disabled = false;
+        btnElement.textContent = 'إضافة صديق ➕';
+        btnElement.style.background = 'var(--accent-glow)';
+        btnElement.style.color = 'var(--accent)';
+        btnElement.style.borderColor = 'var(--accent)';
+        btnElement.disabled = false;
       } else {
-        btn.textContent = oldText;
-        btn.disabled = false;
+        btnElement.textContent = oldText;
+        btnElement.disabled = false;
+        alert('حدث خطأ أثناء الإلغاء');
       }
     }
     return;
   }
+
+  btnElement.disabled = true;
+  btnElement.textContent = 'جاري الإرسال...';
+
+  const { error } = await window.sb
+    .from('friend_requests')
+    .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }]);
+
+  if (error) {
+    console.error("Request Error:", error);
+    alert('حدث خطأ في الإرسال: ' + error.message);
+    btnElement.disabled = false;
+    btnElement.textContent = 'إضافة صديق ➕';
+  } else {
+    btnElement.textContent = 'تم الإرسال ⏳';
+    btnElement.style.background = 'transparent';
+    btnElement.style.color = 'var(--muted)';
+    btnElement.style.borderColor = 'var(--border2)';
+    btnElement.disabled = false;
+  }
+};
 
   btn.disabled = true;
   btn.textContent = 'جاري الإرسال...';
@@ -1487,7 +1507,7 @@ window.sendFriendRequest = async function(targetId) {
     btn.style.borderColor = 'var(--border2)';
     btn.disabled = false;
   }
-};
+
 
 </script>
 
@@ -2042,15 +2062,13 @@ async function fillProfileOverlay(data){
         .or(`and(sender_id.eq.${window.me.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${window.me.id})`)
         .maybeSingle();
 
-      let friendBtnHtml = '';
+   let friendBtnHtml = '';
       if (!request) {
-        friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--accent); color:var(--accent);" onclick="window.sendFriendRequest('${id}')">إضافة صديق ➕</button>`;
+        friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--accent); color:var(--accent);" onclick="window.sendFriendRequest('${id}', this)">إضافة صديق ➕</button>`;
       } else if (request.status === 'pending') {
         if (request.sender_id === window.me.id) {
-          // مفتوح وتقدر تلغي الطلب من البروفايل
-          friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--border2); color:var(--muted);" onclick="window.sendFriendRequest('${id}')">تم الإرسال ⏳</button>`;
+          friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--border2); color:var(--muted);" onclick="window.sendFriendRequest('${id}', this)">تم الإرسال ⏳</button>`;
         } else {
-          // مقفول لو هو اللي باعتلك
           friendBtnHtml = `<button class="pbtn add-friend-btn" disabled style="opacity:0.6;">تلقيت طلب ⏳</button>`;
         }
       } else if (request.status === 'accepted') {
@@ -3670,16 +3688,53 @@ async function loadPendingRequests() {
   `).join('');
 }
 
+// فتح وقفل لوحة الطلبات
+window.toggleFriendRequestsPanel = function() {
+  const panel = document.getElementById('friendRequestsPanel');
+  panel.classList.toggle('active');
+  if(panel.classList.contains('active')) window.loadPendingRequests();
+};
+
+// تحميل الطلبات من سوبابيز
+window.loadPendingRequests = async function() {
+  const listDiv = document.getElementById('friendRequestsList');
+  listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
+
+  const { data, error } = await window.sb
+    .from('friend_requests')
+    .select('*, sender:sender_id(id, full_name, avatar_url, color)')
+    .eq('receiver_id', window.me.id)
+    .eq('status', 'pending');
+
+  if(error || !data || data.length === 0) {
+    listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
+    return;
+  }
+
+  listDiv.innerHTML = data.map(req => `
+    <div class="req-row">
+      <div class="avatar" style="width:30px; height:30px; background:${req.sender?.color || 'var(--surface2)'}">${window.avatarMarkup(req.sender?.full_name, req.sender?.avatar_url)}</div>
+      <div style="font-size:13px;"><b>${req.sender?.full_name || 'مستخدم'}</b></div>
+      <div class="req-btns">
+        <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
+        <button class="decline-btn" onclick="window.respondRequest('${req.id}', 'declined')">✖</button>
+      </div>
+    </div>
+  `).join('');
+};
+
 // الرد على الطلب (قبول/رفض)
 window.respondRequest = async function(requestId, newStatus) {
-  const { error } = await sb
+  const { error } = await window.sb
     .from('friend_requests')
     .update({ status: newStatus })
     .eq('id', requestId);
 
   if(!error) {
     alert(newStatus === 'accepted' ? 'تم قبول الصديق! 🎉' : 'تم رفض الطلب');
-    loadPendingRequests();
+    window.loadPendingRequests();
+  } else {
+    alert('حدث خطأ في الرد على الطلب');
   }
 };
 </script>
