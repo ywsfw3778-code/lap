@@ -3366,6 +3366,11 @@ window.onAuthReady = async function(){
   resetRecordingVisualizer();
   loadLocalChatState();
   
+  // 🔥 التعديل هنا: رسم الشات من الذاكرة فوراً قبل انتظار السيرفر 🔥
+  if(typeof window.renderContacts === 'function') window.renderContacts();
+  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+  if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
+
   // 1. تحميل الرسايل والأسماء من السيرفر
   await loadInboxContacts();
   
@@ -3399,6 +3404,9 @@ document.addEventListener('DOMContentLoaded', () => {
     appLang = nextLang;
   }
   applyLanguage();
+  
+  // 🔥 التعديل هنا: إجبار المتصفح يرسم الشات أول ما الصفحة تحمل 🔥
+  if(typeof window.renderContacts === 'function') window.renderContacts();
 });
 
 window.addEventListener('pageshow', () => {
