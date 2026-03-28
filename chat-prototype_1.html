@@ -3154,7 +3154,7 @@ window.searchFromMainArea = async function(){
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn">${t('chatBtn')}</button>
+    <button class="add-btn" data-status="none">إضافة صديق</button>
     </div>`).join('');
 };
 window.startChatFromMain = function(id){
@@ -3671,6 +3671,34 @@ window.respondRequest = async function(requestId, newStatus) {
     loadPendingRequests();
   }
 };
+</script>
+<script>
+
+document.addEventListener("click", function(e){
+
+  if(e.target.classList.contains("add-btn")){
+
+    let btn = e.target;
+    let status = btn.getAttribute("data-status");
+
+    if(status === "none"){
+      btn.innerText = "تم الإرسال";
+      btn.setAttribute("data-status", "pending");
+    }
+
+    else if(status === "pending"){
+      btn.innerText = "إضافة صديق";
+      btn.setAttribute("data-status", "none");
+    }
+
+    else if(status === "friends"){
+      btn.innerText = "أصدقاء";
+    }
+
+  }
+
+});
+
 </script>
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
