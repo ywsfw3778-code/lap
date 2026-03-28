@@ -363,13 +363,13 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .record-visual{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
 .record-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;}
 .record-live{display:flex;align-items:center;gap:8px;color:var(--text);}
-.record-dot{width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 10px #ef444488;animation:recordBlink 1s ease-in-out infinite;}
-.record-status{font-size:11px;color:var(--muted);}
-.record-time{font-variant-numeric:tabular-nums;font-size:12px;}
-.record-bars{height:28px;display:flex;align-items:flex-end;gap:3px;padding:0 2px;}
-.record-bars span{flex:1;min-width:4px;height:8px;border-radius:999px;background:color-mix(in srgb, var(--accent) 40%, var(--text) 60%);transition:height .08s linear, opacity .08s linear, background .18s ease;opacity:.75;}
-.recording-mode .record-bars span.active{background:var(--accent);opacity:1;}
-@keyframes recordBlink{0%,100%{opacity:1;}50%{opacity:.35;}}
+.record-container.active{display:flex;}
+ .record-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent-glow);animation:recordBlink 1s ease-in-out infinite;}
+.record-timer{font-size:13px;color:var(--text-meta);margin-right:12px;width:35px;text-align:center;}
+.record-bars{display:flex;align-items:center;gap:3px;margin-right:12px;}
+.record-bar{width:3px;height:12px;background:var(--accent-glow);border-radius:1px;transform:scaleY(1);transition:height 0.1s ease;}
+@keyframes recordBlink{0%,100%{opacity:1;}50%{opacity:0.5;}}
+@keyframes recordPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow);}50%{box-shadow:0 0 0 6px transparent;}}
 .no-active-chat .chat-header,
 .no-active-chat .input-area{display:none;}
 .typing{display:flex;align-items:center;gap:4px;padding:9px 13px;background:var(--msg-in);border:1px solid var(--border2);border-radius:16px;width:fit-content;animation:slideIn .2s ease;}
