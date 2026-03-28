@@ -1,6 +1,7 @@
 ﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+  <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css'>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>
@@ -682,10 +683,16 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
     <div class="header-actions">
-      <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
-      <div class="icon-btn" onclick="openSettings()">⚙️</div>
-      <div class="avatar" id="myAvatar" style="width:30px;height:30px;cursor:pointer;background:var(--surface2);color:var(--accent);" onclick="openProfile()" title="الملف الشخصي"></div>
-    </div>
+  <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
+  
+  <div class="icon-btn" id="friendRequestsBtn" onclick="toggleFriendRequestsPanel()" title="طلبات الصداقة" style="position:relative;">
+    <i class="fi fi-rr-user-add"></i>
+    <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; display:flex; align-items:center; justify-content:center;">0</span>
+  </div>
+
+  <div class="icon-btn" onclick="openSettings()">⚙️</div>
+  <div class="avatar" id="myAvatar" style="width:30px;height:30px;cursor:pointer;background:var(--surface2);color:var(--accent);" onclick="openProfile()" title="الملف الشخصي"></div>
+</div>
   </div>
   <div class="search-box">
     <input type="text" placeholder="ابحث..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
@@ -3567,5 +3574,22 @@ window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
 
 </script>
+<div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <h3>طلبات الصداقة</h3>
+    <button onclick="toggleFriendRequestsPanel()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
+  </div>
+  <div id="friendRequestsList">
+    <div style="text-align:center; color:var(--muted); font-size:13px; margin-top:20px;">لا توجد طلبات معلقة</div>
+  </div>
+</div>
+
+<style>
+  #friendRequestsPanel.active { transform: translateX(0); }
+  .req-row { display:flex; align-items:center; gap:10px; padding:10px; background:var(--surface2); border-radius:10px; margin-bottom:10px; }
+  .req-btns { display:flex; gap:5px; margin-right:auto; }
+  .accept-btn { background:var(--online); border:none; border-radius:5px; color:white; padding:5px; cursor:pointer; }
+  .decline-btn { background:#ff4444; border:none; border-radius:5px; color:white; padding:5px; cursor:pointer; }
+</style>
 </body>
 </html>
