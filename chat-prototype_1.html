@@ -3359,28 +3359,27 @@ window.onMemberCodesUpdated = function(){
 };
 
 window.onAuthReady = async function(){
+  // 1. تحميل الشات من الكاش والرسم فوراً بدون انتظار صاب باس نهائياً
+  loadLocalChatState();
+  if(typeof window.renderContacts === 'function') window.renderContacts();
+  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+  if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
+
+  // 2. تحديثات السيرفر تتم في الخلفية براحتها بدون ما توقف الشاشة
   if(typeof window.loadMemberCodes === 'function') await window.loadMemberCodes();
   loadNotificationPreference();
   loadHiddenMessageIds();
   ensureRecordingBars();
   resetRecordingVisualizer();
-  loadLocalChatState();
   
-  // 🔥 التعديل هنا: رسم الشات من الذاكرة فوراً قبل انتظار السيرفر 🔥
-  if(typeof window.renderContacts === 'function') window.renderContacts();
-  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-  if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
-
-  // 1. تحميل الرسايل والأسماء من السيرفر
   await loadInboxContacts();
-  
-  // 2. تشغيل المراقبة والتحديث المباشر
   initPresence();
   startMessagePolling();
   
   if(typeof window.refreshProfilesDirectory === 'function'){
     window.refreshProfilesDirectory().catch(() => {});
   }
+};
 
   // 👈 الضربة القاضية: إجبار الموقع يرسم الشاتات على الشاشة فوراً بعد التحميل
   setTimeout(() => {
@@ -3388,7 +3387,7 @@ window.onAuthReady = async function(){
     if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
     if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
   }, 100);
-};
+;
 
 applyLanguage();
 window.addEventListener('lab-auth-ready', () => {
@@ -3405,8 +3404,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   applyLanguage();
   
-  // 🔥 التعديل هنا: إجبار المتصفح يرسم الشات أول ما الصفحة تحمل 🔥
+  // إجبار الواجهة على الظهور في أول جزء من الثانية
   if(typeof window.renderContacts === 'function') window.renderContacts();
+  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+  if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
 });
 
 window.addEventListener('pageshow', () => {
