@@ -1382,9 +1382,10 @@ window.searchFriends = async function() {
   resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جارِ البحث...</div>';
 
   try {
+    // 1. الإصلاح الأهم: مسحنا كلمة color لأنها مش موجودة في الداتا بيز وكانت بتوقف السيرش
     const { data: users, error } = await window.sb
       .from('profiles')
-      .select('id, full_name, email, avatar_url, color')
+      .select('id, full_name, email, avatar_url')
       .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,username.ilike.%${q}%`)
       .limit(10);
 
@@ -1405,6 +1406,12 @@ window.searchFriends = async function() {
       const name = u.full_name || u.email.split('@')[0];
       const init = window.getDisplayInitial(name);
       
+      // توليد لون عشوائي لأننا شلناه من الداتا بيز
+      let sum = 0;
+      for(let i=0; i<u.id.length; i++) sum += u.id.charCodeAt(i);
+      const colors = [{bg:'#12123a',t:'#818cf8'}, {bg:'#0d2010',t:'#34d399'}, {bg:'#200a0a',t:'#f87171'}, {bg:'#001525',t:'#38bdf8'}];
+      const userColor = colors[sum % colors.length];
+      
       const req = (requests || []).find(r => (r.sender_id === window.me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === window.me.id));
       
       let btnHtml = '';
@@ -1422,7 +1429,7 @@ window.searchFriends = async function() {
 
       return `
       <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-        <div class="avatar" style="background:${u.color || 'var(--surface2)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+        <div class="avatar" style="background:${userColor.bg}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${userColor.t}">
           ${window.avatarMarkup(init, u.avatar_url)}
         </div>
         <div style="flex:1;">
@@ -1433,8 +1440,8 @@ window.searchFriends = async function() {
       </div>`;
     }).join('');
   } catch(err) {
-    console.error(err);
-    resDiv.innerHTML = '<div style="color:red; text-align:center;">خطأ في السيرفر أو جدول الطلبات مفقود</div>';
+    console.error("Search Error:", err);
+    resDiv.innerHTML = '<div style="color:red; text-align:center;">حدث خطأ أثناء البحث</div>';
   }
 };
 
@@ -1447,18 +1454,19 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       btnElement.disabled = true;
       btnElement.textContent = 'جاري الإلغاء...';
 
-      const { error } = await window.sb
-        .from('friend_requests')
-        .delete()
-        .match({ sender_id: window.me.id, receiver_id: targetId });
-
-      if (!error) {
+      try {
+        const { error } = await window.sb
+          .from('friend_requests')
+          .delete()
+          .match({ sender_id: window.me.id, receiver_id: targetId });
+        if (error) throw error;
+        
         btnElement.textContent = 'إضافة صديق ➕';
         btnElement.style.background = 'var(--accent-glow)';
         btnElement.style.color = 'var(--accent)';
         btnElement.style.borderColor = 'var(--accent)';
         btnElement.disabled = false;
-      } else {
+      } catch(err) {
         btnElement.textContent = oldText;
         btnElement.disabled = false;
         alert('حدث خطأ أثناء الإلغاء');
@@ -1470,24 +1478,80 @@ window.sendFriendRequest = async function(targetId, btnElement) {
   btnElement.disabled = true;
   btnElement.textContent = 'جاري الإرسال...';
 
-  const { error } = await window.sb
-    .from('friend_requests')
-    .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }]);
+  try {
+    const { error } = await window.sb
+      .from('friend_requests')
+      .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }]);
+    if (error) throw error;
 
-  if (error) {
-    console.error("Request Error:", error);
-    alert('حدث خطأ في الإرسال: ' + error.message);
-    btnElement.disabled = false;
-    btnElement.textContent = 'إضافة صديق ➕';
-  } else {
     btnElement.textContent = 'تم الإرسال ⏳';
     btnElement.style.background = 'transparent';
     btnElement.style.color = 'var(--muted)';
     btnElement.style.borderColor = 'var(--border2)';
     btnElement.disabled = false;
+  } catch(err) {
+    console.error("Request Error:", err);
+    alert('حدث خطأ في الإرسال: تأكد من الصلاحيات');
+    btnElement.disabled = false;
+    btnElement.textContent = 'إضافة صديق ➕';
   }
 };
 
+// فتح وقفل لوحة الطلبات
+window.toggleFriendRequestsPanel = function() {
+  const panel = document.getElementById('friendRequestsPanel');
+  panel.classList.toggle('active');
+  if(panel.classList.contains('active')) window.loadPendingRequests();
+};
+
+// تحميل الطلبات من سوبابيز
+window.loadPendingRequests = async function() {
+  const listDiv = document.getElementById('friendRequestsList');
+  listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
+
+  try {
+    const { data, error } = await window.sb
+      .from('friend_requests')
+      .select('*, sender:sender_id(id, full_name, avatar_url)')
+      .eq('receiver_id', window.me.id)
+      .eq('status', 'pending');
+
+    if(error) throw error;
+    if(!data || data.length === 0) {
+      listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
+      return;
+    }
+
+    listDiv.innerHTML = data.map(req => `
+      <div class="req-row">
+        <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(req.sender?.full_name, req.sender?.avatar_url)}</div>
+        <div style="font-size:13px;"><b>${req.sender?.full_name || 'مستخدم'}</b></div>
+        <div class="req-btns">
+          <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
+          <button class="decline-btn" onclick="window.respondRequest('${req.id}', 'declined')">✖</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(err) {
+    listDiv.innerHTML = '<div style="text-align:center; color:red; margin-top:20px;">حدث خطأ في التحميل</div>';
+  }
+};
+
+// الرد على الطلب (قبول/رفض)
+window.respondRequest = async function(requestId, newStatus) {
+  try {
+    const { error } = await window.sb
+      .from('friend_requests')
+      .update({ status: newStatus })
+      .eq('id', requestId);
+    if(error) throw error;
+    
+    alert(newStatus === 'accepted' ? 'تم قبول الصديق! 🎉' : 'تم رفض الطلب');
+    window.loadPendingRequests();
+  } catch(err) {
+    alert('حدث خطأ في الرد على الطلب');
+  }
+};
 
 
 
