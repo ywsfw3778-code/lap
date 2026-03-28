@@ -839,6 +839,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
       <div class="profile-row"><span class="picon">🟢</span><span id="profileStatusText">متصل الآن</span></div>
       <div class="profile-row"><span class="picon">🧪</span><span id="profileRoleText">Lab Member</span></div>
      <div class="profile-acts">
+  <div id="profileFriendAction"></div>
   <button class="pbtn" id="profileCloseBtn">إغلاق</button>
 </div>
     </div>
@@ -857,8 +858,8 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     </div>
     <div class="panel-sub">ابحث بالإيميل أو الاسم</div>
     <div class="search-input-wrap">
-      <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')searchFriends()">
-      <button class="search-go" onclick="searchFriends()">بحث</button>
+      <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')window.searchFriends()">
+      <button class="search-go" onclick="window.searchFriends()">بحث</button>
     </div>
     <div class="search-results" id="searchResults">
       <div class="s-empty">ابدأ البحث 👆</div>
@@ -1265,7 +1266,7 @@ window.handleLogout = async () => {
   window.location.replace(`login.html?logout=${Date.now()}`);
 };
 
-function withTimeout(promise, timeoutMs = 4500){
+function withTimeout(promise, timeoutMs = 12000){
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(() => resolve({ data: [], error: new Error('timeout') }), timeoutMs))
@@ -1448,6 +1449,9 @@ window.searchFriends = async function() {
 
   try {
     if (!window.sb) throw new Error("السيرفر غير متصل (sb is undefined)");
+    if (typeof window.refreshProfilesDirectory === 'function') {
+      await window.refreshProfilesDirectory(500);
+    }
     const users = await window.searchProfiles(q, 10);
     const filtered = (users || []).filter(u => u.id !== window.me.id);
     if (filtered.length === 0) {
@@ -2118,16 +2122,18 @@ async function fillProfileOverlay(data){
   // --- زرار طلب الصداقة في البروفايل ---
   // --- زرار طلب الصداقة في البروفايل ---
   const actsDiv = overlay.querySelector('.profile-acts');
-  if (actsDiv) {
+  const friendSlot = document.getElementById('profileFriendAction');
+  if (actsDiv && friendSlot) {
+    friendSlot.innerHTML = '';
     if (!isSelf && id) {
-      const request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
-      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || '';
-      
-      // 🔥 السر هنا: التنظيف الحقيقي بيتم في اللحظة الأخيرة قبل الإضافة 🔥
-      const existingBtns = actsDiv.querySelectorAll('.add-friend-btn');
-      existingBtns.forEach(b => b.remove());
-      
-      if(friendBtnHtml) actsDiv.insertAdjacentHTML('afterbegin', friendBtnHtml);
+      let request = null;
+      try{
+        request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
+      }catch(_e){
+        request = null;
+      }
+      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${id}', this)">إضافة صديق ➕</button>`;
+      friendSlot.innerHTML = friendBtnHtml;
     }
   }
 }
