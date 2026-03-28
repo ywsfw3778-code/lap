@@ -1382,14 +1382,15 @@ window.searchFriends = async function() {
   resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جارِ البحث...</div>';
 
   try {
-    // 👈 السر هنا: مسحنا كلمة color اللي كانت بتعمل Crash للسيرفر
+    if (!window.sb) throw new Error("السيرفر غير متصل (sb is undefined)");
+
     const { data: users, error } = await window.sb
       .from('profiles')
       .select('id, full_name, email, avatar_url')
       .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,username.ilike.%${q}%`)
       .limit(10);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
 
     const filtered = (users || []).filter(u => u.id !== window.me.id);
     if (filtered.length === 0) {
@@ -1397,21 +1398,27 @@ window.searchFriends = async function() {
       return;
     }
 
-    const { data: requests } = await window.sb
-      .from('friend_requests')
-      .select('sender_id, receiver_id, status')
-      .or(`sender_id.eq.${window.me.id},receiver_id.eq.${window.me.id}`);
+    // محاولة جلب طلبات الصداقة بأمان تام
+    let requests = [];
+    try {
+      const reqRes = await window.sb
+        .from('friend_requests')
+        .select('sender_id, receiver_id, status')
+        .or(`sender_id.eq.${window.me.id},receiver_id.eq.${window.me.id}`);
+      if(reqRes.data) requests = reqRes.data;
+    } catch(e) {
+      console.warn("جدول الطلبات غير موجود أو محمي:", e);
+    }
 
-    // توليد ألوان عشوائية بدل اللي اتمسحت من السيرفر
     const colors = [{bg:'#12123a',t:'#818cf8'}, {bg:'#0d2010',t:'#34d399'}, {bg:'#200a0a',t:'#f87171'}, {bg:'#001525',t:'#38bdf8'}];
 
     resDiv.innerHTML = filtered.map(u => {
-      const name = u.full_name || u.email.split('@')[0];
+      const name = u.full_name || u.email.split('@')[0] || 'مستخدم';
       const init = window.getDisplayInitial(name);
       let sum = 0; for(let i=0; i<u.id.length; i++) sum += u.id.charCodeAt(i);
       const userColor = colors[sum % colors.length];
       
-      const req = (requests || []).find(r => (r.sender_id === window.me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === window.me.id));
+      const req = requests.find(r => (r.sender_id === window.me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === window.me.id));
       
       let btnHtml = '';
       if (!req) {
@@ -1440,48 +1447,44 @@ window.searchFriends = async function() {
     }).join('');
   } catch(err) {
     console.error("Search Error:", err);
-    resDiv.innerHTML = '<div style="color:red; text-align:center;">حدث خطأ في البحث</div>';
+    resDiv.innerHTML = `<div style="color:red; text-align:center; padding:10px; font-size:12px;">خطأ: ${err.message}</div>`;
   }
 };
 
 window.sendFriendRequest = async function(targetId, btnElement) {
   if(!btnElement) return;
   
-  if (btnElement.textContent.includes('الإرسال') || btnElement.textContent.includes('⏳')) {
-    if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
-      const oldText = btnElement.textContent;
-      btnElement.disabled = true;
-      btnElement.textContent = 'جاري الإلغاء...';
+  try {
+    if (btnElement.textContent.includes('الإرسال') || btnElement.textContent.includes('⏳')) {
+      if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
+        const oldText = btnElement.textContent;
+        btnElement.disabled = true;
+        btnElement.textContent = 'جاري الإلغاء...';
 
-      try {
         const { error } = await window.sb
           .from('friend_requests')
           .delete()
           .match({ sender_id: window.me.id, receiver_id: targetId });
-        if (error) throw error;
+        
+        if (error) throw new Error(error.message);
         
         btnElement.textContent = 'إضافة صديق ➕';
         btnElement.style.background = 'var(--accent-glow)';
         btnElement.style.color = 'var(--accent)';
         btnElement.style.borderColor = 'var(--accent)';
         btnElement.disabled = false;
-      } catch(err) {
-        btnElement.textContent = oldText;
-        btnElement.disabled = false;
-        alert('حدث خطأ أثناء الإلغاء');
       }
+      return;
     }
-    return;
-  }
 
-  btnElement.disabled = true;
-  btnElement.textContent = 'جاري الإرسال...';
+    btnElement.disabled = true;
+    btnElement.textContent = 'جاري الإرسال...';
 
-  try {
     const { error } = await window.sb
       .from('friend_requests')
       .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }]);
-    if (error) throw error;
+    
+    if (error) throw new Error(error.message);
 
     btnElement.textContent = 'تم الإرسال ⏳';
     btnElement.style.background = 'transparent';
@@ -1490,12 +1493,11 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     btnElement.disabled = false;
   } catch(err) {
     console.error("Request Error:", err);
-    alert('حدث خطأ في الإرسال');
+    alert('خطأ من السيرفر: ' + err.message);
     btnElement.disabled = false;
     btnElement.textContent = 'إضافة صديق ➕';
   }
 };
-
 
 
 </script>
@@ -3644,6 +3646,7 @@ window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
 // فتح وقفل لوحة الطلبات
 // فتح وقفل لوحة الطلبات
+// فتح وقفل لوحة الطلبات
 window.toggleFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
   panel.classList.toggle('active');
@@ -3685,7 +3688,7 @@ window.loadPendingRequests = async function() {
   }
 };
 
-// الرد على الطلب (قبول/رفض) - دي اللي كانت ممسوحة
+// الرد على الطلب (قبول/رفض)
 window.respondRequest = async function(requestId, newStatus) {
   try {
     const { error } = await window.sb
