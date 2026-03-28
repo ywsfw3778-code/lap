@@ -3676,29 +3676,30 @@ window.respondRequest = async function(requestId, newStatus) {
 
 document.addEventListener("click", function(e){
 
-  if(e.target.classList.contains("add-btn")){
+  // يمسك أي زرار فيه كلمة إضافة
+  if(e.target.innerText.includes("إضافة")){
 
     let btn = e.target;
-    let status = btn.getAttribute("data-status");
+
+    if(!btn.dataset.status){
+      btn.dataset.status = "none";
+    }
+
+    let status = btn.dataset.status;
 
     if(status === "none"){
       btn.innerText = "تم الإرسال";
-      btn.setAttribute("data-status", "pending");
+      btn.dataset.status = "pending";
     }
 
     else if(status === "pending"){
       btn.innerText = "إضافة صديق";
-      btn.setAttribute("data-status", "none");
-    }
-
-    else if(status === "friends"){
-      btn.innerText = "أصدقاء";
+      btn.dataset.status = "none";
     }
 
   }
 
 });
-
 </script>
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
