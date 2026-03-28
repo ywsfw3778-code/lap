@@ -1374,26 +1374,50 @@ window.searchProfiles = async (q, limit = 8) => {
     return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:getDisplayInitial(name), avatar: existing?.avatar || u.avatar_url || '' };
   });
 };
-window.searchFriends = async () => {
-  const q = document.getElementById('friendInput').value.trim();
-  if(!q) return;
-  document.getElementById('searchResults').innerHTML=`<div class="s-empty">${tr('searchLoading')}</div>`;
-  let results = [];
-  try{
-    results = await window.searchProfiles(q, 8);
-  }catch(_e){
-    results = [];
+window.searchFriends = async function() {
+  const q = document.getElementById('searchQuery').value.trim().toLowerCase();
+  const resDiv = document.getElementById('searchResults');
+  
+  if(!q) { resDiv.innerHTML = ''; return; }
+  
+  resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جاري البحث...</div>';
+
+  // البحث في السيرفر
+  const { data: users, error } = await sb
+    .from('users')
+    .select('id, name, email, avatar, color, text')
+    .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
+    .limit(10);
+
+  if (error) {
+    console.error("Search Error:", error);
+    resDiv.innerHTML = '<div style="color:red; text-align:center;">حدث خطأ أثناء البحث</div>';
+    return;
   }
-  window._mainSearchResults = results;
-// الكود الجديد لعرض النتائج بطلب إضافة بدل شات فوري
-  if(!results.length){ document.getElementById('searchResults').innerHTML='<div class="s-empty">'+t('searchEmpty')+'</div>'; return; }
-  document.getElementById('searchResults').innerHTML=results.map((u)=>{
-    return `<div class="result-row">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${avatarMarkup(u.init, u.avatar)}</div>
-      <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
-      <button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')">إضافة صديق ➕</button>
-    </div>`;
-  }).join('');
+
+  // فلترة عشان متبحثش عن نفسك
+  const filtered = users.filter(u => u.id !== me.id);
+
+  if (filtered.length === 0) {
+    resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على أحد</div>';
+    return;
+  }
+
+  resDiv.innerHTML = filtered.map(u => `
+    <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
+      <div class="avatar" style="background:${u.color || 'var(--surface2)'}; color:${u.text || 'var(--accent)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+        ${avatarMarkup(u.name, u.avatar)}
+      </div>
+      <div style="flex:1;">
+        <div style="font-weight:600; font-size:14px; color:var(--text);">${u.name}</div>
+        <div style="font-size:12px; color:var(--muted);">${u.email}</div>
+      </div>
+      <button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" 
+        style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; transition:0.2s;">
+        إضافة صديق ➕
+      </button>
+    </div>
+  `).join('');
 };
 window.sendFriendRequest = async function(targetId) {
   const btn = document.getElementById(`btn-add-${targetId}`);
@@ -1402,20 +1426,20 @@ window.sendFriendRequest = async function(targetId) {
   btn.disabled = true;
   btn.textContent = 'جاري الإرسال...';
 
-  // إرسال الطلب لجدول friend_requests في Supabase
   const { error } = await sb
     .from('friend_requests')
     .insert([{ sender_id: me.id, receiver_id: targetId, status: 'pending' }]);
 
   if (error) {
-    console.error('Request Error:', error);
-    alert('الطلب مرسل بالفعل أو حدث خطأ في السيرفر');
+    console.error("Request Error:", error);
+    alert('الطلب مرسل بالفعل أو حدث خطأ');
     btn.disabled = false;
     btn.textContent = 'إضافة صديق ➕';
   } else {
-    btn.textContent = 'تم إرسال الطلب ✅';
-    btn.style.borderColor = 'var(--online)';
-    btn.style.color = 'var(--online)';
+    btn.textContent = 'تم الإرسال ✅';
+    btn.style.background = 'var(--online)';
+    btn.style.color = 'white';
+    btn.style.borderColor = 'transparent';
   }
 };
 
@@ -3572,7 +3596,53 @@ window.addEventListener('resize', () => {
 });
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
+// فتح وقفل لوحة الطلبات
+window.toggleFriendRequestsPanel = function() {
+  const panel = document.getElementById('friendRequestsPanel');
+  panel.classList.toggle('active');
+  if(panel.classList.contains('active')) loadPendingRequests();
+};
 
+// تحميل الطلبات من سوبابيز
+async function loadPendingRequests() {
+  const listDiv = document.getElementById('friendRequestsList');
+  listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
+
+  const { data, error } = await sb
+    .from('friend_requests')
+    .select('*, sender:sender_id(id, full_name, avatar_url, color)')
+    .eq('receiver_id', me.id)
+    .eq('status', 'pending');
+
+  if(error || !data || data.length === 0) {
+    listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
+    return;
+  }
+
+  listDiv.innerHTML = data.map(req => `
+    <div class="req-row">
+      <div class="avatar" style="width:30px; height:30px; background:${req.sender.color}">${avatarMarkup(req.sender.full_name, req.sender.avatar_url)}</div>
+      <div style="font-size:13px;"><b>${req.sender.full_name}</b></div>
+      <div class="req-btns">
+        <button class="accept-btn" onclick="respondRequest('${req.id}', 'accepted')">✔</button>
+        <button class="decline-btn" onclick="respondRequest('${req.id}', 'declined')">✖</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// الرد على الطلب (قبول/رفض)
+window.respondRequest = async function(requestId, newStatus) {
+  const { error } = await sb
+    .from('friend_requests')
+    .update({ status: newStatus })
+    .eq('id', requestId);
+
+  if(!error) {
+    alert(newStatus === 'accepted' ? 'تم قبول الصديق! 🎉' : 'تم رفض الطلب');
+    loadPendingRequests();
+  }
+};
 </script>
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
