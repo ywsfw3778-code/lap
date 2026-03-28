@@ -1368,14 +1368,79 @@ window.searchProfiles = async (q, limit = 8) => {
     const fullName = (u.full_name || '').trim();
     const email = (u.email || '').trim();
     const name = fullName || uname || (email ? email.split('@')[0] : 'User');
-    const sub = email || (uname ? '@'+uname : '');
     const existing = (window._contacts || []).find(x => x.id === u.id);
-    return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:getDisplayInitial(name), avatar: existing?.avatar || u.avatar_url || '' };
+    return {
+      id: u.id,
+      name,
+      email,
+      username: uname,
+      secondary: email || (uname ? '@' + uname : ''),
+      memberCode: Number.isFinite(Number(u.member_code)) ? String(Number(u.member_code)).padStart(3, '0') : '',
+      color: c.bg,
+      text: c.t,
+      init: getDisplayInitial(name),
+      avatar: existing?.avatar || u.avatar_url || ''
+    };
   });
 };
 
+async function getFriendRelation(targetId){
+  if(!targetId || !window.sb || !window.me) return null;
+  try{
+    const { data, error } = await window.sb
+      .from('friend_requests')
+      .select('id, sender_id, receiver_id, status')
+      .or(`and(sender_id.eq.${window.me.id},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${window.me.id})`)
+      .maybeSingle();
+    if(error) throw error;
+    return data || null;
+  }catch(err){
+    console.warn('friend relation load failed:', err?.message || err);
+    return null;
+  }
+}
+
+async function getFriendRelationsForUsers(userIds){
+  const ids = Array.from(new Set((userIds || []).filter(Boolean)));
+  if(!ids.length || !window.sb || !window.me) return new Map();
+  try{
+    const joined = ids.join(',');
+    const { data, error } = await window.sb
+      .from('friend_requests')
+      .select('id, sender_id, receiver_id, status')
+      .or(`and(sender_id.eq.${window.me.id},receiver_id.in.(${joined})),and(sender_id.in.(${joined}),receiver_id.eq.${window.me.id})`);
+    if(error) throw error;
+    const map = new Map();
+    (data || []).forEach((row) => {
+      const otherId = row.sender_id === window.me.id ? row.receiver_id : row.sender_id;
+      if(otherId) map.set(otherId, row);
+    });
+    return map;
+  }catch(err){
+    console.warn('friend relations load failed:', err?.message || err);
+    return new Map();
+  }
+}
+
+function renderFriendActionButton(targetId, relation){
+  if(!targetId || !window.me || targetId === window.me.id) return '';
+  if(!relation){
+    return `<button class="add-btn" data-friend-state="none" onclick="window.sendFriendRequest('${targetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
+  }
+  if(relation.status === 'accepted'){
+    return `<button class="add-btn" data-friend-state="accepted" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
+  }
+  if(relation.status === 'pending' && relation.sender_id === window.me.id){
+    return `<button class="add-btn" data-friend-state="sent" onclick="window.sendFriendRequest('${targetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إلغاء الطلب ⏳</button>`;
+  }
+  return `<button class="add-btn" data-friend-state="incoming" onclick="window.sendFriendRequest('${targetId}', this)" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">قبول الطلب ✔</button>`;
+}
+window.getFriendRelation = getFriendRelation;
+window.getFriendRelationsForUsers = getFriendRelationsForUsers;
+window.renderFriendActionButton = renderFriendActionButton;
+
 window.searchFriends = async function() {
-  const q = document.getElementById('friendInput').value.trim().toLowerCase();
+  const q = document.getElementById('friendInput').value.trim();
   const resDiv = document.getElementById('searchResults');
   
   if(!q) { resDiv.innerHTML = '<div class="s-empty">اكتب الاسم أو الإيميل للبحث</div>'; return; }
@@ -1383,64 +1448,27 @@ window.searchFriends = async function() {
 
   try {
     if (!window.sb) throw new Error("السيرفر غير متصل (sb is undefined)");
-
-    const { data: users, error } = await window.sb
-      .from('profiles')
-      .select('id, full_name, email, avatar_url')
-      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,username.ilike.%${q}%`)
-      .limit(10);
-
-    if (error) throw new Error(error.message);
-
+    const users = await window.searchProfiles(q, 10);
     const filtered = (users || []).filter(u => u.id !== window.me.id);
     if (filtered.length === 0) {
       resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على مستخدم</div>';
       return;
     }
 
-    // محاولة جلب طلبات الصداقة بأمان تام
-    let requests = [];
-    try {
-      const reqRes = await window.sb
-        .from('friend_requests')
-        .select('sender_id, receiver_id, status')
-        .or(`sender_id.eq.${window.me.id},receiver_id.eq.${window.me.id}`);
-      if(reqRes.data) requests = reqRes.data;
-    } catch(e) {
-      console.warn("جدول الطلبات غير موجود أو محمي:", e);
-    }
-
-    const colors = [{bg:'#12123a',t:'#818cf8'}, {bg:'#0d2010',t:'#34d399'}, {bg:'#200a0a',t:'#f87171'}, {bg:'#001525',t:'#38bdf8'}];
+    const relations = await getFriendRelationsForUsers(filtered.map((u) => u.id));
 
     resDiv.innerHTML = filtered.map(u => {
-      const name = u.full_name || u.email.split('@')[0] || 'مستخدم';
-      const init = window.getDisplayInitial(name);
-      let sum = 0; for(let i=0; i<u.id.length; i++) sum += u.id.charCodeAt(i);
-      const userColor = colors[sum % colors.length];
-      
-      const req = requests.find(r => (r.sender_id === window.me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === window.me.id));
-      
-      let btnHtml = '';
-      if (!req) {
-        btnHtml = `<button class="add-btn" onclick="window.sendFriendRequest('${u.id}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
-      } else if (req.status === 'pending') {
-        if (req.sender_id === window.me.id) {
-          btnHtml = `<button class="add-btn" onclick="window.sendFriendRequest('${u.id}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">تم الإرسال ⏳</button>`;
-        } else {
-          btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; font-size:12px;">لديك طلب ⏳</button>`;
-        }
-      } else if (req.status === 'accepted') {
-        btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
-      }
+      const subtitle = u.email || (u.username ? `@${u.username}` : '—');
+      const btnHtml = renderFriendActionButton(u.id, relations.get(u.id));
 
       return `
       <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-        <div class="avatar" style="background:${userColor.bg}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${userColor.t}">
-          ${window.avatarMarkup(init, u.avatar_url)}
+        <div class="avatar" style="background:${u.color}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${u.text}" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">
+          ${window.avatarMarkup(u.init, u.avatar)}
         </div>
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:14px; color:var(--text);">${name}</div>
-          <div style="font-size:12px; color:var(--muted);">${u.email}</div>
+          <div style="font-weight:600; font-size:14px; color:var(--text);">${u.name}${u.memberCode ? ` <span class="member-code">#${u.memberCode}</span>` : ''}</div>
+          <div style="font-size:12px; color:var(--muted);">${subtitle}</div>
         </div>
         ${btnHtml}
       </div>`;
@@ -1455,16 +1483,23 @@ window.sendFriendRequest = async function(targetId, btnElement) {
   if(!btnElement) return;
   
   try {
-    if (btnElement.textContent.includes('الإرسال') || btnElement.textContent.includes('⏳')) {
+    const relation = await getFriendRelation(targetId);
+
+    if (relation?.status === 'accepted') {
+      btnElement.textContent = 'أصدقاء ✅';
+      btnElement.disabled = true;
+      return;
+    }
+
+    if (relation?.status === 'pending' && relation.sender_id === window.me.id) {
       if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
-        const oldText = btnElement.textContent;
         btnElement.disabled = true;
         btnElement.textContent = 'جاري الإلغاء...';
 
         const { error } = await window.sb
           .from('friend_requests')
           .delete()
-          .match({ sender_id: window.me.id, receiver_id: targetId });
+          .eq('id', relation.id);
         
         if (error) throw new Error(error.message);
         
@@ -1473,6 +1508,35 @@ window.sendFriendRequest = async function(targetId, btnElement) {
         btnElement.style.color = 'var(--accent)';
         btnElement.style.borderColor = 'var(--accent)';
         btnElement.disabled = false;
+        if (document.getElementById('searchOverlay')?.classList.contains('open')) {
+          window.searchFriends().catch(() => {});
+        }
+      }
+      return;
+    }
+
+    if (relation?.status === 'pending' && relation.sender_id !== window.me.id) {
+      btnElement.disabled = true;
+      btnElement.textContent = 'جاري القبول...';
+
+      const { error } = await window.sb
+        .from('friend_requests')
+        .update({ status: 'accepted' })
+        .eq('id', relation.id);
+
+      if (error) throw new Error(error.message);
+
+      btnElement.textContent = 'أصدقاء ✅';
+      btnElement.style.background = 'transparent';
+      btnElement.style.color = 'var(--online)';
+      btnElement.style.borderColor = 'var(--online)';
+      btnElement.disabled = true;
+      await loadInboxContacts();
+      if (typeof window.loadPendingRequests === 'function') {
+        window.loadPendingRequests().catch(() => {});
+      }
+      if (document.getElementById('searchOverlay')?.classList.contains('open')) {
+        window.searchFriends().catch(() => {});
       }
       return;
     }
@@ -1486,16 +1550,22 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     
     if (error) throw new Error(error.message);
 
-    btnElement.textContent = 'تم الإرسال ⏳';
+    btnElement.textContent = 'إلغاء الطلب ⏳';
     btnElement.style.background = 'transparent';
     btnElement.style.color = 'var(--muted)';
     btnElement.style.borderColor = 'var(--border2)';
     btnElement.disabled = false;
+    if (document.getElementById('searchOverlay')?.classList.contains('open')) {
+      window.searchFriends().catch(() => {});
+    }
   } catch(err) {
     console.error("Request Error:", err);
     alert('خطأ من السيرفر: ' + err.message);
     btnElement.disabled = false;
     btnElement.textContent = 'إضافة صديق ➕';
+    btnElement.style.background = 'var(--accent-glow)';
+    btnElement.style.color = 'var(--accent)';
+    btnElement.style.borderColor = 'var(--accent)';
   }
 };
 
@@ -2047,24 +2117,8 @@ async function fillProfileOverlay(data){
   const actsDiv = overlay.querySelector('.profile-acts');
   if (actsDiv) {
     if (!isSelf && id) {
-      const { data: request } = await window.sb
-        .from('friend_requests')
-        .select('status, sender_id')
-        .or(`and(sender_id.eq.${window.me.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${window.me.id})`)
-        .maybeSingle();
-
-   let friendBtnHtml = '';
-      if (!request) {
-        friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--accent); color:var(--accent);" onclick="window.sendFriendRequest('${id}', this)">إضافة صديق ➕</button>`;
-      } else if (request.status === 'pending') {
-        if (request.sender_id === window.me.id) {
-          friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--border2); color:var(--muted);" onclick="window.sendFriendRequest('${id}', this)">تم الإرسال ⏳</button>`;
-        } else {
-          friendBtnHtml = `<button class="pbtn add-friend-btn" disabled style="opacity:0.6;">تلقيت طلب ⏳</button>`;
-        }
-      } else if (request.status === 'accepted') {
-        friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--online); color:var(--online);" disabled>أنتما أصدقاء ✅</button>`;
-      }
+      const request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
+      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || '';
       
       // 🔥 السر هنا: التنظيف الحقيقي بيتم في اللحظة الأخيرة قبل الإضافة 🔥
       const existingBtns = actsDiv.querySelectorAll('.add-friend-btn');
@@ -3013,21 +3067,21 @@ function renderContacts(list=contacts){
       <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
     </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
-async function selectContact(id){
-  // تأمين الشات: التأكد إن الطرفين أصدقاء أولاً
-  const { data: isFriend, error: friendErr } = await sb
-    .from('friend_requests')
-    .select('status')
-    .or(`and(sender_id.eq.${me.id},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${me.id})`)
-    .eq('status', 'accepted')
-    .maybeSingle();
+async function selectContact(id, options = {}){
+  let found = contacts.find(c => c.id === id);
+  const hasExistingConversation = Array.isArray(conversations[id]) && conversations[id].length > 0;
+  const hasInboxEntry = !!(found && (found._lastInboxAt || found.preview || found.time));
+  const bypassFriendGate = !!options.bypassFriendGate;
 
-  if (!isFriend || friendErr) {
-    alert('عذراً، يجب أن يتم قبول طلب الصداقة أولاً لتتمكن من المراسلة!');
-    return;
+  if(!bypassFriendGate && !hasExistingConversation && !hasInboxEntry){
+    const relation = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
+    const isAccepted = !!(relation && relation.status === 'accepted');
+    if (!isAccepted) {
+      alert('عذراً، يجب أن يتم قبول طلب الصداقة أولاً لتتمكن من المراسلة!');
+      return;
+    }
   }
 
-  let found = contacts.find(c => c.id === id);
   // ... باقي الكود القديم يكمل عادي ...
   
   // الحماية السحرية: لو الشات مش موجود لسه، اصنعه كشات وهمي (Ghost) عشان يمسك الشاشة
@@ -3073,6 +3127,33 @@ async function selectContact(id){
 
 window.openChatById = function(id){
   pendingRestoredContactId = id;
+  selectContact(id, { bypassFriendGate: true });
+};
+window.startChat = function(id, name, color, text, avatar = ''){
+  if(!id) return;
+  let found = contacts.find((c) => c.id === id);
+  if(!found){
+    found = {
+      id,
+      name: name || 'User',
+      username: '',
+      email: '',
+      init: window.getDisplayInitial(name || 'User'),
+      color: color || 'var(--surface2)',
+      text: text || 'var(--accent)',
+      avatar: avatar || '',
+      memberCode: '',
+      lastSeenAt: '',
+      online: false,
+      preview: '',
+      time: '',
+      unread: 0,
+      _lastInboxAt: ''
+    };
+    contacts.unshift(found);
+  }else if(avatar && !found.avatar){
+    found.avatar = avatar;
+  }
   selectContact(id);
 };
 function renderSidebarSearchResults(results){
@@ -3084,7 +3165,7 @@ function renderSidebarSearchResults(results){
   el.innerHTML = results.map(u => `
     <div class="contact" onclick="startChatFromSidebar('${u.id}')">
       <div class="avatar" style="background:${u.color};color:${u.text};" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
-      <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.email}</div></div>
+      <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.secondary || u.email || (u.username ? '@' + u.username : '')}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`).join('');
 }
@@ -3174,7 +3255,7 @@ window.searchFromMainArea = async function(){
   out.innerHTML = results.map(u => `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
       <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
-      <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.email}</div></div>
+      <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.secondary || u.email || (u.username ? '@' + u.username : '')}</div></div>
     </div>`).join('');
 };
 window.startChatFromMain = function(id){
@@ -3699,6 +3780,12 @@ window.respondRequest = async function(requestId, newStatus) {
     if(error) throw error;
     
     alert(newStatus === 'accepted' ? 'تم قبول الصديق! 🎉' : 'تم رفض الطلب');
+    if(newStatus === 'accepted'){
+      await loadInboxContacts();
+      if(typeof window.refreshProfilesDirectory === 'function'){
+        window.refreshProfilesDirectory().catch(() => {});
+      }
+    }
     window.loadPendingRequests();
   } catch(err) {
     console.error(err);
