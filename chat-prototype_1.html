@@ -1508,6 +1508,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
         btnElement.style.color = 'var(--accent)';
         btnElement.style.borderColor = 'var(--accent)';
         btnElement.disabled = false;
+        window.refreshFriendRequestBadge?.();
         if (document.getElementById('searchOverlay')?.classList.contains('open')) {
           window.searchFriends().catch(() => {});
         }
@@ -1532,6 +1533,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       btnElement.style.borderColor = 'var(--online)';
       btnElement.disabled = true;
       await loadInboxContacts();
+      window.refreshFriendRequestBadge?.();
       if (typeof window.loadPendingRequests === 'function') {
         window.loadPendingRequests().catch(() => {});
       }
@@ -1555,6 +1557,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     btnElement.style.color = 'var(--muted)';
     btnElement.style.borderColor = 'var(--border2)';
     btnElement.disabled = false;
+    window.refreshFriendRequestBadge?.();
     if (document.getElementById('searchOverlay')?.classList.contains('open')) {
       window.searchFriends().catch(() => {});
     }
@@ -3617,6 +3620,7 @@ window.onAuthReady = async function(){
   loadHiddenMessageIds();
   ensureRecordingBars();
   resetRecordingVisualizer();
+  window.refreshFriendRequestBadge?.();
 
   await loadInboxContacts();
   initPresence();
@@ -3734,6 +3738,25 @@ window.toggleFriendRequestsPanel = function() {
   if(panel.classList.contains('active')) window.loadPendingRequests();
 };
 
+window.refreshFriendRequestBadge = async function() {
+  const badge = document.getElementById('friendReqBadge');
+  if(!badge || !window.sb || !window.me) return;
+  try{
+    const { data, error } = await window.sb
+      .from('friend_requests')
+      .select('id')
+      .eq('receiver_id', window.me.id)
+      .eq('status', 'pending');
+    if(error) throw error;
+    const count = (data || []).length;
+    badge.textContent = String(count);
+    badge.style.display = count ? 'flex' : 'none';
+  }catch(err){
+    console.warn('friend badge load failed:', err?.message || err);
+    badge.style.display = 'none';
+  }
+};
+
 // تحميل الطلبات من سوبابيز
 window.loadPendingRequests = async function() {
   const listDiv = document.getElementById('friendRequestsList');
@@ -3742,7 +3765,7 @@ window.loadPendingRequests = async function() {
   try {
     const { data, error } = await window.sb
       .from('friend_requests')
-      .select('*, sender:sender_id(id, full_name, avatar_url)')
+      .select('id, sender_id, receiver_id, status, created_at')
       .eq('receiver_id', window.me.id)
       .eq('status', 'pending');
 
@@ -3750,22 +3773,29 @@ window.loadPendingRequests = async function() {
     
     if(!data || data.length === 0) {
       listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
+      window.refreshFriendRequestBadge?.();
       return;
     }
 
+    const senderIds = data.map((req) => req.sender_id).filter(Boolean);
+    const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
+    const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
+
     listDiv.innerHTML = data.map(req => `
       <div class="req-row">
-        <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(req.sender?.full_name, req.sender?.avatar_url)}</div>
-        <div style="font-size:13px;"><b>${req.sender?.full_name || 'مستخدم'}</b></div>
+        <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email || 'مستخدم', senderMap.get(req.sender_id)?.avatar_url || '')}</div>
+        <div style="font-size:13px;"><b>${senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email?.split('@')[0] || 'مستخدم'}</b></div>
         <div class="req-btns">
           <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
           <button class="decline-btn" onclick="window.respondRequest('${req.id}', 'declined')">✖</button>
         </div>
       </div>
     `).join('');
+    window.refreshFriendRequestBadge?.();
   } catch (err) {
     console.error(err);
     listDiv.innerHTML = '<div style="text-align:center; color:red; margin-top:20px;">حدث خطأ في التحميل</div>';
+    window.refreshFriendRequestBadge?.();
   }
 };
 
@@ -3786,41 +3816,13 @@ window.respondRequest = async function(requestId, newStatus) {
         window.refreshProfilesDirectory().catch(() => {});
       }
     }
+    window.refreshFriendRequestBadge?.();
     window.loadPendingRequests();
   } catch(err) {
     console.error(err);
     alert('حدث خطأ في الرد على الطلب');
   }
 };
-// تحميل الطلبات من سوبابيز
-async function loadPendingRequests() {
-  const listDiv = document.getElementById('friendRequestsList');
-  listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
-
-  const { data, error } = await sb
-    .from('friend_requests')
-    .select('*, sender:sender_id(id, full_name, avatar_url, color)')
-    .eq('receiver_id', me.id)
-    .eq('status', 'pending');
-
-  if(error || !data || data.length === 0) {
-    listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
-    return;
-  }
-
-  listDiv.innerHTML = data.map(req => `
-    <div class="req-row">
-      <div class="avatar" style="width:30px; height:30px; background:${req.sender.color}">${avatarMarkup(req.sender.full_name, req.sender.avatar_url)}</div>
-      <div style="font-size:13px;"><b>${req.sender.full_name}</b></div>
-      <div class="req-btns">
-        <button class="accept-btn" onclick="respondRequest('${req.id}', 'accepted')">✔</button>
-        <button class="decline-btn" onclick="respondRequest('${req.id}', 'declined')">✖</button>
-      </div>
-    </div>
-  `).join('');
-} 
-
-
 </script>
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
