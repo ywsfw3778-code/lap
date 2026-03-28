@@ -1373,15 +1373,14 @@ window.searchProfiles = async (q, limit = 8) => {
     return { id:u.id, email: sub, name, color:c.bg, text:c.t, init:getDisplayInitial(name), avatar: existing?.avatar || u.avatar_url || '' };
   });
 };
-window.searchFriends = async function() {
+
+  window.searchFriends = async function() {
   const q = document.getElementById('friendInput').value.trim().toLowerCase();
   const resDiv = document.getElementById('searchResults');
   
   if(!q) { resDiv.innerHTML = '<div class="s-empty">اكتب الاسم أو الإيميل للبحث</div>'; return; }
-  
-  resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جارِ البحث في قاعدة البيانات...</div>';
+  resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">جارِ البحث...</div>';
 
-  // البحث في جدول profiles (تأكد من وجود السياسة في Supabase)
   const { data: users, error } = await sb
     .from('profiles')
     .select('id, full_name, email, avatar_url, color')
@@ -1389,21 +1388,44 @@ window.searchFriends = async function() {
     .limit(10);
 
   if (error) {
-    console.error("Search Error:", error);
-    resDiv.innerHTML = '<div style="color:red; text-align:center;">خطأ: تأكد من تفعيل صلاحيات القراءة لجدول profiles</div>';
+    resDiv.innerHTML = '<div style="color:red; text-align:center;">خطأ في البحث</div>';
     return;
   }
 
   const filtered = users.filter(u => u.id !== me.id);
-
   if (filtered.length === 0) {
-    resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على مستخدم بهذا الاسم</div>';
+    resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على مستخدم</div>';
     return;
   }
+
+  // الضربة القاضية: نجيب طلبات الصداقة الخاصة بيك عشان نظبط شكل الزراير
+  const { data: requests } = await sb
+    .from('friend_requests')
+    .select('sender_id, receiver_id, status')
+    .or(`sender_id.eq.${me.id},receiver_id.eq.${me.id}`);
 
   resDiv.innerHTML = filtered.map(u => {
     const name = u.full_name || u.email.split('@')[0];
     const init = name.charAt(0).toUpperCase();
+    
+    // فحص حالة الصداقة
+    const req = requests?.find(r => (r.sender_id === me.id && r.receiver_id === u.id) || (r.sender_id === u.id && r.receiver_id === me.id));
+    
+    let btnHtml = '';
+    if (!req) {
+      btnHtml = `<button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
+    } else if (req.status === 'pending') {
+      if (req.sender_id === me.id) {
+        // لو إنت اللي باعت، الزرار يبقا شغال عشان تقدر تلغي
+        btnHtml = `<button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">تم الإرسال ⏳</button>`;
+      } else {
+        // لو هو اللي باعتلك
+        btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; font-size:12px;">لديك طلب منه ⏳</button>`;
+      }
+    } else if (req.status === 'accepted') {
+      btnHtml = `<button class="add-btn" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
+    }
+
     return `
     <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
       <div class="avatar" style="background:${u.color || 'var(--surface2)'}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">
@@ -1413,17 +1435,42 @@ window.searchFriends = async function() {
         <div style="font-weight:600; font-size:14px; color:var(--text);">${name}</div>
         <div style="font-size:12px; color:var(--muted);">${u.email}</div>
       </div>
-      <button class="add-btn" id="btn-add-${u.id}" onclick="window.sendFriendRequest('${u.id}')" 
-        style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">
-        إضافة صديق ➕
-      </button>
+      ${btnHtml}
     </div>`;
   }).join('');
 };
+
 window.sendFriendRequest = async function(targetId) {
-  const btn = document.getElementById(`btn-add-${targetId}`);
+  const btn = document.getElementById(`btn-add-${targetId}`) || document.querySelector('.add-friend-btn');
   if(!btn) return;
   
+  // لو الزرار مكتوب عليه "تم الإرسال"، نفذ أمر الإلغاء
+  if (btn.textContent.includes('الإرسال') || btn.textContent.includes('⏳')) {
+    if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
+      const oldText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'جاري الإلغاء...';
+
+      const { error } = await sb
+        .from('friend_requests')
+        .delete()
+        .match({ sender_id: me.id, receiver_id: targetId });
+
+      if (!error) {
+        btn.textContent = 'إضافة صديق ➕';
+        btn.style.background = 'var(--accent-glow)';
+        btn.style.color = 'var(--accent)';
+        btn.style.borderColor = 'var(--accent)';
+        btn.disabled = false;
+      } else {
+        btn.textContent = oldText;
+        btn.disabled = false;
+      }
+    }
+    return;
+  }
+
+  // لو الزرار عادي، ابعت الطلب
   btn.disabled = true;
   btn.textContent = 'جاري الإرسال...';
 
@@ -1433,78 +1480,17 @@ window.sendFriendRequest = async function(targetId) {
 
   if (error) {
     console.error("Request Error:", error);
-    alert('الطلب مرسل بالفعل أو حدث خطأ');
+    alert('حدث خطأ');
     btn.disabled = false;
     btn.textContent = 'إضافة صديق ➕';
   } else {
-    btn.textContent = 'تم الإرسال ✅';
-    btn.style.background = 'var(--online)';
-    btn.style.color = 'white';
-    btn.style.borderColor = 'transparent';
+    btn.textContent = 'تم الإرسال ⏳';
+    btn.style.background = 'transparent';
+    btn.style.color = 'var(--muted)';
+    btn.style.borderColor = 'var(--border2)';
+    btn.disabled = false;
   }
 };
-
-function ensureContactRecord(id, name, bg, textColor, avatarUrl=''){
-  let existing = window._contacts.find(c => c.id === id);
-  if(!existing){
-    existing = {
-      id,
-      name,
-      init:getDisplayInitial(name),
-      color:bg,
-      text:textColor,
-      avatar:avatarUrl || '',
-      online:false,
-      preview:window.t('startChatPreview'),
-      time:'',
-      unread:0
-    };
-    window._contacts.push(existing);
-  }else{
-    existing.name = name || existing.name;
-    existing.init = getDisplayInitial(existing.name);
-    existing.color = bg || existing.color;
-    existing.text = textColor || existing.text;
-    if(avatarUrl) existing.avatar = avatarUrl;
-  }
-  if(!window._convos[id]) window._convos[id] = [];
-  return existing;
-}
-
-window.startChat = (id,name,bg,textColor,avatarUrl='') => {
-  ensureContactRecord(id, name, bg, textColor, avatarUrl);
-  if(typeof window.closeSearchPanel === 'function') window.closeSearchPanel();
-  if(typeof window.openChatById === 'function'){
-    window.openChatById(id);
-  }
-};
-
-if(typeof window.bootstrapLabMembers === 'function'){
-  window.bootstrapLabMembers();
-}
-window.dispatchEvent(new Event('lab-auth-ready'));
-document.addEventListener("click", function(e){
-
-  if(e.target.classList.contains("add-btn")){
-
-    let btn = e.target;
-    let userId = btn.dataset.userid || "test";
-
-    let status = localStorage.getItem("friend_" + userId) || "none";
-
-    if(status === "none"){
-      btn.innerText = "تم الإرسال";
-      localStorage.setItem("friend_" + userId, "pending");
-    }
-
-    else if(status === "pending"){
-      btn.innerText = "إضافة صديق";
-      localStorage.setItem("friend_" + userId, "none");
-    }
-
-  }
-
-});
 
 </script>
 
@@ -2063,7 +2049,13 @@ async function fillProfileOverlay(data){
       if (!request) {
         friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--accent); color:var(--accent);" onclick="window.sendFriendRequest('${id}')">إضافة صديق ➕</button>`;
       } else if (request.status === 'pending') {
-        friendBtnHtml = `<button class="pbtn add-friend-btn" disabled style="opacity:0.6;">تم إرسال الطلب ⏳</button>`;
+        if (request.sender_id === window.me.id) {
+          // مفتوح وتقدر تلغي الطلب من البروفايل
+          friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--border2); color:var(--muted);" onclick="window.sendFriendRequest('${id}')">تم الإرسال ⏳</button>`;
+        } else {
+          // مقفول لو هو اللي باعتلك
+          friendBtnHtml = `<button class="pbtn add-friend-btn" disabled style="opacity:0.6;">تلقيت طلب ⏳</button>`;
+        }
       } else if (request.status === 'accepted') {
         friendBtnHtml = `<button class="pbtn add-friend-btn" style="border-color:var(--online); color:var(--online);" disabled>أنتما أصدقاء ✅</button>`;
       }
