@@ -648,6 +648,31 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   
   .mobile-back { display: none !important; }
 }
+/* --- AMADEUS FINAL RECORDING UI FIX --- */
+.input-area.recording-mode .input-wrap,
+.input-area.recording-mode .voice-btn,
+.input-area.recording-mode .send-btn { display: none !important; }
+
+#voiceRecPanel {
+  display: none; flex: 1; align-items: center; justify-content: space-between; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 12px; padding: 6px 12px;
+  box-shadow: 0 0 10px var(--accent-glow); animation: slideIn 0.2s ease;
+}
+.input-area.recording-mode #voiceRecPanel { display: flex !important; }
+
+.record-live { display: flex; align-items: center; gap: 8px; }
+.record-time { font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; color: var(--accent) !important; text-shadow: 0 0 8px var(--accent-glow); min-width: 45px; }
+
+#recordBars { flex: 1; display: flex; align-items: center; justify-content: center; gap: 3px; height: 28px; overflow: hidden; }
+#recordBars span { width: 4px; border-radius: 99px; background: var(--accent-glow); transition: height 0.05s ease; }
+.recording-mode #recordBars span.active { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+
+.record-right { display: flex; gap: 8px; }
+.record-right button { font-family: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s; border: 1px solid; }
+.record-right .cancel-btn { background: transparent; color: #ef4444; border-color: #ef4444; }
+.record-right .cancel-btn:hover { background: #ef444422; }
+.record-right .send-record-btn { background: var(--accent-glow); color: var(--accent); border-color: var(--accent); }
+.record-right .send-record-btn:hover { background: var(--accent); color: var(--bg); box-shadow: 0 0 10px var(--accent); }
 </style>
 </head>
 <body id="appBody">
@@ -701,6 +726,18 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     </div>
     <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
     <button class="send-btn" onclick="sendMessage()">➤</button>
+
+    <div id="voiceRecPanel">
+        <div class="record-live">
+            <div class="record-dot"></div>
+            <div class="record-time" id="recordTime">0:00</div>
+        </div>
+        <div id="recordBars"></div>
+        <div class="record-right">
+            <button class="cancel-btn" onclick="discardRecording()">إلغاء 🗑️</button>
+            <button class="send-record-btn" onclick="finishRecording()">إرسال ➤</button>
+        </div>
+    </div>
 </div>
 
 
@@ -1390,31 +1427,7 @@ if(typeof window.bootstrapLabMembers === 'function'){
   window.bootstrapLabMembers();
 }
 window.dispatchEvent(new Event('lab-auth-ready'));
-// --- AMADEUS NEON RECORDING LOGIC ---
-// --- AMADEUS DYNAMIC WAVES UI ---
-window.setRecordingMode = function(isOn) {
-    const area = document.querySelector('.input-area');
-    if (!area) return;
-    
-    if (isOn) {
-        area.classList.add('recording-mode');
-        if (!document.getElementById('voiceRecPanel')) {
-            area.insertAdjacentHTML('afterbegin', `
-                <div id="voiceRecPanel" style="flex:1; display:flex; align-items:center; justify-content:space-between; padding:0 5px;">
-                    <div style="display:flex; align-items:center; gap:15px; flex:1; overflow:hidden;">
-                        <div id="recordBars" class="record-bars" style="flex:1; display:flex; align-items:flex-end; height:28px;"></div>
-                        
-                        <span id="recordTime" style="font-family:'Share Tech Mono'; font-size:1.2rem; color:var(--accent); min-width:45px; text-shadow:0 0 8px var(--accent-glow);">0:00</span>
-                    </div>
-                    <button onclick="discardRecording()" style="background:var(--surface); color:var(--error); border:1px solid var(--error); padding:6px 12px; border-radius:8px; margin-right:12px; cursor:pointer;">إلغاء</button>
-                </div>
-            `);
-        }
-    } else {
-        area.classList.remove('recording-mode');
-        document.getElementById('voiceRecPanel')?.remove();
-    }
-};
+
 </script>
 
 <script>
