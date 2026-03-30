@@ -1239,9 +1239,13 @@ window.handleLogout = async () => {
     if(window.friendRequestPollTimer) clearInterval(window.friendRequestPollTimer);
     const sbClient = window.sb || null;
     const channel = window.presenceChannel || null;
+    const friendChannel = window.friendRequestsChannel || null;
     if(channel && sbClient){
       try { await channel.untrack(); } catch(_e){}
       try { sbClient.removeChannel(channel); } catch(_e){}
+    }
+    if(friendChannel && sbClient){
+      try { sbClient.removeChannel(friendChannel); } catch(_e){}
     }
     try{
       const key = typeof window.getChatStateKey === 'function' ? window.getChatStateKey() : '';
@@ -1604,6 +1608,7 @@ const getCurrentUser = () => window.me || null;
 let messagePollTimer = null;
 let presenceChannel = null;
 let friendRequestPollTimer = null;
+let friendRequestsChannel = null;
 const onlineUserIds = new Set();
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
@@ -3646,6 +3651,7 @@ window.onAuthReady = async function(){
   resetRecordingVisualizer();
   window.refreshFriendRequestBadge?.();
   window.startFriendRequestsPolling?.();
+  window.startFriendRequestsRealtime?.();
 
   await loadInboxContacts();
   initPresence();
@@ -3707,6 +3713,9 @@ window.addEventListener('beforeunload', async () => {
   if(presenceChannel && sbClient){
     try { await presenceChannel.untrack(); } catch(_e){}
     try { sbClient.removeChannel(presenceChannel); } catch(_e){}
+  }
+  if(friendRequestsChannel && sbClient){
+    try { sbClient.removeChannel(friendRequestsChannel); } catch(_e){}
   }
 });
 document.addEventListener('visibilitychange', () => {
@@ -3779,6 +3788,35 @@ window.startFriendRequestsPolling = function() {
     }
   }, 8000);
   window.friendRequestPollTimer = friendRequestPollTimer;
+};
+
+window.startFriendRequestsRealtime = function() {
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
+  if(!sbClient || !currentUser) return;
+
+  if(friendRequestsChannel){
+    try { sbClient.removeChannel(friendRequestsChannel); } catch(_e){}
+    friendRequestsChannel = null;
+    window.friendRequestsChannel = null;
+  }
+
+  friendRequestsChannel = sbClient
+    .channel(`friend-requests-${currentUser.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'friend_requests',
+      filter: `receiver_id=eq.${currentUser.id}`
+    }, () => {
+      window.refreshFriendRequestBadge?.();
+      if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
+        window.loadPendingRequests?.().catch?.(() => {});
+      }
+    })
+    .subscribe();
+
+  window.friendRequestsChannel = friendRequestsChannel;
 };
 
 window.refreshFriendRequestBadge = async function() {
