@@ -685,7 +685,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
   
-  <div class="icon-btn" id="friendRequestsBtn" onclick="toggleFriendRequestsPanel()" title="طلبات الصداقة" style="position:relative;">
+  <div class="icon-btn" id="friendRequestsBtn" onclick="window.toggleFriendRequestsPanel()" title="طلبات الصداقة" style="position:relative;">
     <i class="fi fi-rr-user-add"></i>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; display:flex; align-items:center; justify-content:center;">0</span>
   </div>
@@ -3773,9 +3773,16 @@ setMobileChatMode(!!activeContact);
 // فتح وقفل لوحة الطلبات
 window.toggleFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
+  if(!panel) return;
   panel.classList.toggle('active');
-  if(panel.classList.contains('active')) window.loadPendingRequests();
+  if(panel.classList.contains('active')) window.loadPendingRequests?.().catch?.(() => {});
 };
+
+document.getElementById('friendRequestsBtn')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  window.toggleFriendRequestsPanel?.();
+});
 
 window.startFriendRequestsPolling = function() {
   if(friendRequestPollTimer) clearInterval(friendRequestPollTimer);
@@ -3908,7 +3915,7 @@ window.respondRequest = async function(requestId, newStatus) {
 <div id="friendRequestsPanel" class="side-panel" style="position:fixed; top:0; left:0; width:300px; height:100%; background:var(--sidebar); border-right:1px solid var(--border); transform:translateX(-100%); transition:0.3s; z-index:2000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <h3>طلبات الصداقة</h3>
-    <button onclick="toggleFriendRequestsPanel()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
+    <button onclick="window.toggleFriendRequestsPanel()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
   </div>
   <div id="friendRequestsList">
     <div style="text-align:center; color:var(--muted); font-size:13px; margin-top:20px;">لا توجد طلبات معلقة</div>
