@@ -1236,6 +1236,7 @@ window.handleLogout = async () => {
   try{
     if(typeof window.updateMyLastSeen === 'function') window.updateMyLastSeen();
     if(window.messagePollTimer) clearInterval(window.messagePollTimer);
+    if(window.friendRequestPollTimer) clearInterval(window.friendRequestPollTimer);
     const sbClient = window.sb || null;
     const channel = window.presenceChannel || null;
     if(channel && sbClient){
@@ -1602,6 +1603,7 @@ const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
 let messagePollTimer = null;
 let presenceChannel = null;
+let friendRequestPollTimer = null;
 const onlineUserIds = new Set();
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
@@ -3643,6 +3645,7 @@ window.onAuthReady = async function(){
   ensureRecordingBars();
   resetRecordingVisualizer();
   window.refreshFriendRequestBadge?.();
+  window.startFriendRequestsPolling?.();
 
   await loadInboxContacts();
   initPresence();
@@ -3699,6 +3702,7 @@ window.addEventListener('beforeunload', async () => {
   saveLocalChatState();
   updateMyLastSeen();
   if(messagePollTimer) clearInterval(messagePollTimer);
+  if(friendRequestPollTimer) clearInterval(friendRequestPollTimer);
   const sbClient = getSbClient();
   if(presenceChannel && sbClient){
     try { await presenceChannel.untrack(); } catch(_e){}
@@ -3711,6 +3715,10 @@ document.addEventListener('visibilitychange', () => {
     updateMyLastSeen();
   }
   if(document.visibilityState === 'visible'){
+    window.refreshFriendRequestBadge?.();
+    if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
+      window.loadPendingRequests?.().catch?.(() => {});
+    }
     const nextLang = getStoredLang();
     if(nextLang !== appLang){
       appLang = nextLang;
@@ -3758,6 +3766,19 @@ window.toggleFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
   panel.classList.toggle('active');
   if(panel.classList.contains('active')) window.loadPendingRequests();
+};
+
+window.startFriendRequestsPolling = function() {
+  if(friendRequestPollTimer) clearInterval(friendRequestPollTimer);
+  window.refreshFriendRequestBadge?.();
+  friendRequestPollTimer = setInterval(() => {
+    window.refreshFriendRequestBadge?.();
+    const panel = document.getElementById('friendRequestsPanel');
+    if(panel?.classList.contains('active')){
+      window.loadPendingRequests?.().catch?.(() => {});
+    }
+  }, 8000);
+  window.friendRequestPollTimer = friendRequestPollTimer;
 };
 
 window.refreshFriendRequestBadge = async function() {
