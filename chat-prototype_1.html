@@ -688,7 +688,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
   
-  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="window.openFriendRequestsPanel()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
+  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="(function(){const p=document.getElementById('friendRequestsPanel'); if(!p) return; p.classList.add('active'); p.style.display='block'; p.style.opacity='1'; p.style.pointerEvents='auto'; if(window.loadPendingRequests){window.loadPendingRequests().catch(()=>{});} })()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span class="friend-btn-mark">+</span>
     <span class="friend-btn-text">طلبات</span>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
@@ -3938,7 +3938,7 @@ window.respondRequest = async function(requestId, newStatus) {
 <div id="friendRequestsPanel" class="side-panel" style="display:none; opacity:0; pointer-events:none; position:fixed; top:84px; left:18px; width:min(360px, calc(100vw - 36px)); max-height:calc(100dvh - 110px); overflow:auto; background:var(--sidebar); border:1px solid var(--border2); border-radius:18px; box-shadow:0 20px 50px rgba(0,0,0,.42); transform:none; transition:opacity .2s ease; z-index:4000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <h3>طلبات الصداقة</h3>
-    <button onclick="window.closeFriendRequestsPanel()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
+    <button onclick="(function(){const p=document.getElementById('friendRequestsPanel'); if(!p) return; p.classList.remove('active'); p.style.opacity='0'; p.style.pointerEvents='none'; p.style.display='none';})()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
   </div>
   <div id="friendRequestsList">
     <div style="text-align:center; color:var(--muted); font-size:13px; margin-top:20px;">لا توجد طلبات معلقة</div>
