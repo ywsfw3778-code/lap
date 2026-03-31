@@ -894,10 +894,25 @@ const SB_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
 const SB_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
 const sb = createClient(SB_URL, SB_KEY);
 
-const { data:{ session } } = await sb.auth.getSession();
-if(!session){ window.location.href='login.html'; throw 0; }
+async function waitForAuthenticatedUser(maxAttempts = 40, delayMs = 150){
+  for(let i = 0; i < maxAttempts; i++){
+    try{
+      const sessionRes = await sb.auth.getSession();
+      const sessionUser = sessionRes?.data?.session?.user || null;
+      if(sessionUser) return sessionUser;
+    }catch(_e){}
+    try{
+      const userRes = await sb.auth.getUser();
+      const user = userRes?.data?.user || null;
+      if(user) return user;
+    }catch(_e){}
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+  }
+  return null;
+}
 
-const me = session.user;
+const me = await waitForAuthenticatedUser();
+if(!me){ window.location.href='login.html'; throw 0; }
 window.sb = sb;
 window.me = me;
 window.memberCodeMap = {};
@@ -2989,12 +3004,21 @@ async function loadMessagesForContact(contactId){
   const sbClient = getSbClient();
   const currentUser = await getFreshCurrentUser();
   if(!sbClient || !currentUser || !contactId) return;
-  const { data, error } = await sbClient
-    .from('messages')
-    .select('*')
-    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${currentUser.id})`)
-    .order('created_at', { ascending: true })
-    .limit(200);
+  let data = null;
+  let error = null;
+  const rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
+  if(!rpcRes.error && Array.isArray(rpcRes.data)){
+    data = rpcRes.data;
+  }else{
+    const res = await sbClient
+      .from('messages')
+      .select('*')
+      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${currentUser.id})`)
+      .order('created_at', { ascending: true })
+      .limit(200);
+    data = res.data;
+    error = res.error;
+  }
 
   if(error){
     console.warn('messages load failed:', error.message);
@@ -3005,9 +3029,9 @@ async function loadMessagesForContact(contactId){
     .filter((m) => !hiddenMessageIds.has(String(m.id)))
     .map(m => ({
     id: m.id,
-    out: m.sender_id === currentUser.id,
+    out: (m.sender_id || m.from_user_id) === currentUser.id,
     text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
-    previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), m.sender_id === currentUser.id),
+    previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), (m.sender_id || m.from_user_id) === currentUser.id),
     time: formatChatTime(m.created_at),
     createdAt: m.created_at,
     dayKey: getMessageDayKey(m.created_at),
