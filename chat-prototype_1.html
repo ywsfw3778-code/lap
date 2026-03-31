@@ -3006,46 +3006,52 @@ async function loadInboxContacts(){
   }
 
   const ids = Array.from(latestByPartner.keys());
-if(!ids.length){
+  const existingUnread = new Map(contacts.map((c) => [c.id, Number(c.unread || 0)]));
+  const existingById = new Map(contacts.map((c) => [c.id, c]));
+
+  if(!ids.length){
+    contacts.splice(0, contacts.length);
+    activeContact = null;
+    window.activeContactRef = null;
+    saveLocalChatState();
     renderContacts();
+    syncActiveHeader();
     return;
   }
 
+  const rebuiltContacts = [];
   for(const id of ids){
     const last = latestByPartner.get(id);
-    let c = contacts.find(x => x.id === id);
-    if(!c){
-      const clr = colorFromId(id);
-      c = {
-        id,
-        name: 'User',
-        username: '',
-        email: '',
-        init: window.getDisplayInitial('User'),
-        color: clr.bg,
-        text: clr.t,
-        avatar: '',
-        memberCode: '',
-        lastSeenAt: '',
-        online: false,
-        preview: '',
-        time: '',
-        unread: 0,
-        _lastInboxAt: ''
-      };
-      contacts.push(c);
-    }
+    const existing = existingById.get(id);
+    const clr = existing ? { bg: existing.color, t: existing.text } : colorFromId(id);
+    const c = {
+      id,
+      name: existing?.name || 'User',
+      username: existing?.username || '',
+      email: existing?.email || '',
+      init: existing?.init || window.getDisplayInitial(existing?.name || 'User'),
+      color: clr.bg,
+      text: clr.t,
+      avatar: existing?.avatar || '',
+      memberCode: existing?.memberCode || '',
+      lastSeenAt: existing?.lastSeenAt || '',
+      online: !!existing?.online,
+      preview: formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id),
+      time: formatChatTime(last?.created_at || last?.createdAt || new Date()),
+      unread: existingUnread.get(id) || 0,
+      _lastInboxAt: ''
+    };
 
-    c.preview = formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id);
-    c.time = formatChatTime(last.createdAt || new Date());
     const stamp = String(last?.created_at || '');
     if(last && last.sender_id !== currentUser.id && (!activeContact || activeContact.id !== id) && c._lastInboxAt !== stamp){
       c.unread = Math.min((c.unread || 0) + 1, 99);
     }
     c._lastInboxAt = stamp;
+    rebuiltContacts.push(c);
   }
 
-  contacts.sort((a, b) => String(b._lastInboxAt || '').localeCompare(String(a._lastInboxAt || '')));
+  rebuiltContacts.sort((a, b) => String(b._lastInboxAt || '').localeCompare(String(a._lastInboxAt || '')));
+  contacts.splice(0, contacts.length, ...rebuiltContacts);
 
   if(pendingRestoredContactId){
     const restored = contacts.find(x => x.id === pendingRestoredContactId);
@@ -3055,6 +3061,18 @@ if(!ids.length){
       // الحل السحري هنا: بنصفر الـ ID عشان ما يفضلش يفتح نفس الشات كل ثانيتين
       pendingRestoredContactId = null; 
     }
+  }else if(activeContact){
+    const refreshedActive = contacts.find((x) => x.id === activeContact.id);
+    if(refreshedActive){
+      activeContact = refreshedActive;
+      window.activeContactRef = refreshedActive;
+    }else{
+      activeContact = contacts[0] || null;
+      window.activeContactRef = activeContact;
+    }
+  }else if(contacts.length){
+    activeContact = contacts[0];
+    window.activeContactRef = activeContact;
   }
 
   saveLocalChatState();
