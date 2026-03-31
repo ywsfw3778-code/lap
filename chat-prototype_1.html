@@ -1570,11 +1570,30 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     btnElement.disabled = true;
     btnElement.textContent = 'جاري الإرسال...';
 
-    const { error } = await window.sb
+    const { data: insertedRows, error } = await window.sb
       .from('friend_requests')
-      .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }]);
+      .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }])
+      .select('id, sender_id, receiver_id, status')
+      .limit(1);
     
-    if (error) throw new Error(error.message);
+    if (error) {
+      const relationAfterError = await getFriendRelation(targetId);
+      if(relationAfterError?.status === 'pending' && relationAfterError.sender_id === window.me.id){
+        btnElement.textContent = 'إلغاء الطلب ⏳';
+        btnElement.style.background = 'transparent';
+        btnElement.style.color = 'var(--muted)';
+        btnElement.style.borderColor = 'var(--border2)';
+        btnElement.disabled = false;
+        window.refreshFriendRequestBadge?.();
+        return;
+      }
+      throw new Error(error.message);
+    }
+
+    if(!insertedRows?.length){
+      const relationAfterInsert = await getFriendRelation(targetId);
+      if(!relationAfterInsert) throw new Error('لم يتم تأكيد إنشاء الطلب');
+    }
 
     btnElement.textContent = 'إلغاء الطلب ⏳';
     btnElement.style.background = 'transparent';
@@ -3912,6 +3931,10 @@ window.loadPendingRequests = async function() {
       return;
     }
 
+    if(meta){
+      meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${data.length}`;
+    }
+
     const senderIds = data.map((req) => req.sender_id).filter(Boolean);
     const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
     const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
@@ -3922,6 +3945,7 @@ window.loadPendingRequests = async function() {
         <div style="font-size:13px;">
           <b>${senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email?.split('@')[0] || 'مستخدم'}</b>
           <div style="font-size:11px; color:var(--muted); margin-top:2px;">${senderMap.get(req.sender_id)?.email || req.sender_id}</div>
+          <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${req.id}</div>
         </div>
         <div class="req-btns">
           <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
