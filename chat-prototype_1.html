@@ -1609,6 +1609,19 @@ const conversations=window._convos;
 let sidebarSearchResults=[];
 const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
+async function getFreshCurrentUser(){
+  const cached = getCurrentUser();
+  const sbClient = getSbClient();
+  if(!sbClient) return cached;
+  try{
+    const { data, error } = await sbClient.auth.getUser();
+    if(!error && data?.user){
+      window.me = data.user;
+      return data.user;
+    }
+  }catch(_e){}
+  return cached;
+}
 let messagePollTimer = null;
 let presenceChannel = null;
 let friendRequestPollTimer = null;
@@ -3855,12 +3868,13 @@ window.startFriendRequestsRealtime = function() {
 
 window.refreshFriendRequestBadge = async function() {
   const badge = document.getElementById('friendReqBadge');
-  if(!badge || !window.sb || !window.me) return;
+  const currentUser = await getFreshCurrentUser();
+  if(!badge || !window.sb || !currentUser) return;
   try{
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id')
-      .eq('receiver_id', window.me.id)
+      .eq('receiver_id', currentUser.id)
       .eq('status', 'pending');
     if(error) throw error;
     const count = (data || []).length;
@@ -3876,22 +3890,24 @@ window.refreshFriendRequestBadge = async function() {
 window.loadPendingRequests = async function() {
   const listDiv = document.getElementById('friendRequestsList');
   const meta = document.getElementById('friendRequestsMeta');
+  const currentUser = await getFreshCurrentUser();
   if(meta){
-    meta.textContent = window.me?.email ? `الحساب الحالي: ${window.me.email}` : 'الحساب الحالي غير معروف';
+    meta.textContent = currentUser?.email ? `الحساب الحالي: ${currentUser.email}` : 'الحساب الحالي غير معروف';
   }
   listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
 
   try {
+    if(!window.sb || !currentUser) throw new Error('الحساب الحالي غير متاح');
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id, sender_id, receiver_id, status, created_at')
-      .eq('receiver_id', window.me.id)
+      .eq('receiver_id', currentUser.id)
       .eq('status', 'pending');
 
     if(error) throw error;
     
     if(!data || data.length === 0) {
-      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${window.me?.email || 'unknown'}</small></div>`;
+      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${currentUser?.email || 'unknown'}</small></div>`;
       window.refreshFriendRequestBadge?.();
       return;
     }
