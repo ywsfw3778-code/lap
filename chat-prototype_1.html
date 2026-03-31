@@ -840,12 +840,13 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
         <div class="profile-hint" id="usernameHint">username: 3-20 chars (letters/numbers/_), unique</div>
         <button class="pbtn" id="saveProfileBtn" onclick="saveProfile()">Save Changes</button>
       </div>
-      <div class="profile-row"><span class="picon">🟢</span><span id="profileStatusText">متصل الآن</span></div>
-      <div class="profile-row"><span class="picon">🧪</span><span id="profileRoleText">Lab Member</span></div>
+     <div class="profile-row"><span class="picon">🟢</span><span id="profileStatusText">متصل الآن</span></div>
+     <div class="profile-row"><span class="picon">🧪</span><span id="profileRoleText">Lab Member</span></div>
      <div class="profile-acts">
-  <div id="profileFriendAction"></div>
-  <button class="pbtn" id="profileCloseBtn">إغلاق</button>
-</div>
+       <div id="profileFriendAction"></div>
+       <button class="pbtn danger" id="profileLogoutBtn" onclick="window.handleLogout()">خروج</button>
+       <button class="pbtn" id="profileCloseBtn">إغلاق</button>
+      </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
       <div class="panel-close" onclick="closeProfile()">×</div>
