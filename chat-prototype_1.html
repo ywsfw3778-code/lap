@@ -910,6 +910,23 @@ let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
 let myAvatarUrl = me.user_metadata?.avatar_url || '';
+window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
+sb.auth.onAuthStateChange((_event, nextSession) => {
+  if(nextSession?.user){
+    window.me = nextSession.user;
+    if(!window.__labBootstrapStarted){
+      window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: nextSession.user } }));
+      return;
+    }
+    try{
+      if(typeof window.refreshFriendRequestBadge === 'function') window.refreshFriendRequestBadge();
+      if(typeof window.loadPendingRequests === 'function' && document.getElementById('friendRequestsPanel')?.classList.contains('active')){
+        window.loadPendingRequests().catch(() => {});
+      }
+      if(typeof window.loadInboxContacts === 'function') window.loadInboxContacts();
+    }catch(_e){}
+  }
+});
 
 function getAvatarStoreKey(){
   return `lm-avatar-${me.id}`;
@@ -1047,15 +1064,17 @@ async function upsertMyProfileOnServer(extra = {}){
 }
 
 window.loadMemberCodes = async () => {
-  // سحب البيانات مرتبة من السيرفر مباشرة عشان الأرقام ماتتلخبطش
-  let { data, error } = await sb.from('profiles').select('id, member_code, created_at').order('created_at', { ascending: true });
-  
-  let rows = data || [];
-  // كود طوارئ لو السيرفر رفض يجيب التاريخ
-  if(error || !rows.length) {
-     const lite = await runProfilesQuery((select) => sb.from('profiles').select(select));
-     rows = lite.data || [];
-     rows.sort((a, b) => a.id.localeCompare(b.id)); // ترتيب ثابت كبديل
+  let rows = [];
+  try{
+    const rpcCodes = await sb.rpc('get_member_codes');
+    if(!rpcCodes.error && Array.isArray(rpcCodes.data) && rpcCodes.data.length){
+      rows = rpcCodes.data || [];
+    }
+  }catch(_e){}
+  if(!rows.length){
+    const lite = await runProfilesQuery((select) => sb.from('profiles').select(select));
+    rows = lite.data || [];
+    rows.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
   }
 
   const map = {};
@@ -1301,9 +1320,18 @@ function profileMatchesQuery(profile, query){
 }
 
 async function refreshProfilesDirectory(limit = 300){
+  const currentUser = await getFreshCurrentUser();
   const globalDirectory = window.profilesDirectory || [];
+  const rpcRes = await callRpcSafe('search_profiles', { search_term: '', result_limit: Math.max(limit, 50) });
+  if(!rpcRes.error && Array.isArray(rpcRes.data)){
+    window.profilesDirectory = rpcRes.data || [];
+    if(window.profilesDirectory.length) return window.profilesDirectory;
+  }
   for(const select of PROFILE_SELECT_ATTEMPTS){
-    const res = await withTimeout(sb.from('profiles').select(select).neq('id', me.id).limit(limit));
+    const builder = currentUser
+      ? sb.from('profiles').select(select).neq('id', currentUser.id).limit(limit)
+      : sb.from('profiles').select(select).limit(limit);
+    const res = await withTimeout(builder);
     if(!res.error){
       window.profilesDirectory = res.data || [];
       if(window.profilesDirectory.length) return window.profilesDirectory;
@@ -1313,6 +1341,12 @@ async function refreshProfilesDirectory(limit = 300){
 }
 
 async function queryProfilesForSearch(query, limit){
+  const rpcRes = await callRpcSafe('search_profiles', { search_term: query, result_limit: limit });
+  if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
+    window.profilesDirectory = rpcRes.data || [];
+    return rpcRes.data;
+  }
+  const currentUser = await getFreshCurrentUser();
   const cachedMatches = (window.profilesDirectory || []).filter((u) => profileMatchesQuery(u, query));
   const contactMatches = (window._contacts || [])
     .filter((u) => profileMatchesQuery({
@@ -1338,7 +1372,10 @@ async function queryProfilesForSearch(query, limit){
 
   let broadData = [];
   for(const select of PROFILE_SELECT_ATTEMPTS){
-    const res = await withTimeout(sb.from('profiles').select(select).neq('id', me.id).limit(Math.max(limit * 20, 200)));
+    const builder = currentUser
+      ? sb.from('profiles').select(select).neq('id', currentUser.id).limit(Math.max(limit * 20, 200))
+      : sb.from('profiles').select(select).limit(Math.max(limit * 20, 200));
+    const res = await withTimeout(builder);
     if(!res.error){
       broadData = res.data || [];
       if(broadData.length) break;
@@ -1350,6 +1387,10 @@ async function queryProfilesForSearch(query, limit){
 
 async function queryProfilesByIds(ids){
   if(!ids.length) return [];
+  const rpcRes = await callRpcSafe('get_profiles_by_ids', { user_ids: ids });
+  if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
+    return rpcRes.data || [];
+  }
   for(const select of PROFILE_SELECT_ATTEMPTS){
     const res = await withTimeout(sb.from('profiles').select(select).in('id', ids));
     if(!res.error) return res.data || [];
@@ -1397,12 +1438,18 @@ window.searchProfiles = async (q, limit = 8) => {
 };
 
 async function getFriendRelation(targetId){
-  if(!targetId || !window.sb || !window.me) return null;
+  const currentUser = await getFreshCurrentUser();
+  if(!targetId || !window.sb || !currentUser) return null;
+  const rpcRes = await callRpcSafe('get_friend_relation', { target_user_id: targetId });
+  if(!rpcRes.error){
+    if(Array.isArray(rpcRes.data)) return rpcRes.data[0] || null;
+    if(rpcRes.data && typeof rpcRes.data === 'object') return rpcRes.data;
+  }
   try{
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id, sender_id, receiver_id, status')
-      .or(`and(sender_id.eq.${window.me.id},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${window.me.id})`)
+      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${currentUser.id})`)
       .maybeSingle();
     if(error) throw error;
     return data || null;
@@ -1413,18 +1460,28 @@ async function getFriendRelation(targetId){
 }
 
 async function getFriendRelationsForUsers(userIds){
+  const currentUser = await getFreshCurrentUser();
   const ids = Array.from(new Set((userIds || []).filter(Boolean)));
-  if(!ids.length || !window.sb || !window.me) return new Map();
+  if(!ids.length || !window.sb || !currentUser) return new Map();
+  const rpcRes = await callRpcSafe('get_friend_relations', { target_user_ids: ids });
+  if(!rpcRes.error && Array.isArray(rpcRes.data)){
+    const map = new Map();
+    rpcRes.data.forEach((row) => {
+      const otherId = row.other_id || (row.sender_id === currentUser.id ? row.receiver_id : row.sender_id);
+      if(otherId) map.set(otherId, row);
+    });
+    if(map.size) return map;
+  }
   try{
     const joined = ids.join(',');
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id, sender_id, receiver_id, status')
-      .or(`and(sender_id.eq.${window.me.id},receiver_id.in.(${joined})),and(sender_id.in.(${joined}),receiver_id.eq.${window.me.id})`);
+      .or(`and(sender_id.eq.${currentUser.id},receiver_id.in.(${joined})),and(sender_id.in.(${joined}),receiver_id.eq.${currentUser.id})`);
     if(error) throw error;
     const map = new Map();
     (data || []).forEach((row) => {
-      const otherId = row.sender_id === window.me.id ? row.receiver_id : row.sender_id;
+      const otherId = row.sender_id === currentUser.id ? row.receiver_id : row.sender_id;
       if(otherId) map.set(otherId, row);
     });
     return map;
@@ -1498,6 +1555,8 @@ window.sendFriendRequest = async function(targetId, btnElement) {
   if(!btnElement) return;
   
   try {
+    const currentUser = await getFreshCurrentUser();
+    if(!currentUser) throw new Error('الحساب الحالي غير متاح');
     const relation = await getFriendRelation(targetId);
 
     if (relation?.status === 'accepted') {
@@ -1506,15 +1565,20 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       return;
     }
 
-    if (relation?.status === 'pending' && relation.sender_id === window.me.id) {
+    if (relation?.status === 'pending' && relation.sender_id === currentUser.id) {
       if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
         btnElement.disabled = true;
         btnElement.textContent = 'جاري الإلغاء...';
 
-        const { error } = await window.sb
-          .from('friend_requests')
-          .delete()
-          .eq('id', relation.id);
+        let error = null;
+        const cancelRpc = await callRpcSafe('cancel_friend_request', { target_user_id: targetId });
+        if(cancelRpc.error){
+          const res = await window.sb
+            .from('friend_requests')
+            .delete()
+            .eq('id', relation.id);
+          error = res.error;
+        }
         
         if (error) throw new Error(error.message);
         
@@ -1531,14 +1595,19 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       return;
     }
 
-    if (relation?.status === 'pending' && relation.sender_id !== window.me.id) {
+    if (relation?.status === 'pending' && relation.sender_id !== currentUser.id) {
       btnElement.disabled = true;
       btnElement.textContent = 'جاري القبول...';
 
-      const { error } = await window.sb
-        .from('friend_requests')
-        .update({ status: 'accepted' })
-        .eq('id', relation.id);
+      let error = null;
+      const acceptRpc = await callRpcSafe('respond_friend_request', { request_id: relation.id, new_status: 'accepted' });
+      if(acceptRpc.error){
+        const res = await window.sb
+          .from('friend_requests')
+          .update({ status: 'accepted' })
+          .eq('id', relation.id);
+        error = res.error;
+      }
 
       if (error) throw new Error(error.message);
 
@@ -1561,15 +1630,24 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     btnElement.disabled = true;
     btnElement.textContent = 'جاري الإرسال...';
 
-    const { data: insertedRows, error } = await window.sb
-      .from('friend_requests')
-      .insert([{ sender_id: window.me.id, receiver_id: targetId, status: 'pending' }])
-      .select('id, sender_id, receiver_id, status')
-      .limit(1);
+    let insertedRows = null;
+    let error = null;
+    const sendRpc = await callRpcSafe('send_friend_request', { target_user_id: targetId });
+    if(sendRpc.error){
+      const res = await window.sb
+        .from('friend_requests')
+        .insert([{ sender_id: currentUser.id, receiver_id: targetId, status: 'pending' }])
+        .select('id, sender_id, receiver_id, status')
+        .limit(1);
+      insertedRows = res.data;
+      error = res.error;
+    }else{
+      insertedRows = Array.isArray(sendRpc.data) ? sendRpc.data : (sendRpc.data ? [sendRpc.data] : []);
+    }
     
     if (error) {
       const relationAfterError = await getFriendRelation(targetId);
-      if(relationAfterError?.status === 'pending' && relationAfterError.sender_id === window.me.id){
+      if(relationAfterError?.status === 'pending' && relationAfterError.sender_id === currentUser.id){
         btnElement.textContent = 'إلغاء الطلب ⏳';
         btnElement.style.background = 'transparent';
         btnElement.style.color = 'var(--muted)';
@@ -1631,6 +1709,16 @@ async function getFreshCurrentUser(){
     }
   }catch(_e){}
   return cached;
+}
+async function callRpcSafe(name, params = {}){
+  const sbClient = getSbClient();
+  if(!sbClient) return { data: null, error: new Error('supabase-not-ready') };
+  try{
+    const result = await sbClient.rpc(name, params);
+    return { data: result?.data ?? null, error: result?.error ?? null };
+  }catch(err){
+    return { data: null, error: err };
+  }
 }
 let messagePollTimer = null;
 let presenceChannel = null;
@@ -2940,6 +3028,7 @@ async function loadMessagesForContact(contactId){
   renderContacts();
   if(activeContact && activeContact.id === contactId) renderMessages();
 }
+window.loadMessagesForContact = loadMessagesForContact;
 
 function startMessagePolling(){
   if(messagePollTimer) clearInterval(messagePollTimer);
@@ -2969,6 +3058,73 @@ async function loadInboxContacts(){
   const sbClient = getSbClient();
   const currentUser = await getFreshCurrentUser();
   if(!sbClient || !currentUser) return;
+
+  const applyRebuiltContacts = (rebuiltContacts) => {
+    contacts.splice(0, contacts.length, ...rebuiltContacts);
+
+    if(pendingRestoredContactId){
+      const restored = contacts.find(x => x.id === pendingRestoredContactId);
+      if(restored){
+        activeContact = restored;
+        window.activeContactRef = restored;
+        pendingRestoredContactId = null;
+      }
+    }else if(activeContact){
+      const refreshedActive = contacts.find((x) => x.id === activeContact.id);
+      if(refreshedActive){
+        activeContact = refreshedActive;
+        window.activeContactRef = refreshedActive;
+      }else{
+        activeContact = contacts[0] || null;
+        window.activeContactRef = activeContact;
+      }
+    }else if(contacts.length){
+      activeContact = contacts[0];
+      window.activeContactRef = activeContact;
+    }
+
+    saveLocalChatState();
+    renderContacts();
+    if(activeContact){
+      syncActiveHeader();
+      lastRenderedMessageSig = '';
+      renderMessages();
+      loadMessagesForContact(activeContact.id);
+    }else{
+      syncActiveHeader();
+      renderMessages();
+    }
+  };
+
+  const inboxRpc = await callRpcSafe('get_inbox_contacts');
+  if(!inboxRpc.error && Array.isArray(inboxRpc.data)){
+    const existingUnread = new Map(contacts.map((c) => [c.id, Number(c.unread || 0)]));
+    const existingById = new Map(contacts.map((c) => [c.id, c]));
+    const rebuiltFromRpc = (inboxRpc.data || []).map((row) => {
+      const existing = existingById.get(row.partner_id);
+      const clr = existing ? { bg: existing.color, t: existing.text } : colorFromId(row.partner_id);
+      return {
+        id: row.partner_id,
+        name: row.name || row.username || (row.email ? String(row.email).split('@')[0] : 'User'),
+        username: row.username || '',
+        email: row.email || '',
+        init: existing?.init || window.getDisplayInitial(row.name || row.username || row.email || 'User'),
+        color: clr.bg,
+        text: clr.t,
+        avatar: row.avatar_url || existing?.avatar || '',
+        memberCode: Number.isFinite(Number(row.member_code)) ? String(Number(row.member_code)).padStart(3, '0') : (existing?.memberCode || ''),
+        lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '',
+        online: !!existing?.online,
+        preview: formatMessagePreviewText(row.last_content || ''),
+        time: formatChatTime(row.last_created_at || new Date()),
+        unread: existingUnread.get(row.partner_id) || 0,
+        _lastInboxAt: String(row.last_created_at || '')
+      };
+    });
+    rebuiltFromRpc.sort((a, b) => String(b._lastInboxAt || '').localeCompare(String(a._lastInboxAt || '')));
+    applyRebuiltContacts(rebuiltFromRpc);
+    return;
+  }
 
   const { data, error } = await sbClient
     .from('messages')
@@ -3051,38 +3207,7 @@ async function loadInboxContacts(){
   }
 
   rebuiltContacts.sort((a, b) => String(b._lastInboxAt || '').localeCompare(String(a._lastInboxAt || '')));
-  contacts.splice(0, contacts.length, ...rebuiltContacts);
-
-  if(pendingRestoredContactId){
-    const restored = contacts.find(x => x.id === pendingRestoredContactId);
-    if(restored){
-      activeContact = restored;
-      window.activeContactRef = restored;
-      // الحل السحري هنا: بنصفر الـ ID عشان ما يفضلش يفتح نفس الشات كل ثانيتين
-      pendingRestoredContactId = null; 
-    }
-  }else if(activeContact){
-    const refreshedActive = contacts.find((x) => x.id === activeContact.id);
-    if(refreshedActive){
-      activeContact = refreshedActive;
-      window.activeContactRef = refreshedActive;
-    }else{
-      activeContact = contacts[0] || null;
-      window.activeContactRef = activeContact;
-    }
-  }else if(contacts.length){
-    activeContact = contacts[0];
-    window.activeContactRef = activeContact;
-  }
-
-  saveLocalChatState();
-  renderContacts();
-  if(activeContact){
-    syncActiveHeader();
-    lastRenderedMessageSig = '';
-    renderMessages();
-    loadMessagesForContact(activeContact.id);
-  }
+  applyRebuiltContacts(rebuiltContacts);
 
   const safeProfiles = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(ids) : [];
   const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
@@ -3126,6 +3251,7 @@ async function loadInboxContacts(){
     }
   }
 }
+window.loadInboxContacts = loadInboxContacts;
 // CONTACTS
 function renderContacts(list=contacts){
   document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
@@ -3850,31 +3976,32 @@ window.startFriendRequestsPolling = function() {
 
 window.startFriendRequestsRealtime = function() {
   const sbClient = getSbClient();
-  const currentUser = getCurrentUser();
-  if(!sbClient || !currentUser) return;
+  if(!sbClient) return;
 
-  if(friendRequestsChannel){
-    try { sbClient.removeChannel(friendRequestsChannel); } catch(_e){}
-    friendRequestsChannel = null;
-    window.friendRequestsChannel = null;
-  }
+  getFreshCurrentUser().then((currentUser) => {
+    if(!currentUser) return;
+    if(friendRequestsChannel){
+      try { sbClient.removeChannel(friendRequestsChannel); } catch(_e){}
+      friendRequestsChannel = null;
+      window.friendRequestsChannel = null;
+    }
+    friendRequestsChannel = sbClient
+      .channel(`friend-requests-${currentUser.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'friend_requests',
+        filter: `receiver_id=eq.${currentUser.id}`
+      }, () => {
+        window.refreshFriendRequestBadge?.();
+        if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
+          window.loadPendingRequests?.().catch?.(() => {});
+        }
+      })
+      .subscribe();
 
-  friendRequestsChannel = sbClient
-    .channel(`friend-requests-${currentUser.id}`)
-    .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'friend_requests',
-      filter: `receiver_id=eq.${currentUser.id}`
-    }, () => {
-      window.refreshFriendRequestBadge?.();
-      if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
-        window.loadPendingRequests?.().catch?.(() => {});
-      }
-    })
-    .subscribe();
-
-  window.friendRequestsChannel = friendRequestsChannel;
+    window.friendRequestsChannel = friendRequestsChannel;
+  }).catch(() => {});
 };
 
 window.refreshFriendRequestBadge = async function() {
@@ -3882,6 +4009,13 @@ window.refreshFriendRequestBadge = async function() {
   const currentUser = await getFreshCurrentUser();
   if(!badge || !window.sb || !currentUser) return;
   try{
+    const rpcRes = await callRpcSafe('get_pending_friend_requests');
+    if(!rpcRes.error && Array.isArray(rpcRes.data)){
+      const count = rpcRes.data.length;
+      badge.textContent = String(count);
+      badge.style.display = count ? 'flex' : 'none';
+      return;
+    }
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id')
@@ -3903,12 +4037,40 @@ window.loadPendingRequests = async function() {
   const meta = document.getElementById('friendRequestsMeta');
   const currentUser = await getFreshCurrentUser();
   if(meta){
-    meta.textContent = currentUser?.email ? `الحساب الحالي: ${currentUser.email}` : 'الحساب الحالي غير معروف';
+    meta.textContent = currentUser?.email ? `الحساب الحالي: ${currentUser.email} • ${currentUser.id || '—'}` : 'الحساب الحالي غير معروف';
   }
   listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
 
   try {
     if(!window.sb || !currentUser) throw new Error('الحساب الحالي غير متاح');
+    const rpcRes = await callRpcSafe('get_pending_friend_requests');
+    if(!rpcRes.error && Array.isArray(rpcRes.data)){
+      const rows = rpcRes.data || [];
+      if(rows.length === 0){
+        listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${currentUser?.email || 'unknown'}</small></div>`;
+        window.refreshFriendRequestBadge?.();
+        return;
+      }
+      if(meta){
+        meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${rows.length}`;
+      }
+      listDiv.innerHTML = rows.map(req => `
+        <div class="req-row">
+          <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(req.sender_name || req.sender_username || req.sender_email || 'مستخدم', req.sender_avatar || '')}</div>
+          <div style="font-size:13px;">
+            <b>${req.sender_name || req.sender_username || req.sender_email?.split('@')[0] || 'مستخدم'}</b>
+            <div style="font-size:11px; color:var(--muted); margin-top:2px;">${req.sender_email || req.sender_id}</div>
+            <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${req.id || req.request_id}</div>
+          </div>
+          <div class="req-btns">
+            <button class="accept-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'accepted')">✔</button>
+            <button class="decline-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'declined')">✖</button>
+          </div>
+        </div>
+      `).join('');
+      window.refreshFriendRequestBadge?.();
+      return;
+    }
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id, sender_id, receiver_id, status, created_at')
@@ -3956,10 +4118,15 @@ window.loadPendingRequests = async function() {
 // الرد على الطلب (قبول/رفض)
 window.respondRequest = async function(requestId, newStatus) {
   try {
-    const { error } = await window.sb
-      .from('friend_requests')
-      .update({ status: newStatus })
-      .eq('id', requestId);
+    let error = null;
+    const rpcRes = await callRpcSafe('respond_friend_request', { request_id: requestId, new_status: newStatus });
+    if(rpcRes.error){
+      const res = await window.sb
+        .from('friend_requests')
+        .update({ status: newStatus })
+        .eq('id', requestId);
+      error = res.error;
+    }
       
     if(error) throw error;
     
