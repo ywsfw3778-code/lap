@@ -72,6 +72,9 @@ body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .header-actions{display:flex;gap:6px;}
 .icon-btn{width:30px;height:30px;border:1px solid var(--border2);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:13px;transition:all .2s;user-select:none;}
 .icon-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
+.friend-requests-btn{width:auto;min-width:58px;padding:0 10px;font-size:11px;font-weight:600;gap:6px;position:relative;}
+.friend-requests-btn .friend-btn-mark{font-size:14px;line-height:1;}
+.friend-requests-btn .friend-btn-text{white-space:nowrap;}
 .search-box{margin:12px 12px 8px;position:relative;}
 .search-box input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:8px 34px 8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s;direction:rtl;}
 .search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
@@ -685,9 +688,10 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
   
-  <div class="icon-btn" id="friendRequestsBtn" onclick="window.openFriendRequestsPanel()" title="طلبات الصداقة" aria-label="طلبات الصداقة" style="position:relative; font-size:15px;">
-    👥
-    <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; display:flex; align-items:center; justify-content:center;">0</span>
+  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="window.openFriendRequestsPanel()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
+    <span class="friend-btn-mark">+</span>
+    <span class="friend-btn-text">طلبات</span>
+    <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
   <div class="icon-btn" onclick="openSettings()">⚙️</div>
