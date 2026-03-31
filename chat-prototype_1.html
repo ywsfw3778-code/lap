@@ -1253,20 +1253,10 @@ window.handleLogout = async () => {
       try { sbClient.removeChannel(friendChannel); } catch(_e){}
     }
     try{
-      const key = typeof window.getChatStateKey === 'function' ? window.getChatStateKey() : '';
-      if(key) localStorage.removeItem(key);
-    }catch(_e){}
-    try{ localStorage.removeItem('lm-chat-state-last'); }catch(_e){}
-    try{ localStorage.removeItem('lm-chat-last-key'); }catch(_e){}
-    try{
       const key = typeof window.getActiveChatKey === 'function' ? window.getActiveChatKey() : '';
-      if(key) localStorage.removeItem(key);
+      if(key) sessionStorage.removeItem(key);
     }catch(_e){}
     try{ localStorage.removeItem('lm-active-chat-guest'); }catch(_e){}
-    try{
-      const key = typeof window.getHiddenMessagesKey === 'function' ? window.getHiddenMessagesKey() : '';
-      if(key) localStorage.removeItem(key);
-    }catch(_e){}
     try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
     try{
       Object.keys(localStorage).forEach((key) => {
@@ -1845,7 +1835,7 @@ function hydrateStoredState(parsed){
     });
   }
 
-const restoredActiveId = sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest') || null;  if(restoredActiveId){
+const restoredActiveId = sessionStorage.getItem(getActiveChatKey()) || localStorage.getItem(getActiveChatKey()) || parsed.activeContactId || sessionStorage.getItem('lm-active-chat-guest') || localStorage.getItem('lm-active-chat-guest') || null;  if(restoredActiveId){
     pendingRestoredContactId = restoredActiveId;
     const savedActive = contacts.find((x) => x.id === restoredActiveId);
     if(savedActive){
@@ -1919,25 +1909,31 @@ function saveLocalChatState(){
   const payload = {
     contacts: contacts.map(compactContactForStorage),
     conversations: compactConversationsForStorage(conversations),
-    activeContactId: null // السحر هنا: بنمنعه يحفظ الشات في الذاكرة الدائمة
+    activeContactId: activeId
   };
   try{
     localStorage.setItem(getChatStateKey(), JSON.stringify(payload));
     localStorage.setItem(getLastSnapshotKey(), JSON.stringify(payload));
-    
-    // حفظ في الجلسة المؤقتة فقط (عشان الريفريش)
-    if(activeId) sessionStorage.setItem(getActiveChatKey(), activeId);
-    else sessionStorage.removeItem(getActiveChatKey());
+    if(activeId){
+      localStorage.setItem(getActiveChatKey(), activeId);
+      sessionStorage.setItem(getActiveChatKey(), activeId);
+    }else{
+      localStorage.removeItem(getActiveChatKey());
+      sessionStorage.removeItem(getActiveChatKey());
+    }
   }catch(_e){
     try{
       const fallbackPayload = {
         contacts: contacts.map(compactContactForStorage),
         conversations: {},
-        activeContactId: null
+        activeContactId: activeId
       };
       localStorage.setItem(getChatStateKey(), JSON.stringify(fallbackPayload));
       localStorage.setItem(getLastSnapshotKey(), JSON.stringify(fallbackPayload));
-      if(activeId) sessionStorage.setItem(getActiveChatKey(), activeId);
+      if(activeId){
+        localStorage.setItem(getActiveChatKey(), activeId);
+        sessionStorage.setItem(getActiveChatKey(), activeId);
+      }
     }catch(_ignore){}
   }
 }
@@ -2914,7 +2910,7 @@ if(isOut){
 
 async function loadMessagesForContact(contactId){
   const sbClient = getSbClient();
-  const currentUser = getCurrentUser();
+  const currentUser = await getFreshCurrentUser();
   if(!sbClient || !currentUser || !contactId) return;
   const { data, error } = await sbClient
     .from('messages')
@@ -2982,7 +2978,7 @@ function colorFromId(id){
 
 async function loadInboxContacts(){
   const sbClient = getSbClient();
-  const currentUser = getCurrentUser();
+  const currentUser = await getFreshCurrentUser();
   if(!sbClient || !currentUser) return;
 
   const { data, error } = await sbClient
