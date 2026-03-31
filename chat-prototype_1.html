@@ -3782,6 +3782,10 @@ window.openFriendRequestsPanel = function() {
   panel.style.display = 'block';
   panel.style.opacity = '1';
   panel.style.pointerEvents = 'auto';
+  const meta = document.getElementById('friendRequestsMeta');
+  if(meta){
+    meta.textContent = window.me?.email ? `الحساب الحالي: ${window.me.email}` : 'الحساب الحالي غير معروف';
+  }
   window.loadPendingRequests?.().catch?.(() => {});
 };
 
@@ -3871,6 +3875,10 @@ window.refreshFriendRequestBadge = async function() {
 // تحميل الطلبات من سوبابيز
 window.loadPendingRequests = async function() {
   const listDiv = document.getElementById('friendRequestsList');
+  const meta = document.getElementById('friendRequestsMeta');
+  if(meta){
+    meta.textContent = window.me?.email ? `الحساب الحالي: ${window.me.email}` : 'الحساب الحالي غير معروف';
+  }
   listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
 
   try {
@@ -3883,7 +3891,7 @@ window.loadPendingRequests = async function() {
     if(error) throw error;
     
     if(!data || data.length === 0) {
-      listDiv.innerHTML = '<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة</div>';
+      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${window.me?.email || 'unknown'}</small></div>`;
       window.refreshFriendRequestBadge?.();
       return;
     }
@@ -3895,7 +3903,10 @@ window.loadPendingRequests = async function() {
     listDiv.innerHTML = data.map(req => `
       <div class="req-row">
         <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email || 'مستخدم', senderMap.get(req.sender_id)?.avatar_url || '')}</div>
-        <div style="font-size:13px;"><b>${senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email?.split('@')[0] || 'مستخدم'}</b></div>
+        <div style="font-size:13px;">
+          <b>${senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email?.split('@')[0] || 'مستخدم'}</b>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${senderMap.get(req.sender_id)?.email || req.sender_id}</div>
+        </div>
         <div class="req-btns">
           <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
           <button class="decline-btn" onclick="window.respondRequest('${req.id}', 'declined')">✖</button>
@@ -3940,6 +3951,7 @@ window.respondRequest = async function(requestId, newStatus) {
     <h3>طلبات الصداقة</h3>
     <button onclick="(function(){const p=document.getElementById('friendRequestsPanel'); if(!p) return; p.classList.remove('active'); p.style.opacity='0'; p.style.pointerEvents='none'; p.style.display='none';})()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
   </div>
+  <div id="friendRequestsMeta" style="font-size:11px; color:var(--muted); margin-bottom:12px;">الحساب الحالي: —</div>
   <div id="friendRequestsList">
     <div style="text-align:center; color:var(--muted); font-size:13px; margin-top:20px;">لا توجد طلبات معلقة</div>
   </div>
