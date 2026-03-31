@@ -1662,17 +1662,6 @@ window.bootstrapLabMembers = function(){
 
   // تشغيل المحرك الأساسي للبحث والشات
   if(typeof window.onAuthReady === 'function') window.onAuthReady();
-
-  // الحماية المطلقة للريفريش: هندي السيرفر ربع ثانية يجمع الداتا قبل ما نفتح الشات
-  setTimeout(() => {
-    const safeId = pendingRestoredContactId || sessionStorage.getItem(getActiveChatKey()) || sessionStorage.getItem('lm-active-chat-guest');
-    if(safeId && !window.__alreadyRestored){
-      if(typeof window.openChatById === 'function') {
-          window.openChatById(safeId);
-          window.__alreadyRestored = true; 
-      }
-    }
-  }, 250); 
 };
 
 
@@ -3664,20 +3653,19 @@ window.onAuthReady = async function(){
       await window.__profileBootPromise;
     }catch(_e){}
   }
-  // 1. تحميل الشات من الكاش والرسم فوراً
+  // 1. تحميل الكاش سريعًا لإظهار أي بيانات محفوظة لنفس الحساب
   loadLocalChatState();
+  if(typeof window.renderContacts === 'function') window.renderContacts();
+  if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
 
-  // 🔥 السر هنا: بنستدعي الشات فوراً بنفس أوامر الفتح عشان الموبايل والكمبيوتر يظبطوا 🔥
-  const restoredId = activeContact?.id || sessionStorage.getItem(typeof getActiveChatKey === 'function' ? getActiveChatKey() : '') || sessionStorage.getItem('lm-active-chat-guest');
+  const restoredId =
+    activeContact?.id ||
+    (typeof getActiveChatKey === 'function' ? sessionStorage.getItem(getActiveChatKey()) : null) ||
+    (typeof getActiveChatKey === 'function' ? localStorage.getItem(getActiveChatKey()) : null) ||
+    localStorage.getItem('lm-active-chat-guest') ||
+    sessionStorage.getItem('lm-active-chat-guest');
 
-  if (restoredId && typeof selectContact === 'function') {
-     selectContact(restoredId); // ده بيعمل كل حاجة (بيظبط الشاشة والموبايل والهيدر)
-  } else {
-     if(typeof window.renderContacts === 'function') window.renderContacts();
-     if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-  }
-
-  // 2. تحديثات السيرفر تتم في الخلفية براحتها
+  // 2. تحديثات السيرفر
   loadNotificationPreference();
   loadHiddenMessageIds();
   ensureRecordingBars();
@@ -3687,6 +3675,12 @@ window.onAuthReady = async function(){
   window.startFriendRequestsRealtime?.();
 
   await loadInboxContacts();
+  if(restoredId && typeof window.openChatById === 'function'){
+    window.openChatById(restoredId);
+  }else if(!activeContact && contacts.length){
+    const topContact = contacts[0];
+    if(topContact) window.openChatById?.(topContact.id);
+  }
   initPresence();
   startMessagePolling();
 
@@ -3694,14 +3688,6 @@ window.onAuthReady = async function(){
     window.refreshProfilesDirectory().catch(() => {});
   }
 };
-
-  // 👈 الضربة القاضية: إجبار الموقع يرسم الشاتات على الشاشة فوراً بعد التحميل
-  setTimeout(() => {
-    if(typeof window.renderContacts === 'function') window.renderContacts();
-    if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-    if(activeContact && typeof window.renderMessages === 'function') window.renderMessages(true);
-  }, 100);
-;
 
 applyLanguage();
 window.addEventListener('lab-auth-ready', () => {
@@ -3713,16 +3699,7 @@ document.addEventListener('DOMContentLoaded', () => {
     appLang = nextLang;
   }
   applyLanguage();
-  
-  // تأمين فوري للواجهة أول ما الصفحة تفتح عشان الريفريش
-  const restoredId = activeContact?.id || sessionStorage.getItem('lm-active-chat-guest') || (typeof getActiveChatKey === 'function' ? sessionStorage.getItem(getActiveChatKey()) : null);
-  
-  if (restoredId && typeof selectContact === 'function') {
-     selectContact(restoredId);
-  } else {
-     if(typeof window.renderContacts === 'function') window.renderContacts();
-     if(typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
-  }
+  if(typeof window.bootstrapLabMembers === 'function') window.bootstrapLabMembers();
 });
 
 window.addEventListener('pageshow', () => {
