@@ -2257,6 +2257,12 @@ async function fillProfileOverlay(data){
   const logoutBtn = document.getElementById('profileLogoutBtn');
   if(editBlock) editBlock.style.display = isSelf ? '' : 'none';
   if(logoutBtn) logoutBtn.style.display = isSelf ? '' : 'none';
+  if(isSelf){
+    const editName = document.getElementById('editName');
+    const editUsername = document.getElementById('editUsername');
+    if(editName) editName.value = window.myProfileState?.name || data?.name || '';
+    if(editUsername) editUsername.value = window.myProfileState?.username || data?.username || '';
+  }
 
   // --- زرار طلب الصداقة في البروفايل ---
   // --- زرار طلب الصداقة في البروفايل ---
