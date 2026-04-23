@@ -3007,7 +3007,7 @@ async function loadMessagesForContact(contactId){
   let data = null;
   let error = null;
   const rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
-  if(!rpcRes.error && Array.isArray(rpcRes.data)){
+  if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
     data = rpcRes.data;
   }else{
     const res = await sbClient
@@ -3121,7 +3121,7 @@ async function loadInboxContacts(){
   };
 
   const inboxRpc = await callRpcSafe('get_inbox_contacts');
-  if(!inboxRpc.error && Array.isArray(inboxRpc.data)){
+  if(!inboxRpc.error && Array.isArray(inboxRpc.data) && inboxRpc.data.length){
     const existingUnread = new Map(contacts.map((c) => [c.id, Number(c.unread || 0)]));
     const existingById = new Map(contacts.map((c) => [c.id, c]));
     const rebuiltFromRpc = (inboxRpc.data || []).map((row) => {
@@ -4034,7 +4034,7 @@ window.refreshFriendRequestBadge = async function() {
   if(!badge || !window.sb || !currentUser) return;
   try{
     const rpcRes = await callRpcSafe('get_pending_friend_requests');
-    if(!rpcRes.error && Array.isArray(rpcRes.data)){
+    if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
       const count = rpcRes.data.length;
       badge.textContent = String(count);
       badge.style.display = count ? 'flex' : 'none';
@@ -4068,13 +4068,8 @@ window.loadPendingRequests = async function() {
   try {
     if(!window.sb || !currentUser) throw new Error('الحساب الحالي غير متاح');
     const rpcRes = await callRpcSafe('get_pending_friend_requests');
-    if(!rpcRes.error && Array.isArray(rpcRes.data)){
+    if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
       const rows = rpcRes.data || [];
-      if(rows.length === 0){
-        listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${currentUser?.email || 'unknown'}</small></div>`;
-        window.refreshFriendRequestBadge?.();
-        return;
-      }
       if(meta){
         meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${rows.length}`;
       }
