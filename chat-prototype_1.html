@@ -3180,6 +3180,13 @@ async function loadInboxContacts(){
   const existingById = new Map(contacts.map((c) => [c.id, c]));
 
   if(!ids.length){
+    if(contacts.length){
+      console.warn('inbox returned empty; preserving cached contacts');
+      renderContacts();
+      syncActiveHeader();
+      if(activeContact) renderMessages();
+      return;
+    }
     contacts.splice(0, contacts.length);
     activeContact = null;
     window.activeContactRef = null;
