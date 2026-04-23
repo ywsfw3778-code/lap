@@ -1291,22 +1291,12 @@ window.handleLogout = async () => {
       if(key) sessionStorage.removeItem(key);
     }catch(_e){}
     try{ localStorage.removeItem('lm-active-chat-guest'); }catch(_e){}
-    try{ localStorage.removeItem(getAvatarStoreKey()); }catch(_e){}
     try{
-      Object.keys(localStorage).forEach((key) => {
-        if(key.includes('fetmbjnehfdtousenflp') && key.includes('auth-token')){
-          localStorage.removeItem(key);
-        }
-      });
-    }catch(_e){}
-    try{
-      Object.keys(sessionStorage).forEach((key) => {
-        if(key.includes('fetmbjnehfdtousenflp') && key.includes('auth-token')){
-          sessionStorage.removeItem(key);
-        }
-      });
-    }catch(_e){}
-    await sb.auth.signOut();
+      await sb.auth.signOut({ scope: 'local' });
+    }catch(_e){
+      try { await sb.auth.signOut(); } catch(_ignore){}
+    }
+    window.me = null;
   }catch(_e){}
   window.location.replace(`login.html?logout=${Date.now()}`);
 };
