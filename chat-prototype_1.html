@@ -1731,6 +1731,46 @@ function rpcHasRows(result){
 function rpcHasArray(result){
   return !result?.error && Array.isArray(result?.data);
 }
+const identityIdsCache = new Map();
+function sqlInList(values){
+  return (values || []).map((v) => String(v || '').trim()).filter(Boolean).join(',');
+}
+async function getIdentityIdsForEmail(email, fallbackId = ''){
+  const normalized = String(email || '').trim().toLowerCase();
+  const fallback = String(fallbackId || '').trim();
+  if(!normalized){
+    return fallback ? [fallback] : [];
+  }
+  if(identityIdsCache.has(normalized)){
+    const cached = identityIdsCache.get(normalized) || [];
+    return cached.length ? cached : (fallback ? [fallback] : []);
+  }
+  const sbClient = getSbClient();
+  let ids = [];
+  if(sbClient){
+    try{
+      const { data, error } = await sbClient
+        .from('user_identities')
+        .select('user_id,email')
+        .ilike('email', normalized);
+      if(!error){
+        ids = (data || [])
+          .map((row) => row.user_id)
+          .filter(Boolean)
+          .map((v) => String(v).trim());
+      }
+    }catch(_e){}
+  }
+  if(fallback && !ids.includes(fallback)) ids.push(fallback);
+  ids = Array.from(new Set(ids.filter(Boolean)));
+  identityIdsCache.set(normalized, ids);
+  return ids;
+}
+async function getCurrentIdentityIds(){
+  const currentUser = await getFreshCurrentUser();
+  if(!currentUser) return [];
+  return getIdentityIdsForEmail(currentUser.email || '', currentUser.id || '');
+}
 let messagePollTimer = null;
 let presenceChannel = null;
 let friendRequestPollTimer = null;
@@ -3023,10 +3063,17 @@ async function loadMessagesForContact(contactId){
   if(rpcHasRows(rpcRes)){
     data = rpcRes.data;
   }else{
+    const identityIds = await getCurrentIdentityIds();
+    const senderIn = sqlInList(identityIds);
+    const receiverIn = senderIn;
     const res = await sbClient
       .from('messages')
       .select('*')
-      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${currentUser.id})`)
+      .or(
+        identityIds.length
+          ? `and(sender_id.in.(${senderIn}),receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.in.(${receiverIn}))`
+          : `and(sender_id.eq.${currentUser.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${currentUser.id})`
+      )
       .order('created_at', { ascending: true })
       .limit(200);
     data = res.data;
@@ -3176,10 +3223,16 @@ async function loadInboxContacts(){
     return;
   }
 
+  const identityIds = await getCurrentIdentityIds();
+  const idsIn = sqlInList(identityIds);
   const { data, error } = await sbClient
     .from('messages')
     .select('*')
-    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+    .or(
+      identityIds.length
+        ? `sender_id.in.(${idsIn}),receiver_id.in.(${idsIn})`
+        : `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
+    )
     .order('created_at', { ascending: false })
     .limit(200);
 
@@ -3206,8 +3259,9 @@ async function loadInboxContacts(){
 
   const latestByPartner = new Map();
   for(const m of (data || [])){
-    const partnerId = m.sender_id === currentUser.id ? m.receiver_id : m.sender_id;
-    if(!partnerId || partnerId === currentUser.id) continue;
+    const mine = identityIds.length ? identityIds.includes(String(m.sender_id || '')) : m.sender_id === currentUser.id;
+    const partnerId = mine ? m.receiver_id : m.sender_id;
+    if(!partnerId || identityIds.includes(String(partnerId || '')) || partnerId === currentUser.id) continue;
     if(!latestByPartner.has(partnerId)) latestByPartner.set(partnerId, m);
   }
 
@@ -3256,7 +3310,8 @@ async function loadInboxContacts(){
     };
 
     const stamp = String(last?.created_at || '');
-    if(last && last.sender_id !== currentUser.id && (!activeContact || activeContact.id !== id) && c._lastInboxAt !== stamp){
+    const lastIsMine = identityIds.length ? identityIds.includes(String(last?.sender_id || '')) : last?.sender_id === currentUser.id;
+    if(last && !lastIsMine && (!activeContact || activeContact.id !== id) && c._lastInboxAt !== stamp){
       c.unread = Math.min((c.unread || 0) + 1, 99);
     }
     c._lastInboxAt = stamp;
@@ -4080,10 +4135,11 @@ window.refreshFriendRequestBadge = async function() {
       badge.style.display = count ? 'flex' : 'none';
       return;
     }
+    const identityIds = await getCurrentIdentityIds();
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id')
-      .eq('receiver_id', currentUser.id)
+      .in('receiver_id', identityIds.length ? identityIds : [currentUser.id])
       .eq('status', 'pending');
     if(error) throw error;
     const count = (data || []).length;
@@ -4137,10 +4193,11 @@ window.loadPendingRequests = async function() {
       window.refreshFriendRequestBadge?.();
       return;
     }
+    const identityIds = await getCurrentIdentityIds();
     const { data, error } = await window.sb
       .from('friend_requests')
       .select('id, sender_id, receiver_id, status, created_at')
-      .eq('receiver_id', currentUser.id)
+      .in('receiver_id', identityIds.length ? identityIds : [currentUser.id])
       .eq('status', 'pending');
 
     if(error) throw error;
