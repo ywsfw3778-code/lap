@@ -943,8 +943,15 @@ sb.auth.onAuthStateChange((_event, nextSession) => {
   }
 });
 
+function getStorageIdentityPart(user){
+  const email = String(user?.email || '').trim().toLowerCase();
+  if(email) return email;
+  const id = String(user?.id || '').trim();
+  return id || 'guest';
+}
+
 function getAvatarStoreKey(){
-  return `lm-avatar-${me.id}`;
+  return `lm-avatar-${getStorageIdentityPart(me)}`;
 }
 
 function loadLocalAvatar(){
@@ -1752,7 +1759,7 @@ async function getIdentityIdsForEmail(email, fallbackId = ''){
       const { data, error } = await sbClient
         .from('user_identities')
         .select('user_id,email')
-        .ilike('email', normalized);
+        .eq('email', normalized);
       if(!error){
         ids = (data || [])
           .map((row) => row.user_id)
@@ -1760,6 +1767,20 @@ async function getIdentityIdsForEmail(email, fallbackId = ''){
           .map((v) => String(v).trim());
       }
     }catch(_e){}
+    if(!ids.length){
+      try{
+        const { data, error } = await sbClient
+          .from('profiles')
+          .select('id,email')
+          .eq('email', normalized);
+        if(!error){
+          ids = (data || [])
+            .map((row) => row.id)
+            .filter(Boolean)
+            .map((v) => String(v).trim());
+        }
+      }catch(_e){}
+    }
   }
   if(fallback && !ids.includes(fallback)) ids.push(fallback);
   ids = Array.from(new Set(ids.filter(Boolean)));
@@ -1838,6 +1859,12 @@ function fallbackAvatarMarkup(label, imageUrl, extraDotClass = ''){
 window.getDisplayInitial = window.getDisplayInitial || fallbackDisplayInitial;
 window.setAvatarNode = window.setAvatarNode || fallbackSetAvatarNode;
 window.avatarMarkup = window.avatarMarkup || fallbackAvatarMarkup;
+window.getStorageIdentityPart = window.getStorageIdentityPart || function(user){
+  const email = String(user?.email || '').trim().toLowerCase();
+  if(email) return email;
+  const id = String(user?.id || '').trim();
+  return id || 'guest';
+};
 
 function isMobileView(){
   return window.matchMedia('(max-width: 980px)').matches;
@@ -1860,7 +1887,7 @@ window.openSidebarMobile = function(){
 function getChatStateKey(){
   const me = getCurrentUser();
   if(me){
-    const key = `lm-chat-state-${me.id}`;
+    const key = `lm-chat-state-${window.getStorageIdentityPart(me)}`;
     try{ localStorage.setItem('lm-chat-last-key', key); }catch(_e){}
     return key;
   }
@@ -1873,7 +1900,7 @@ function getChatStateKey(){
 
 function getActiveChatKey(){
   const me = getCurrentUser();
-  return me ? `lm-active-chat-${me.id}` : 'lm-active-chat-guest';
+  return me ? `lm-active-chat-${window.getStorageIdentityPart(me)}` : 'lm-active-chat-guest';
 }
 
 function getLastSnapshotKey(){
@@ -1882,7 +1909,7 @@ function getLastSnapshotKey(){
 
 function getHiddenMessagesKey(){
   const me = getCurrentUser();
-  return me ? `lm-hidden-messages-${me.id}` : 'lm-hidden-messages-guest';
+  return me ? `lm-hidden-messages-${window.getStorageIdentityPart(me)}` : 'lm-hidden-messages-guest';
 }
 
 window.getChatStateKey = getChatStateKey;
@@ -1979,7 +2006,7 @@ const restoredActiveId = sessionStorage.getItem(getActiveChatKey()) || localStor
 function loadFastLocalChatState(){
   try{
     const keys = [
-      window.me ? `lm-chat-state-${window.me.id}` : '',
+      window.me ? `lm-chat-state-${window.getStorageIdentityPart(window.me)}` : '',
       localStorage.getItem('lm-chat-last-key') || '',
       getLastSnapshotKey(),
       'lm-chat-state-guest'
@@ -2462,7 +2489,7 @@ window.openUserAvatarOrProfile = async function(userId){
 
 function getNotifyStoreKey(){
   const me = getCurrentUser();
-  return me ? `lm-notify-${me.id}` : 'lm-notify-guest';
+  return me ? `lm-notify-${window.getStorageIdentityPart(me)}` : 'lm-notify-guest';
 }
 
 function syncNotificationToggle(){
@@ -3064,20 +3091,34 @@ async function loadMessagesForContact(contactId){
     data = rpcRes.data;
   }else{
     const identityIds = await getCurrentIdentityIds();
-    const senderIn = sqlInList(identityIds);
-    const receiverIn = senderIn;
-    const res = await sbClient
-      .from('messages')
-      .select('*')
-      .or(
-        identityIds.length
-          ? `and(sender_id.in.(${senderIn}),receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.in.(${receiverIn}))`
-          : `and(sender_id.eq.${currentUser.id},receiver_id.eq.${contactId}),and(sender_id.eq.${contactId},receiver_id.eq.${currentUser.id})`
-      )
-      .order('created_at', { ascending: true })
-      .limit(200);
-    data = res.data;
-    error = res.error;
+    const ids = identityIds.length ? identityIds : [currentUser.id];
+    const [sentRes, recvRes] = await Promise.all([
+      sbClient
+        .from('messages')
+        .select('*')
+        .in('sender_id', ids)
+        .eq('receiver_id', contactId)
+        .order('created_at', { ascending: true })
+        .limit(200),
+      sbClient
+        .from('messages')
+        .select('*')
+        .eq('sender_id', contactId)
+        .in('receiver_id', ids)
+        .order('created_at', { ascending: true })
+        .limit(200)
+    ]);
+    error = sentRes.error || recvRes.error || null;
+    const merged = [...(sentRes.data || []), ...(recvRes.data || [])];
+    const seen = new Set();
+    data = merged
+      .filter((row) => {
+        const key = String(row?.id || '');
+        if(!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')));
   }
 
   if(error){
@@ -3224,17 +3265,31 @@ async function loadInboxContacts(){
   }
 
   const identityIds = await getCurrentIdentityIds();
-  const idsIn = sqlInList(identityIds);
-  const { data, error } = await sbClient
-    .from('messages')
-    .select('*')
-    .or(
-      identityIds.length
-        ? `sender_id.in.(${idsIn}),receiver_id.in.(${idsIn})`
-        : `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
-    )
-    .order('created_at', { ascending: false })
-    .limit(200);
+  const ids = identityIds.length ? identityIds : [currentUser.id];
+  const [sentRes, recvRes] = await Promise.all([
+    sbClient
+      .from('messages')
+      .select('*')
+      .in('sender_id', ids)
+      .order('created_at', { ascending: false })
+      .limit(200),
+    sbClient
+      .from('messages')
+      .select('*')
+      .in('receiver_id', ids)
+      .order('created_at', { ascending: false })
+      .limit(200)
+  ]);
+  const error = sentRes.error || recvRes.error || null;
+  const seenRows = new Set();
+  const data = [...(sentRes.data || []), ...(recvRes.data || [])]
+    .filter((row) => {
+      const key = String(row?.id || '');
+      if(!key || seenRows.has(key)) return false;
+      seenRows.add(key);
+      return true;
+    })
+    .sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')));
 
   if(error){
     console.warn('inbox load failed:', error.message);
