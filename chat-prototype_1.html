@@ -1725,6 +1725,12 @@ async function callRpcSafe(name, params = {}){
     return { data: null, error: err };
   }
 }
+function rpcHasRows(result){
+  return !result?.error && Array.isArray(result?.data) && result.data.length > 0;
+}
+function rpcHasArray(result){
+  return !result?.error && Array.isArray(result?.data);
+}
 let messagePollTimer = null;
 let presenceChannel = null;
 let friendRequestPollTimer = null;
@@ -2996,8 +3002,19 @@ async function loadMessagesForContact(contactId){
   if(!sbClient || !currentUser || !contactId) return;
   let data = null;
   let error = null;
-  const rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
-  if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
+  const currentEmail = String(currentUser.email || '').trim();
+  let rpcRes = { data: null, error: new Error('rpc-not-run') };
+  if(currentEmail){
+    rpcRes = await callRpcSafe('get_chat_messages_for_email', {
+      current_email: currentEmail,
+      partner_user_id: contactId,
+      result_limit: 200
+    });
+  }
+  if(!rpcHasRows(rpcRes)){
+    rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
+  }
+  if(rpcHasRows(rpcRes)){
     data = rpcRes.data;
   }else{
     const res = await sbClient
@@ -3028,6 +3045,12 @@ async function loadMessagesForContact(contactId){
     dayLabel: formatDayDivider(m.created_at),
     read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
   }));
+
+  if(!rows.length && Array.isArray(conversations[contactId]) && conversations[contactId].length){
+    console.warn('chat messages returned empty; preserving cached conversation for', contactId);
+    renderMessages();
+    return;
+  }
 
   conversations[contactId] = rows;
 
@@ -3110,8 +3133,15 @@ async function loadInboxContacts(){
     }
   };
 
-  const inboxRpc = await callRpcSafe('get_inbox_contacts');
-  if(!inboxRpc.error && Array.isArray(inboxRpc.data) && inboxRpc.data.length){
+  const currentEmail = String(currentUser.email || '').trim();
+  let inboxRpc = { data: null, error: new Error('rpc-not-run') };
+  if(currentEmail){
+    inboxRpc = await callRpcSafe('get_inbox_contacts_for_email', { current_email: currentEmail });
+  }
+  if(!rpcHasRows(inboxRpc)){
+    inboxRpc = await callRpcSafe('get_inbox_contacts');
+  }
+  if(rpcHasRows(inboxRpc)){
     const existingUnread = new Map(contacts.map((c) => [c.id, Number(c.unread || 0)]));
     const existingById = new Map(contacts.map((c) => [c.id, c]));
     const rebuiltFromRpc = (inboxRpc.data || []).map((row) => {
@@ -4030,8 +4060,15 @@ window.refreshFriendRequestBadge = async function() {
   const currentUser = await getFreshCurrentUser();
   if(!badge || !window.sb || !currentUser) return;
   try{
-    const rpcRes = await callRpcSafe('get_pending_friend_requests');
-    if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
+    const currentEmail = String(currentUser.email || '').trim();
+    let rpcRes = { data: null, error: new Error('rpc-not-run') };
+    if(currentEmail){
+      rpcRes = await callRpcSafe('get_pending_friend_requests_for_email', { current_email: currentEmail });
+    }
+    if(!rpcHasRows(rpcRes)){
+      rpcRes = await callRpcSafe('get_pending_friend_requests');
+    }
+    if(rpcHasRows(rpcRes)){
       const count = rpcRes.data.length;
       badge.textContent = String(count);
       badge.style.display = count ? 'flex' : 'none';
@@ -4064,8 +4101,15 @@ window.loadPendingRequests = async function() {
 
   try {
     if(!window.sb || !currentUser) throw new Error('الحساب الحالي غير متاح');
-    const rpcRes = await callRpcSafe('get_pending_friend_requests');
-    if(!rpcRes.error && Array.isArray(rpcRes.data) && rpcRes.data.length){
+    const currentEmail = String(currentUser.email || '').trim();
+    let rpcRes = { data: null, error: new Error('rpc-not-run') };
+    if(currentEmail){
+      rpcRes = await callRpcSafe('get_pending_friend_requests_for_email', { current_email: currentEmail });
+    }
+    if(!rpcHasRows(rpcRes)){
+      rpcRes = await callRpcSafe('get_pending_friend_requests');
+    }
+    if(rpcHasRows(rpcRes)){
       const rows = rpcRes.data || [];
       if(meta){
         meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${rows.length}`;
