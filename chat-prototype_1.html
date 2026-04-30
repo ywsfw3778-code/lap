@@ -1474,14 +1474,14 @@ async function getFriendRelation(targetId){
     const [outgoing, incoming] = await Promise.all([
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .select('id, sender_id, receiver_id, status, created_at')
         .in('sender_id', ids)
         .eq('receiver_id', targetId)
         .order('created_at', { ascending: false })
         .limit(1),
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .select('id, sender_id, receiver_id, status, created_at')
         .eq('sender_id', targetId)
         .in('receiver_id', ids)
         .order('created_at', { ascending: false })
@@ -1534,12 +1534,12 @@ async function getFriendRelationsForUsers(userIds){
     const [outgoing, incoming] = await Promise.all([
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .select('id, sender_id, receiver_id, status, created_at')
         .in('sender_id', ownIds)
         .in('receiver_id', ids),
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .select('id, sender_id, receiver_id, status, created_at')
         .in('sender_id', ids)
         .in('receiver_id', ownIds)
     ]);
@@ -1725,11 +1725,18 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     if(sendRpc.error){
       const targetRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([targetId]) : [];
       const targetEmail = String(targetRows?.[0]?.email || '').trim().toLowerCase();
-      const res = await window.sb
+      let res = await window.sb
         .from('friend_requests')
         .insert([{ sender_id: currentUser.id, receiver_id: targetId, sender_email: currentEmail.toLowerCase(), receiver_email: targetEmail || null, status: 'pending' }])
         .select('id, sender_id, receiver_id, sender_email, receiver_email, status')
         .limit(1);
+      if(isSchemaCacheMissingColumn(res.error)){
+        res = await window.sb
+          .from('friend_requests')
+          .insert([{ sender_id: currentUser.id, receiver_id: targetId, status: 'pending' }])
+          .select('id, sender_id, receiver_id, status')
+          .limit(1);
+      }
       insertedRows = res.data;
       error = res.error;
     }else{
@@ -1816,6 +1823,10 @@ function rpcHasRows(result){
 }
 function rpcHasArray(result){
   return !result?.error && Array.isArray(result?.data);
+}
+function isSchemaCacheMissingColumn(error){
+  const msg = String(error?.message || error || '').toLowerCase();
+  return msg.includes('schema cache') && msg.includes('could not find') && msg.includes('column');
 }
 const identityIdsCache = new Map();
 function sqlInList(values){
@@ -4286,6 +4297,8 @@ window.refreshFriendRequestBadge = async function() {
         badge.textContent = String(count);
         badge.style.display = count ? 'flex' : 'none';
         return;
+      }else if(!isSchemaCacheMissingColumn(emailRows.error)){
+        console.warn('friend badge email fallback failed:', emailRows.error?.message || emailRows.error);
       }
     }
     const identityIds = await getCurrentIdentityIds();
@@ -4365,7 +4378,7 @@ window.loadPendingRequests = async function() {
     if(currentEmail){
       const emailRes = await window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .select('id, sender_id, receiver_id, status, created_at')
         .eq('receiver_email', currentEmail.toLowerCase())
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
@@ -4379,12 +4392,14 @@ window.loadPendingRequests = async function() {
         listDiv.innerHTML = renderFriendRequestRows(emailRes.data, senderMap);
         window.refreshFriendRequestBadge?.();
         return;
+      }else if(emailRes.error && !isSchemaCacheMissingColumn(emailRes.error)){
+        console.warn('friend requests email fallback failed:', emailRes.error?.message || emailRes.error);
       }
     }
     const identityIds = await getCurrentIdentityIds();
     const { data, error } = await window.sb
       .from('friend_requests')
-      .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+      .select('id, sender_id, receiver_id, status, created_at')
       .in('receiver_id', identityIds.length ? identityIds : [currentUser.id])
       .eq('status', 'pending');
 
