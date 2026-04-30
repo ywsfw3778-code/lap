@@ -688,7 +688,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
   
-  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="(function(){const p=document.getElementById('friendRequestsPanel'); if(!p) return; p.classList.add('active'); p.style.display='block'; p.style.opacity='1'; p.style.pointerEvents='auto'; if(window.loadPendingRequests){window.loadPendingRequests().catch(()=>{});} })()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
+  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();window.openFriendRequestsPanel?.()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span class="friend-btn-mark">+</span>
     <span class="friend-btn-text">طلبات</span>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
@@ -4277,6 +4277,28 @@ window.refreshFriendRequestBadge = async function() {
   }
 };
 
+function renderFriendRequestRows(rows, senderMap = new Map()){
+  return (rows || []).map(req => {
+    const sender = senderMap.get(req.sender_id) || {};
+    const senderName = req.sender_name || sender.full_name || sender.username || sender.email || req.sender_email || req.sender_id || 'مستخدم';
+    const senderEmail = req.sender_email || sender.email || req.sender_id || '';
+    const senderAvatar = req.sender_avatar || sender.avatar_url || '';
+    return `
+      <div class="req-row">
+        <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(senderName, senderAvatar)}</div>
+        <div style="font-size:13px;">
+          <b>${senderName}</b>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${senderEmail}</div>
+          <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${req.id || req.request_id}</div>
+        </div>
+        <div class="req-btns">
+          <button class="accept-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'accepted')">✔</button>
+          <button class="decline-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'declined')">✖</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 // تحميل الطلبات من سوبابيز
 window.loadPendingRequests = async function() {
   const listDiv = document.getElementById('friendRequestsList');
@@ -4294,28 +4316,22 @@ window.loadPendingRequests = async function() {
     if(currentEmail){
       rpcRes = await callRpcSafe('get_pending_friend_requests_for_email', { current_email: currentEmail });
     }
-    if(!rpcHasRows(rpcRes)){
-      rpcRes = await callRpcSafe('get_pending_friend_requests');
-    }
     if(rpcHasRows(rpcRes)){
       const rows = rpcRes.data || [];
       if(meta){
-        meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${rows.length}`;
+        meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${rows.length} • RPC`;
       }
-      listDiv.innerHTML = rows.map(req => `
-        <div class="req-row">
-          <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(req.sender_name || req.sender_username || req.sender_email || 'مستخدم', req.sender_avatar || '')}</div>
-          <div style="font-size:13px;">
-            <b>${req.sender_name || req.sender_username || req.sender_email?.split('@')[0] || 'مستخدم'}</b>
-            <div style="font-size:11px; color:var(--muted); margin-top:2px;">${req.sender_email || req.sender_id}</div>
-            <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${req.id || req.request_id}</div>
-          </div>
-          <div class="req-btns">
-            <button class="accept-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'accepted')">✔</button>
-            <button class="decline-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'declined')">✖</button>
-          </div>
-        </div>
-      `).join('');
+      listDiv.innerHTML = renderFriendRequestRows(rows);
+      window.refreshFriendRequestBadge?.();
+      return;
+    }
+    const legacyRpc = await callRpcSafe('get_pending_friend_requests');
+    if(rpcHasRows(legacyRpc)){
+      const rows = legacyRpc.data || [];
+      if(meta){
+        meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${rows.length} • RPC قديم`;
+      }
+      listDiv.innerHTML = renderFriendRequestRows(rows);
       window.refreshFriendRequestBadge?.();
       return;
     }
@@ -4329,7 +4345,9 @@ window.loadPendingRequests = async function() {
     if(error) throw error;
     
     if(!data || data.length === 0) {
-      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${currentUser?.email || 'unknown'}</small></div>`;
+      const rpcNote = rpcRes.error ? `<br><small style="opacity:.75;">RPC: ${rpcRes.error.message || rpcRes.error}</small>` : '';
+      const legacyNote = legacyRpc.error ? `<br><small style="opacity:.75;">legacy: ${legacyRpc.error.message || legacyRpc.error}</small>` : '';
+      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${currentUser?.email || 'unknown'} • ids: ${(identityIds.length ? identityIds : [currentUser.id]).join(', ')}</small>${rpcNote}${legacyNote}</div>`;
       window.refreshFriendRequestBadge?.();
       return;
     }
@@ -4342,24 +4360,11 @@ window.loadPendingRequests = async function() {
     const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
     const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
 
-    listDiv.innerHTML = data.map(req => `
-      <div class="req-row">
-        <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email || 'مستخدم', senderMap.get(req.sender_id)?.avatar_url || '')}</div>
-        <div style="font-size:13px;">
-          <b>${senderMap.get(req.sender_id)?.full_name || senderMap.get(req.sender_id)?.username || senderMap.get(req.sender_id)?.email?.split('@')[0] || 'مستخدم'}</b>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${senderMap.get(req.sender_id)?.email || req.sender_id}</div>
-          <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${req.id}</div>
-        </div>
-        <div class="req-btns">
-          <button class="accept-btn" onclick="window.respondRequest('${req.id}', 'accepted')">✔</button>
-          <button class="decline-btn" onclick="window.respondRequest('${req.id}', 'declined')">✖</button>
-        </div>
-      </div>
-    `).join('');
+    listDiv.innerHTML = renderFriendRequestRows(data, senderMap);
     window.refreshFriendRequestBadge?.();
   } catch (err) {
     console.error(err);
-    listDiv.innerHTML = '<div style="text-align:center; color:red; margin-top:20px;">حدث خطأ في التحميل</div>';
+    listDiv.innerHTML = `<div style="text-align:center; color:#ff6b6b; margin-top:20px;">حدث خطأ في التحميل<br><small>${err?.message || err}</small></div>`;
     window.refreshFriendRequestBadge?.();
   }
 };
@@ -4367,8 +4372,12 @@ window.loadPendingRequests = async function() {
 // الرد على الطلب (قبول/رفض)
 window.respondRequest = async function(requestId, newStatus) {
   try {
+    const currentUser = await getFreshCurrentUser();
     let error = null;
-    const rpcRes = await callRpcSafe('respond_friend_request', { request_id: requestId, new_status: newStatus });
+    const currentEmail = String(currentUser?.email || '').trim();
+    const rpcRes = currentEmail
+      ? await callRpcSafe('respond_friend_request_for_email', { current_email: currentEmail, request_id: requestId, new_status: newStatus })
+      : await callRpcSafe('respond_friend_request', { request_id: requestId, new_status: newStatus });
     if(rpcRes.error){
       const res = await window.sb
         .from('friend_requests')
@@ -4397,7 +4406,10 @@ window.respondRequest = async function(requestId, newStatus) {
 <div id="friendRequestsPanel" class="side-panel" style="display:none; opacity:0; pointer-events:none; position:fixed; top:84px; left:18px; width:min(360px, calc(100vw - 36px)); max-height:calc(100dvh - 110px); overflow:auto; background:var(--sidebar); border:1px solid var(--border2); border-radius:18px; box-shadow:0 20px 50px rgba(0,0,0,.42); transform:none; transition:opacity .2s ease; z-index:4000; padding:20px;">
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <h3>طلبات الصداقة</h3>
-    <button onclick="(function(){const p=document.getElementById('friendRequestsPanel'); if(!p) return; p.classList.remove('active'); p.style.opacity='0'; p.style.pointerEvents='none'; p.style.display='none';})()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button onclick="window.loadPendingRequests?.()" class="friend-refresh-btn">تحديث</button>
+      <button onclick="window.closeFriendRequestsPanel?.()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
+    </div>
   </div>
   <div id="friendRequestsMeta" style="font-size:11px; color:var(--muted); margin-bottom:12px;">الحساب الحالي: —</div>
   <div id="friendRequestsList">
@@ -4407,6 +4419,7 @@ window.respondRequest = async function(requestId, newStatus) {
 
 <style>
   #friendRequestsPanel.active { display:block; opacity:1; pointer-events:auto; }
+  .friend-refresh-btn { background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; font-size:12px; }
   .req-row { display:flex; align-items:center; gap:10px; padding:10px; background:var(--surface2); border-radius:10px; margin-bottom:10px; }
   .req-btns { display:flex; gap:5px; margin-right:auto; }
   .accept-btn { background:var(--online); border:none; border-radius:5px; color:white; padding:5px; cursor:pointer; }
