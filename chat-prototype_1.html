@@ -688,7 +688,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
   
-  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();window.openFriendRequestsPanel?.()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
+  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();(function(){if(window.openFriendRequestsPanel){window.openFriendRequestsPanel();return;}const p=document.getElementById('friendRequestsPanel');if(!p)return;p.classList.add('active');p.style.display='block';p.style.opacity='1';p.style.pointerEvents='auto';setTimeout(function(){window.loadPendingRequests&&window.loadPendingRequests();},0);})()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span class="friend-btn-mark">+</span>
     <span class="friend-btn-text">طلبات</span>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
