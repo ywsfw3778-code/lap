@@ -3320,11 +3320,11 @@ async function loadInboxContacts(){
     if(!latestByPartner.has(partnerId)) latestByPartner.set(partnerId, m);
   }
 
-  const ids = Array.from(latestByPartner.keys());
+  const partnerIds = Array.from(latestByPartner.keys());
   const existingUnread = new Map(contacts.map((c) => [c.id, Number(c.unread || 0)]));
   const existingById = new Map(contacts.map((c) => [c.id, c]));
 
-  if(!ids.length){
+  if(!partnerIds.length){
     if(contacts.length){
       console.warn('inbox returned empty; preserving cached contacts');
       renderContacts();
@@ -3342,7 +3342,7 @@ async function loadInboxContacts(){
   }
 
   const rebuiltContacts = [];
-  for(const id of ids){
+  for(const id of partnerIds){
     const last = latestByPartner.get(id);
     const existing = existingById.get(id);
     const clr = existing ? { bg: existing.color, t: existing.text } : colorFromId(id);
@@ -3376,7 +3376,7 @@ async function loadInboxContacts(){
   rebuiltContacts.sort((a, b) => String(b._lastInboxAt || '').localeCompare(String(a._lastInboxAt || '')));
   applyRebuiltContacts(rebuiltContacts);
 
-  const safeProfiles = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(ids) : [];
+  const safeProfiles = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(partnerIds) : [];
   const profMap = new Map((safeProfiles || []).map(p => [p.id, p]));
 
   newIncomingMessages.forEach((m) => {
@@ -3385,7 +3385,7 @@ async function loadInboxContacts(){
   });
 
   let enriched = false;
-  for(const id of ids){
+  for(const id of partnerIds){
     const p = profMap.get(id) || {};
     const c = contacts.find(x => x.id === id);
     if(!c) continue;
