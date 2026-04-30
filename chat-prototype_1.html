@@ -1474,14 +1474,14 @@ async function getFriendRelation(targetId){
     const [outgoing, incoming] = await Promise.all([
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, status, created_at')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
         .in('sender_id', ids)
         .eq('receiver_id', targetId)
         .order('created_at', { ascending: false })
         .limit(1),
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, status, created_at')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
         .eq('sender_id', targetId)
         .in('receiver_id', ids)
         .order('created_at', { ascending: false })
@@ -1510,8 +1510,10 @@ async function getFriendRelationsForUsers(userIds){
     });
     if(!emailRpc.error && Array.isArray(emailRpc.data)){
       const map = new Map();
+      const currentEmailLower = String(currentUser.email || '').trim().toLowerCase();
       emailRpc.data.forEach((row) => {
-        const otherId = row.other_id || (row.sender_id === currentUser.id ? row.receiver_id : row.sender_id);
+        const senderEmailIsMe = String(row.sender_email || '').trim().toLowerCase() === currentEmailLower;
+        const otherId = row.other_id || (senderEmailIsMe || row.sender_id === currentUser.id ? row.receiver_id : row.sender_id);
         if(otherId) map.set(otherId, row);
       });
       if(map.size) return map;
@@ -1532,12 +1534,12 @@ async function getFriendRelationsForUsers(userIds){
     const [outgoing, incoming] = await Promise.all([
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, status, created_at')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
         .in('sender_id', ownIds)
         .in('receiver_id', ids),
       window.sb
         .from('friend_requests')
-        .select('id, sender_id, receiver_id, status, created_at')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
         .in('sender_id', ids)
         .in('receiver_id', ownIds)
     ]);
@@ -1560,13 +1562,18 @@ async function getFriendRelationsForUsers(userIds){
 
 function renderFriendActionButton(targetId, relation){
   if(!targetId || !window.me || targetId === window.me.id) return '';
+  const meEmail = String(window.me?.email || '').trim().toLowerCase();
+  const sentByMe = !!relation && (
+    relation.sender_id === window.me.id ||
+    String(relation.sender_email || '').trim().toLowerCase() === meEmail
+  );
   if(!relation){
     return `<button class="add-btn" data-friend-state="none" onclick="window.sendFriendRequest('${targetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
   }
   if(relation.status === 'accepted'){
     return `<button class="add-btn" data-friend-state="accepted" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
   }
-  if(relation.status === 'pending' && relation.sender_id === window.me.id){
+  if(relation.status === 'pending' && sentByMe){
     return `<button class="add-btn" data-friend-state="sent" onclick="window.sendFriendRequest('${targetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إلغاء الطلب ⏳</button>`;
   }
   return `<button class="add-btn" data-friend-state="incoming" onclick="window.sendFriendRequest('${targetId}', this)" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">قبول الطلب ✔</button>`;
@@ -1625,6 +1632,11 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     const currentUser = await getFreshCurrentUser();
     if(!currentUser) throw new Error('الحساب الحالي غير متاح');
     const identityIds = await getCurrentIdentityIds();
+    const currentEmailLower = String(currentUser.email || '').trim().toLowerCase();
+    const relationSentByMe = (rel) => !!rel && (
+      idBelongsToCurrentUser(rel.sender_id, identityIds, currentUser) ||
+      String(rel.sender_email || '').trim().toLowerCase() === currentEmailLower
+    );
     const relation = await getFriendRelation(targetId);
 
     if (relation?.status === 'accepted') {
@@ -1633,7 +1645,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       return;
     }
 
-    if (relation?.status === 'pending' && idBelongsToCurrentUser(relation.sender_id, identityIds, currentUser)) {
+    if (relation?.status === 'pending' && relationSentByMe(relation)) {
       if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
         btnElement.disabled = true;
         btnElement.textContent = 'جاري الإلغاء...';
@@ -1666,7 +1678,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       return;
     }
 
-    if (relation?.status === 'pending' && !idBelongsToCurrentUser(relation.sender_id, identityIds, currentUser)) {
+    if (relation?.status === 'pending' && !relationSentByMe(relation)) {
       btnElement.disabled = true;
       btnElement.textContent = 'جاري القبول...';
 
@@ -1711,10 +1723,12 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       ? await callRpcSafe('send_friend_request_for_email', { current_email: currentEmail, target_user_id: targetId })
       : await callRpcSafe('send_friend_request', { target_user_id: targetId });
     if(sendRpc.error){
+      const targetRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([targetId]) : [];
+      const targetEmail = String(targetRows?.[0]?.email || '').trim().toLowerCase();
       const res = await window.sb
         .from('friend_requests')
-        .insert([{ sender_id: currentUser.id, receiver_id: targetId, status: 'pending' }])
-        .select('id, sender_id, receiver_id, status')
+        .insert([{ sender_id: currentUser.id, receiver_id: targetId, sender_email: currentEmail.toLowerCase(), receiver_email: targetEmail || null, status: 'pending' }])
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status')
         .limit(1);
       insertedRows = res.data;
       error = res.error;
@@ -1724,7 +1738,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     
     if (error) {
       const relationAfterError = await getFriendRelation(targetId);
-      if(relationAfterError?.status === 'pending' && idBelongsToCurrentUser(relationAfterError.sender_id, identityIds, currentUser)){
+      if(relationAfterError?.status === 'pending' && relationSentByMe(relationAfterError)){
         btnElement.textContent = 'إلغاء الطلب ⏳';
         btnElement.style.background = 'transparent';
         btnElement.style.color = 'var(--muted)';
@@ -4223,13 +4237,13 @@ window.startFriendRequestsRealtime = function() {
       friendRequestsChannel = null;
       window.friendRequestsChannel = null;
     }
+    const currentEmail = String(currentUser.email || currentUser.id || '').trim().toLowerCase();
     friendRequestsChannel = sbClient
-      .channel(`friend-requests-${currentUser.id}`)
+      .channel(`friend-requests-${currentEmail || currentUser.id}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'friend_requests',
-        filter: `receiver_id=eq.${currentUser.id}`
+        table: 'friend_requests'
       }, () => {
         window.refreshFriendRequestBadge?.();
         if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
@@ -4260,6 +4274,19 @@ window.refreshFriendRequestBadge = async function() {
       badge.textContent = String(count);
       badge.style.display = count ? 'flex' : 'none';
       return;
+    }
+    if(currentEmail){
+      const emailRows = await window.sb
+        .from('friend_requests')
+        .select('id')
+        .eq('receiver_email', currentEmail.toLowerCase())
+        .eq('status', 'pending');
+      if(!emailRows.error){
+        const count = (emailRows.data || []).length;
+        badge.textContent = String(count);
+        badge.style.display = count ? 'flex' : 'none';
+        return;
+      }
     }
     const identityIds = await getCurrentIdentityIds();
     const { data, error } = await window.sb
@@ -4335,10 +4362,29 @@ window.loadPendingRequests = async function() {
       window.refreshFriendRequestBadge?.();
       return;
     }
+    if(currentEmail){
+      const emailRes = await window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .eq('receiver_email', currentEmail.toLowerCase())
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if(!emailRes.error && emailRes.data?.length){
+        const senderIds = emailRes.data.map((req) => req.sender_id).filter(Boolean);
+        const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
+        const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
+        if(meta){
+          meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${emailRes.data.length} • email`;
+        }
+        listDiv.innerHTML = renderFriendRequestRows(emailRes.data, senderMap);
+        window.refreshFriendRequestBadge?.();
+        return;
+      }
+    }
     const identityIds = await getCurrentIdentityIds();
     const { data, error } = await window.sb
       .from('friend_requests')
-      .select('id, sender_id, receiver_id, status, created_at')
+      .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
       .in('receiver_id', identityIds.length ? identityIds : [currentUser.id])
       .eq('status', 'pending');
 

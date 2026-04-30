@@ -10,8 +10,14 @@ create table if not exists public.friend_requests (
   constraint friend_requests_no_self check (sender_id <> receiver_id)
 );
 
-create unique index if not exists friend_requests_pair_unique
-on public.friend_requests (least(sender_id, receiver_id), greatest(sender_id, receiver_id));
+alter table public.friend_requests
+  add column if not exists sender_email text,
+  add column if not exists receiver_email text;
+
+create index if not exists friend_requests_sender_email_idx on public.friend_requests (lower(sender_email));
+create index if not exists friend_requests_receiver_email_idx on public.friend_requests (lower(receiver_email));
+create index if not exists friend_requests_email_status_idx on public.friend_requests (lower(sender_email), lower(receiver_email), status);
+create index if not exists friend_requests_pair_idx on public.friend_requests (least(sender_id, receiver_id), greatest(sender_id, receiver_id));
 
 create table if not exists public.user_identities (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -25,146 +31,284 @@ where email is not null
 on conflict (user_id) do update
 set email = excluded.email;
 
+update public.friend_requests fr
+set sender_email = lower(coalesce(fr.sender_email, p.email, u.email))
+from auth.users u
+left join public.profiles p on p.id = u.id
+where u.id = fr.sender_id
+  and fr.sender_email is null;
+
+update public.friend_requests fr
+set receiver_email = lower(coalesce(fr.receiver_email, p.email, u.email))
+from auth.users u
+left join public.profiles p on p.id = u.id
+where u.id = fr.receiver_id
+  and fr.receiver_email is null;
+
+drop function if exists public.get_friend_relation_for_email(text, uuid);
+drop function if exists public.get_friend_relations_for_email(text, uuid[]);
+drop function if exists public.send_friend_request_for_email(text, uuid);
+drop function if exists public.cancel_friend_request_for_email(text, uuid);
+drop function if exists public.respond_friend_request_for_email(text, uuid, text);
+drop function if exists public.get_pending_friend_requests_for_email(text);
+drop function if exists public.get_inbox_contacts_for_email(text);
+drop function if exists public.get_chat_messages_for_email(text, uuid, integer);
+
+create or replace function public.friend_assert_current_email(current_email text)
+returns text
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  normalized text;
+  token_email text;
+begin
+  normalized := lower(trim(coalesce(current_email, '')));
+  token_email := lower(trim(coalesce(auth.jwt()->>'email', '')));
+  if normalized = '' or token_email = '' or normalized <> token_email then
+    raise exception 'email_mismatch';
+  end if;
+  return normalized;
+end;
+$$;
+
+create or replace function public.friend_target_email(target_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = public, auth
+as $$
+  select lower(coalesce(p.email, u.email))
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where u.id = target_user_id
+  limit 1
+$$;
+
 create or replace function public.friend_current_ids(current_email text)
 returns table(user_id uuid)
 language sql
 security definer
 set search_path = public, auth
 as $$
-  select ui.user_id
-  from public.user_identities ui
-  where lower(ui.email) = lower(current_email)
+  select distinct x.user_id
+  from (
+    select ui.user_id, lower(ui.email) as email
+    from public.user_identities ui
+    union all
+    select u.id, lower(u.email)
+    from auth.users u
+    where u.email is not null
+    union all
+    select p.id, lower(p.email)
+    from public.profiles p
+    where p.email is not null
+  ) x
+  where x.email = lower(trim(current_email))
 $$;
 
 create or replace function public.get_friend_relation_for_email(current_email text, target_user_id uuid)
-returns table(id uuid, sender_id uuid, receiver_id uuid, status text)
+returns table(
+  id uuid,
+  sender_id uuid,
+  receiver_id uuid,
+  status text,
+  sender_email text,
+  receiver_email text
+)
 language sql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
-  with me as (select user_id from public.friend_current_ids(current_email))
-  select fr.id, fr.sender_id, fr.receiver_id, fr.status
+  with me as (select public.friend_assert_current_email(current_email) as email),
+       target as (select public.friend_target_email(target_user_id) as email)
+  select fr.id, fr.sender_id, fr.receiver_id, fr.status, fr.sender_email, fr.receiver_email
   from public.friend_requests fr
-  where
-    (fr.sender_id in (select user_id from me) and fr.receiver_id = target_user_id)
-    or
-    (fr.sender_id = target_user_id and fr.receiver_id in (select user_id from me))
+  where (
+      lower(fr.sender_email) = (select email from me)
+      and lower(fr.receiver_email) = (select email from target)
+    ) or (
+      lower(fr.sender_email) = (select email from target)
+      and lower(fr.receiver_email) = (select email from me)
+    ) or (
+      fr.sender_id in (select user_id from public.friend_current_ids((select email from me)))
+      and fr.receiver_id = target_user_id
+    ) or (
+      fr.sender_id = target_user_id
+      and fr.receiver_id in (select user_id from public.friend_current_ids((select email from me)))
+    )
   order by fr.created_at desc
   limit 1
 $$;
 
 create or replace function public.get_friend_relations_for_email(current_email text, target_user_ids uuid[])
-returns table(other_id uuid, id uuid, sender_id uuid, receiver_id uuid, status text)
+returns table(
+  other_id uuid,
+  id uuid,
+  sender_id uuid,
+  receiver_id uuid,
+  status text,
+  sender_email text,
+  receiver_email text
+)
 language sql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
-  with me as (select user_id from public.friend_current_ids(current_email)),
-  rel as (
-    select
-      case when fr.sender_id in (select user_id from me) then fr.receiver_id else fr.sender_id end as other_id,
-      fr.id,
-      fr.sender_id,
-      fr.receiver_id,
-      fr.status,
-      fr.created_at,
-      row_number() over (
-        partition by case when fr.sender_id in (select user_id from me) then fr.receiver_id else fr.sender_id end
-        order by fr.created_at desc
-      ) as rn
-    from public.friend_requests fr
-    where
-      (fr.sender_id in (select user_id from me) and fr.receiver_id = any(coalesce(target_user_ids, '{}')))
-      or
-      (fr.receiver_id in (select user_id from me) and fr.sender_id = any(coalesce(target_user_ids, '{}')))
-  )
-  select other_id, id, sender_id, receiver_id, status
+  with me as (select public.friend_assert_current_email(current_email) as email),
+       targets as (
+         select u.id as target_id, lower(coalesce(p.email, u.email)) as email
+         from auth.users u
+         left join public.profiles p on p.id = u.id
+         where u.id = any(coalesce(target_user_ids, '{}'::uuid[]))
+       ),
+       rel as (
+         select
+           coalesce(t.target_id, case when lower(fr.sender_email) = (select email from me) then fr.receiver_id else fr.sender_id end) as other_id,
+           fr.id,
+           fr.sender_id,
+           fr.receiver_id,
+           fr.status,
+           fr.sender_email,
+           fr.receiver_email,
+           fr.created_at,
+           row_number() over (
+             partition by coalesce(t.target_id, case when lower(fr.sender_email) = (select email from me) then fr.receiver_id else fr.sender_id end)
+             order by fr.created_at desc
+           ) as rn
+         from public.friend_requests fr
+         left join targets t
+           on lower(fr.sender_email) = t.email or lower(fr.receiver_email) = t.email
+         where (
+             (lower(fr.sender_email) = (select email from me) and lower(fr.receiver_email) in (select email from targets))
+             or (lower(fr.receiver_email) = (select email from me) and lower(fr.sender_email) in (select email from targets))
+             or (fr.sender_id in (select user_id from public.friend_current_ids((select email from me))) and fr.receiver_id = any(coalesce(target_user_ids, '{}'::uuid[])))
+             or (fr.receiver_id in (select user_id from public.friend_current_ids((select email from me))) and fr.sender_id = any(coalesce(target_user_ids, '{}'::uuid[])))
+           )
+       )
+  select rel.other_id, rel.id, rel.sender_id, rel.receiver_id, rel.status, rel.sender_email, rel.receiver_email
   from rel
-  where rn = 1
+  where rel.rn = 1
 $$;
 
 create or replace function public.send_friend_request_for_email(current_email text, target_user_id uuid)
-returns table(id uuid, sender_id uuid, receiver_id uuid, status text)
+returns table(
+  id uuid,
+  sender_id uuid,
+  receiver_id uuid,
+  status text,
+  sender_email text,
+  receiver_email text
+)
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
 declare
-  me_id uuid;
-  existing public.friend_requests%rowtype;
+  v_me_email text;
+  v_target_email text;
+  v_existing public.friend_requests%rowtype;
 begin
-  if lower(coalesce(current_email, '')) <> lower(coalesce(auth.jwt()->>'email', '')) then
-    raise exception 'email_mismatch';
+  v_me_email := public.friend_assert_current_email(current_email);
+  v_target_email := public.friend_target_email(target_user_id);
+
+  if v_target_email is null then
+    raise exception 'target_not_found';
   end if;
 
-  select auth.uid() into me_id
-  where auth.uid() in (select user_id from public.friend_current_ids(current_email));
-
-  if me_id is null then
-    select user_id into me_id
-    from public.friend_current_ids(current_email)
-    order by user_id
-    limit 1;
-  end if;
-
-  if me_id is null then
-    raise exception 'not_authenticated';
-  end if;
-
-  if target_user_id is null or target_user_id = me_id then
+  if v_target_email = v_me_email then
     raise exception 'invalid_target';
   end if;
 
-  select * into existing
+  select * into v_existing
   from public.friend_requests fr
-  where
-    (fr.sender_id in (select user_id from public.friend_current_ids(current_email)) and fr.receiver_id = target_user_id)
-    or
-    (fr.sender_id = target_user_id and fr.receiver_id in (select user_id from public.friend_current_ids(current_email)))
+  where (
+      lower(fr.sender_email) = v_me_email and lower(fr.receiver_email) = v_target_email
+    ) or (
+      lower(fr.sender_email) = v_target_email and lower(fr.receiver_email) = v_me_email
+    ) or (
+      fr.sender_id in (select user_id from public.friend_current_ids(v_me_email)) and fr.receiver_id = target_user_id
+    ) or (
+      fr.sender_id = target_user_id and fr.receiver_id in (select user_id from public.friend_current_ids(v_me_email))
+    )
   order by fr.created_at desc
   limit 1;
 
   if found then
-    return query select existing.id, existing.sender_id, existing.receiver_id, existing.status;
+    update public.friend_requests fr
+    set sender_email = coalesce(fr.sender_email, lower(coalesce(sp.email, su.email))),
+        receiver_email = coalesce(fr.receiver_email, lower(coalesce(rp.email, ru.email))),
+        updated_at = now()
+    from auth.users su
+    left join public.profiles sp on sp.id = su.id,
+         auth.users ru
+    left join public.profiles rp on rp.id = ru.id
+    where fr.id = v_existing.id
+      and su.id = fr.sender_id
+      and ru.id = fr.receiver_id
+    returning fr.* into v_existing;
+
+    return query select v_existing.id, v_existing.sender_id, v_existing.receiver_id, v_existing.status, v_existing.sender_email, v_existing.receiver_email;
     return;
   end if;
 
-  insert into public.friend_requests(sender_id, receiver_id, status)
-  values (me_id, target_user_id, 'pending')
-  returning friend_requests.* into existing;
+  insert into public.friend_requests(sender_id, receiver_id, sender_email, receiver_email, status)
+  values (auth.uid(), target_user_id, v_me_email, v_target_email, 'pending')
+  returning * into v_existing;
 
-  return query select existing.id, existing.sender_id, existing.receiver_id, existing.status;
+  return query select v_existing.id, v_existing.sender_id, v_existing.receiver_id, v_existing.status, v_existing.sender_email, v_existing.receiver_email;
 end;
 $$;
 
 create or replace function public.cancel_friend_request_for_email(current_email text, target_user_id uuid)
 returns boolean
-language sql
+language plpgsql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
+declare
+  v_me_email text;
+  v_target_email text;
+begin
+  v_me_email := public.friend_assert_current_email(current_email);
+  v_target_email := public.friend_target_email(target_user_id);
+
   delete from public.friend_requests fr
   where fr.status = 'pending'
-    and fr.receiver_id = target_user_id
-    and fr.sender_id in (select user_id from public.friend_current_ids(current_email));
-  select true
+    and (
+      (lower(fr.sender_email) = v_me_email and lower(fr.receiver_email) = v_target_email)
+      or (fr.sender_id in (select user_id from public.friend_current_ids(v_me_email)) and fr.receiver_id = target_user_id)
+    );
+
+  return true;
+end;
 $$;
 
 create or replace function public.respond_friend_request_for_email(current_email text, request_id uuid, new_status text)
 returns boolean
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
+declare
+  v_me_email text;
 begin
+  v_me_email := public.friend_assert_current_email(current_email);
+
   if new_status not in ('accepted', 'declined') then
     raise exception 'invalid_status';
   end if;
 
   update public.friend_requests fr
-  set status = new_status, updated_at = now()
+  set status = new_status,
+      receiver_email = coalesce(fr.receiver_email, v_me_email),
+      updated_at = now()
   where fr.id = request_id
-    and fr.receiver_id in (select user_id from public.friend_current_ids(current_email));
+    and (
+      lower(fr.receiver_email) = v_me_email
+      or fr.receiver_id in (select user_id from public.friend_current_ids(v_me_email))
+    );
 
   return true;
 end;
@@ -183,22 +327,25 @@ returns table(
 )
 language sql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
-  with me as (select user_id from public.friend_current_ids(current_email))
+  with me as (select public.friend_assert_current_email(current_email) as email)
   select
     fr.id,
     fr.sender_id,
-    coalesce(p.full_name, p.username, split_part(coalesce(p.email, ''), '@', 1), 'مستخدم') as sender_name,
+    coalesce(p.full_name, p.username, split_part(coalesce(fr.sender_email, p.email, ''), '@', 1), 'User') as sender_name,
     p.username as sender_username,
-    p.email as sender_email,
+    coalesce(fr.sender_email, p.email) as sender_email,
     p.avatar_url as sender_avatar,
     p.member_code as sender_member_code,
     fr.created_at
   from public.friend_requests fr
   left join public.profiles p on p.id = fr.sender_id
-  where fr.receiver_id in (select user_id from me)
-    and fr.status = 'pending'
+  where fr.status = 'pending'
+    and (
+      lower(fr.receiver_email) = (select email from me)
+      or fr.receiver_id in (select user_id from public.friend_current_ids((select email from me)))
+    )
   order by fr.created_at desc
 $$;
 
@@ -216,27 +363,22 @@ returns table(
 )
 language sql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
-  with me as (select user_id from public.friend_current_ids(current_email)),
+  with me as (select public.friend_assert_current_email(current_email) as email),
+  my_ids as (select user_id from public.friend_current_ids((select email from me))),
   ranked as (
     select
-      case
-        when m.sender_id in (select user_id from me) then m.receiver_id
-        else m.sender_id
-      end as partner_id,
+      case when m.sender_id in (select user_id from my_ids) then m.receiver_id else m.sender_id end as partner_id,
       m.content,
       m.created_at,
       row_number() over (
-        partition by case
-          when m.sender_id in (select user_id from me) then m.receiver_id
-          else m.sender_id
-        end
+        partition by case when m.sender_id in (select user_id from my_ids) then m.receiver_id else m.sender_id end
         order by m.created_at desc
       ) as rn
     from public.messages m
-    where m.sender_id in (select user_id from me)
-       or m.receiver_id in (select user_id from me)
+    where m.sender_id in (select user_id from my_ids)
+       or m.receiver_id in (select user_id from my_ids)
   )
   select
     r.partner_id,
@@ -268,20 +410,21 @@ returns table(
 )
 language sql
 security definer
-set search_path = public
+set search_path = public, auth
 as $$
-  with me as (select user_id from public.friend_current_ids(current_email))
+  with me as (select public.friend_assert_current_email(current_email) as email),
+  my_ids as (select user_id from public.friend_current_ids((select email from me)))
   select
-    m.id,
+    m.id::bigint,
     m.sender_id,
     m.receiver_id,
     m.content,
     m.created_at
   from public.messages m
   where
-    (m.sender_id in (select user_id from me) and m.receiver_id = partner_user_id)
+    (m.sender_id in (select user_id from my_ids) and m.receiver_id = partner_user_id)
     or
-    (m.sender_id = partner_user_id and m.receiver_id in (select user_id from me))
+    (m.sender_id = partner_user_id and m.receiver_id in (select user_id from my_ids))
   order by m.created_at asc
   limit greatest(1, least(coalesce(result_limit, 200), 500))
 $$;
@@ -322,7 +465,9 @@ on public.friend_requests
 for select
 to authenticated
 using (
-  exists (
+  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or exists (
     select 1
     from public.user_identities ui
     where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
@@ -330,18 +475,25 @@ using (
   )
 );
 
-create policy "friend_requests_insert_self"
+create policy "friend_requests_insert_self_email"
 on public.friend_requests
 for insert
 to authenticated
-with check (auth.uid() = sender_id and sender_id <> receiver_id and status = 'pending');
+with check (
+  auth.uid() = sender_id
+  and sender_id <> receiver_id
+  and status = 'pending'
+  and lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+);
 
 create policy "friend_requests_update_same_email"
 on public.friend_requests
 for update
 to authenticated
 using (
-  exists (
+  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or exists (
     select 1
     from public.user_identities ui
     where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
@@ -349,7 +501,9 @@ using (
   )
 )
 with check (
-  exists (
+  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or exists (
     select 1
     from public.user_identities ui
     where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
@@ -362,7 +516,8 @@ on public.friend_requests
 for delete
 to authenticated
 using (
-  exists (
+  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or exists (
     select 1
     from public.user_identities ui
     where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
@@ -381,6 +536,8 @@ using (
     where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
       and (ui.user_id = messages.sender_id or ui.user_id = messages.receiver_id)
   )
+  or auth.uid() = messages.sender_id
+  or auth.uid() = messages.receiver_id
 );
 
 create policy "messages_insert_self"
@@ -405,6 +562,8 @@ using (auth.uid() = sender_id);
 grant select on public.user_identities to authenticated;
 grant select, insert, update, delete on public.friend_requests to authenticated;
 grant select, insert, update, delete on public.messages to authenticated;
+grant execute on function public.friend_assert_current_email(text) to authenticated;
+grant execute on function public.friend_target_email(uuid) to authenticated;
 grant execute on function public.friend_current_ids(text) to authenticated;
 grant execute on function public.get_friend_relation_for_email(text, uuid) to authenticated;
 grant execute on function public.get_friend_relations_for_email(text, uuid[]) to authenticated;
