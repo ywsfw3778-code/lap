@@ -1452,19 +1452,46 @@ window.searchProfiles = async (q, limit = 8) => {
 async function getFriendRelation(targetId){
   const currentUser = await getFreshCurrentUser();
   if(!targetId || !window.sb || !currentUser) return null;
+  const currentEmail = String(currentUser.email || '').trim();
+  if(currentEmail){
+    const emailRpc = await callRpcSafe('get_friend_relation_for_email', {
+      current_email: currentEmail,
+      target_user_id: targetId
+    });
+    if(!emailRpc.error){
+      if(Array.isArray(emailRpc.data)) return emailRpc.data[0] || null;
+      if(emailRpc.data && typeof emailRpc.data === 'object') return emailRpc.data;
+    }
+  }
   const rpcRes = await callRpcSafe('get_friend_relation', { target_user_id: targetId });
   if(!rpcRes.error){
     if(Array.isArray(rpcRes.data)) return rpcRes.data[0] || null;
     if(rpcRes.data && typeof rpcRes.data === 'object') return rpcRes.data;
   }
   try{
-    const { data, error } = await window.sb
-      .from('friend_requests')
-      .select('id, sender_id, receiver_id, status')
-      .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${targetId}),and(sender_id.eq.${targetId},receiver_id.eq.${currentUser.id})`)
-      .maybeSingle();
+    const identityIds = await getCurrentIdentityIds();
+    const ids = identityIds.length ? identityIds : [currentUser.id];
+    const [outgoing, incoming] = await Promise.all([
+      window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, status, created_at')
+        .in('sender_id', ids)
+        .eq('receiver_id', targetId)
+        .order('created_at', { ascending: false })
+        .limit(1),
+      window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, status, created_at')
+        .eq('sender_id', targetId)
+        .in('receiver_id', ids)
+        .order('created_at', { ascending: false })
+        .limit(1)
+    ]);
+    const error = outgoing.error || incoming.error || null;
     if(error) throw error;
-    return data || null;
+    const rows = [...(outgoing.data || []), ...(incoming.data || [])]
+      .sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')));
+    return rows[0] || null;
   }catch(err){
     console.warn('friend relation load failed:', err?.message || err);
     return null;
@@ -1475,6 +1502,21 @@ async function getFriendRelationsForUsers(userIds){
   const currentUser = await getFreshCurrentUser();
   const ids = Array.from(new Set((userIds || []).filter(Boolean)));
   if(!ids.length || !window.sb || !currentUser) return new Map();
+  const currentEmail = String(currentUser.email || '').trim();
+  if(currentEmail){
+    const emailRpc = await callRpcSafe('get_friend_relations_for_email', {
+      current_email: currentEmail,
+      target_user_ids: ids
+    });
+    if(!emailRpc.error && Array.isArray(emailRpc.data)){
+      const map = new Map();
+      emailRpc.data.forEach((row) => {
+        const otherId = row.other_id || (row.sender_id === currentUser.id ? row.receiver_id : row.sender_id);
+        if(otherId) map.set(otherId, row);
+      });
+      if(map.size) return map;
+    }
+  }
   const rpcRes = await callRpcSafe('get_friend_relations', { target_user_ids: ids });
   if(!rpcRes.error && Array.isArray(rpcRes.data)){
     const map = new Map();
@@ -1485,16 +1527,29 @@ async function getFriendRelationsForUsers(userIds){
     if(map.size) return map;
   }
   try{
-    const joined = ids.join(',');
-    const { data, error } = await window.sb
-      .from('friend_requests')
-      .select('id, sender_id, receiver_id, status')
-      .or(`and(sender_id.eq.${currentUser.id},receiver_id.in.(${joined})),and(sender_id.in.(${joined}),receiver_id.eq.${currentUser.id})`);
+    const identityIds = await getCurrentIdentityIds();
+    const ownIds = identityIds.length ? identityIds : [currentUser.id];
+    const [outgoing, incoming] = await Promise.all([
+      window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, status, created_at')
+        .in('sender_id', ownIds)
+        .in('receiver_id', ids),
+      window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, status, created_at')
+        .in('sender_id', ids)
+        .in('receiver_id', ownIds)
+    ]);
+    const error = outgoing.error || incoming.error || null;
     if(error) throw error;
     const map = new Map();
+    const data = [...(outgoing.data || []), ...(incoming.data || [])]
+      .sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')));
     (data || []).forEach((row) => {
-      const otherId = row.sender_id === currentUser.id ? row.receiver_id : row.sender_id;
-      if(otherId) map.set(otherId, row);
+      const senderIsMe = idBelongsToCurrentUser(row.sender_id, ownIds, currentUser);
+      const otherId = senderIsMe ? row.receiver_id : row.sender_id;
+      if(otherId && !map.has(otherId)) map.set(otherId, row);
     });
     return map;
   }catch(err){
@@ -1569,6 +1624,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
   try {
     const currentUser = await getFreshCurrentUser();
     if(!currentUser) throw new Error('الحساب الحالي غير متاح');
+    const identityIds = await getCurrentIdentityIds();
     const relation = await getFriendRelation(targetId);
 
     if (relation?.status === 'accepted') {
@@ -1577,13 +1633,16 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       return;
     }
 
-    if (relation?.status === 'pending' && relation.sender_id === currentUser.id) {
+    if (relation?.status === 'pending' && idBelongsToCurrentUser(relation.sender_id, identityIds, currentUser)) {
       if (confirm('هل تريد إلغاء طلب الصداقة؟')) {
         btnElement.disabled = true;
         btnElement.textContent = 'جاري الإلغاء...';
 
         let error = null;
-        const cancelRpc = await callRpcSafe('cancel_friend_request', { target_user_id: targetId });
+        const currentEmail = String(currentUser.email || '').trim();
+        const cancelRpc = currentEmail
+          ? await callRpcSafe('cancel_friend_request_for_email', { current_email: currentEmail, target_user_id: targetId })
+          : await callRpcSafe('cancel_friend_request', { target_user_id: targetId });
         if(cancelRpc.error){
           const res = await window.sb
             .from('friend_requests')
@@ -1607,12 +1666,15 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       return;
     }
 
-    if (relation?.status === 'pending' && relation.sender_id !== currentUser.id) {
+    if (relation?.status === 'pending' && !idBelongsToCurrentUser(relation.sender_id, identityIds, currentUser)) {
       btnElement.disabled = true;
       btnElement.textContent = 'جاري القبول...';
 
       let error = null;
-      const acceptRpc = await callRpcSafe('respond_friend_request', { request_id: relation.id, new_status: 'accepted' });
+      const currentEmail = String(currentUser.email || '').trim();
+      const acceptRpc = currentEmail
+        ? await callRpcSafe('respond_friend_request_for_email', { current_email: currentEmail, request_id: relation.id, new_status: 'accepted' })
+        : await callRpcSafe('respond_friend_request', { request_id: relation.id, new_status: 'accepted' });
       if(acceptRpc.error){
         const res = await window.sb
           .from('friend_requests')
@@ -1644,7 +1706,10 @@ window.sendFriendRequest = async function(targetId, btnElement) {
 
     let insertedRows = null;
     let error = null;
-    const sendRpc = await callRpcSafe('send_friend_request', { target_user_id: targetId });
+    const currentEmail = String(currentUser.email || '').trim();
+    const sendRpc = currentEmail
+      ? await callRpcSafe('send_friend_request_for_email', { current_email: currentEmail, target_user_id: targetId })
+      : await callRpcSafe('send_friend_request', { target_user_id: targetId });
     if(sendRpc.error){
       const res = await window.sb
         .from('friend_requests')
@@ -1659,7 +1724,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     
     if (error) {
       const relationAfterError = await getFriendRelation(targetId);
-      if(relationAfterError?.status === 'pending' && relationAfterError.sender_id === currentUser.id){
+      if(relationAfterError?.status === 'pending' && idBelongsToCurrentUser(relationAfterError.sender_id, identityIds, currentUser)){
         btnElement.textContent = 'إلغاء الطلب ⏳';
         btnElement.style.background = 'transparent';
         btnElement.style.color = 'var(--muted)';
@@ -1791,6 +1856,12 @@ async function getCurrentIdentityIds(){
   const currentUser = await getFreshCurrentUser();
   if(!currentUser) return [];
   return getIdentityIdsForEmail(currentUser.email || '', currentUser.id || '');
+}
+function idBelongsToCurrentUser(id, identityIds, currentUser){
+  const value = String(id || '').trim();
+  if(!value) return false;
+  if(Array.isArray(identityIds) && identityIds.includes(value)) return true;
+  return value === String(currentUser?.id || '').trim();
 }
 let messagePollTimer = null;
 let presenceChannel = null;
