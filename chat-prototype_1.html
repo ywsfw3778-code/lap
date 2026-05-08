@@ -1820,11 +1820,14 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     console.log("ME:", me);
 alert(me.id);
 
+
   const { data, error } = await sb
     .from("friend_requests")
     .select("*")
     .eq("receiver_id", me.id)
     .eq("status", "pending");
+    console.log(data);
+alert(JSON.stringify(data));
 
   if(error){
     console.log(error);
