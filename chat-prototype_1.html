@@ -905,12 +905,12 @@ async function testFriendRequest() {
       }
     ]);
 
-  if(error){
-    console.log(error);
-    alert("في مشكلة");
-  } else {
-    alert("تم إرسال طلب الصداقة ✅");
-  }
+if(error){
+  console.log(error);
+  alert(JSON.stringify(error));
+} else {
+  alert("تم إرسال طلب الصداقة ✅");
+}
 
 }
 
