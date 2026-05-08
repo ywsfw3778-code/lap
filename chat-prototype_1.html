@@ -1816,6 +1816,8 @@ window.sendFriendRequest = async function(targetId, btnElement) {
 
 <script>
   async function loadFriendRequests(){
+    console.log("ME:", me);
+alert(me.id);
 
   const { data, error } = await sb
     .from("friend_requests")
