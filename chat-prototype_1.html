@@ -906,10 +906,17 @@ async function testFriendRequest() {
     ]);
 
 if(error){
+
   console.log(error);
-  alert(JSON.stringify(error));
+
+  if(error.code === "23505"){
+    alert("تم إرسال طلب الصداقة بالفعل 👌");
+  } else {
+    alert("حدث خطأ");
+  }
+
 } else {
-  alert("تم إرسال طلب الصداقة ✅");
+  alert("تم إرسال طلب الصداقة بنجاح!");
 }
 
 }
