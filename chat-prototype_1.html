@@ -1815,6 +1815,51 @@ window.sendFriendRequest = async function(targetId, btnElement) {
 </script>
 
 <script>
+  async function loadFriendRequests(){
+
+  const { data, error } = await sb
+    .from("friend_requests")
+    .select("*")
+    .eq("receiver_id", me.id)
+    .eq("status", "pending");
+
+  if(error){
+    console.log(error);
+    return;
+  }
+
+  const box = document.getElementById("friendRequestsList");
+
+  if(!box) return;
+
+  box.innerHTML = "";
+
+  if(data.length === 0){
+    box.innerHTML = "<div>لا توجد طلبات</div>";
+    return;
+  }
+
+  data.forEach(req => {
+
+    box.innerHTML += `
+      <div class="req-row">
+
+        <div>طلب صداقة جديد 👀</div>
+
+        <div class="req-btns">
+          <button onclick="acceptFriendRequest('${req.id}')">
+            قبول
+          </button>
+        </div>
+
+      </div>
+    `;
+
+  });
+
+}
+
+loadFriendRequests();
 window._contacts=[];
 window._convos={};
 let activeContact=null;
@@ -4503,49 +4548,7 @@ window.respondRequest = async function(requestId, newStatus) {
   </div>
   <div id="friendRequestsMeta" style="font-size:11px; color:var(--muted); margin-bottom:12px;">الحساب الحالي: —</div>
   <div id="friendRequestsList">
-    async function loadFriendRequests(){
-
-  const { data, error } = await sb
-    .from("friend_requests")
-    .select("*")
-    .eq("receiver_id", me.id)
-    .eq("status", "pending");
-
-  if(error){
-    console.log(error);
-    return;
-  }
-
-  const box = document.getElementById("friendRequestsList");
-
-  if(!box) return;
-
-  box.innerHTML = "";
-
-  if(data.length === 0){
-    box.innerHTML = "<div>لا توجد طلبات</div>";
-    return;
-  }
-
-  data.forEach(req => {
-
-    box.innerHTML += `
-      <div class="req-row">
-        <div>طلب صداقة جديد 👀</div>
-
-        <div class="req-btns">
-          <button onclick="acceptFriendRequest('${req.id}')">
-            قبول
-          </button>
-        </div>
-      </div>
-    `;
-
-  });
-
-}
-
-loadFriendRequests();
+    
     <div style="text-align:center; color:var(--muted); font-size:13px; margin-top:20px;">لا توجد طلبات معلقة</div>
   </div>
 </div>
