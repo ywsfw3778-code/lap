@@ -893,6 +893,28 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SB_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
 const SB_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
 const sb = createClient(SB_URL, SB_KEY);
+async function testFriendRequest() {
+
+  const { data, error } = await sb
+    .from("friend_requests")
+    .insert([
+      {
+        sender_id: "95632ed1-ecbc-4483-8692-eafbe3d76d65",
+        receiver_id: "c2438c2f-2b12-4cb2-ae62-fdb8b205f45c",
+        status: "pending"
+      }
+    ]);
+
+  if(error){
+    console.log(error);
+    alert("في مشكلة");
+  } else {
+    alert("تم إرسال طلب الصداقة ✅");
+  }
+
+}
+
+testFriendRequest();
 
 async function waitForAuthenticatedUser(maxAttempts = 40, delayMs = 150){
   for(let i = 0; i < maxAttempts; i++){
