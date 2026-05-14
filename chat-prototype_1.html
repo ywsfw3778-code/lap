@@ -4443,7 +4443,47 @@ window.loadPendingRequests = async function() {
   try {
     if(!window.sb || !currentUser) throw new Error('الحساب الحالي غير متاح');
     const currentEmail = String(currentUser.email || '').trim();
-    let rpcRes = { data: null, error: new Error('rpc-not-run') };
+    const identityIds = await getCurrentIdentityIds();
+    const receiverIds = identityIds.length ? identityIds : [currentUser.id];
+    const directRows = [];
+    const directErrors = [];
+
+    if(currentEmail){
+      const emailRes = await window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .eq('receiver_email', currentEmail.toLowerCase())
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if(!emailRes.error) directRows.push(...(emailRes.data || []));
+      else directErrors.push(emailRes.error.message || String(emailRes.error));
+    }
+
+    const idRes = await window.sb
+      .from('friend_requests')
+      .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+      .in('receiver_id', receiverIds)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if(!idRes.error) directRows.push(...(idRes.data || []));
+    else directErrors.push(idRes.error.message || String(idRes.error));
+
+    const uniqueRows = Array.from(new Map(directRows.map((row) => [row.id, row])).values())
+      .sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')));
+
+    if(uniqueRows.length){
+      const senderIds = uniqueRows.map((req) => req.sender_id).filter(Boolean);
+      const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
+      const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
+      if(meta){
+        meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${uniqueRows.length} • direct`;
+      }
+      listDiv.innerHTML = renderFriendRequestRows(uniqueRows, senderMap);
+      window.refreshFriendRequestBadge?.();
+      return;
+    }
+
+    let rpcRes = { data: null, error: directErrors.length ? new Error(directErrors.join(' | ')) : new Error('rpc-not-run') };
     if(currentEmail){
       rpcRes = await callRpcSafe('get_pending_friend_requests_for_email', { current_email: currentEmail });
     }
@@ -4466,54 +4506,14 @@ window.loadPendingRequests = async function() {
       window.refreshFriendRequestBadge?.();
       return;
     }
-    if(currentEmail){
-      const emailRes = await window.sb
-        .from('friend_requests')
-        .select('id, sender_id, receiver_id, status, created_at')
-        .eq('receiver_email', currentEmail.toLowerCase())
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-      if(!emailRes.error && emailRes.data?.length){
-        const senderIds = emailRes.data.map((req) => req.sender_id).filter(Boolean);
-        const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
-        const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
-        if(meta){
-          meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${emailRes.data.length} • email`;
-        }
-        listDiv.innerHTML = renderFriendRequestRows(emailRes.data, senderMap);
-        window.refreshFriendRequestBadge?.();
-        return;
-      }else if(emailRes.error && !isSchemaCacheMissingColumn(emailRes.error)){
-        console.warn('friend requests email fallback failed:', emailRes.error?.message || emailRes.error);
-      }
-    }
-    const identityIds = await getCurrentIdentityIds();
-    const { data, error } = await window.sb
-      .from('friend_requests')
-      .select('id, sender_id, receiver_id, status, created_at')
-      .in('receiver_id', identityIds.length ? identityIds : [currentUser.id])
-      .eq('status', 'pending');
-
-    if(error) throw error;
-    
-    if(!data || data.length === 0) {
+    if(!uniqueRows.length) {
       const rpcNote = rpcRes.error ? `<br><small style="opacity:.75;">RPC: ${rpcRes.error.message || rpcRes.error}</small>` : '';
       const legacyNote = legacyRpc.error ? `<br><small style="opacity:.75;">legacy: ${legacyRpc.error.message || legacyRpc.error}</small>` : '';
-      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${currentUser?.email || 'unknown'} • ids: ${(identityIds.length ? identityIds : [currentUser.id]).join(', ')}</small>${rpcNote}${legacyNote}</div>`;
+      const directNote = directErrors.length ? `<br><small style="opacity:.75;">direct: ${escapeHtml(directErrors.join(' | '))}</small>` : '';
+      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${escapeHtml(currentUser?.email || 'unknown')} • ids: ${escapeHtml(receiverIds.join(', '))}</small>${directNote}${rpcNote}${legacyNote}</div>`;
       window.refreshFriendRequestBadge?.();
       return;
     }
-
-    if(meta){
-      meta.textContent = `الحساب الحالي: ${currentUser?.email || 'unknown'} • عدد الطلبات: ${data.length}`;
-    }
-
-    const senderIds = data.map((req) => req.sender_id).filter(Boolean);
-    const senderRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds(senderIds) : [];
-    const senderMap = new Map((senderRows || []).map((row) => [row.id, row]));
-
-    listDiv.innerHTML = renderFriendRequestRows(data, senderMap);
-    window.refreshFriendRequestBadge?.();
   } catch (err) {
     console.error(err);
     listDiv.innerHTML = `<div style="text-align:center; color:#ff6b6b; margin-top:20px;">حدث خطأ في التحميل<br><small>${err?.message || err}</small></div>`;
