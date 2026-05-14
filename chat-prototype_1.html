@@ -892,7 +892,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 const SB_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
 const SB_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
-const sb = createClient(SB_URL, SB_KEY);
+const sb = createClient(SB_URL, SB_KEY, { db: { schema: 'public' } });
 async function testFriendRequest() {
 
   const { data, error } = await sb
@@ -1006,6 +1006,20 @@ function getDisplayInitial(value, fallback = '?'){
   return text.charAt(0).toUpperCase();
 }
 
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
+function escapeAttr(value){
+  return escapeHtml(value).replace(/`/g, '&#96;');
+}
+
 function setAvatarNode(el, label, imageUrl){
   if(!el) return;
   el.innerHTML = '';
@@ -1025,13 +1039,17 @@ function setAvatarNode(el, label, imageUrl){
 }
 
 function avatarMarkup(label, imageUrl, extraDotClass = ''){
-  const safeLabel = getDisplayInitial(label);
-  const image = imageUrl ? `<img class="avatar-image" src="${imageUrl}" alt="${safeLabel}" onerror="this.remove()">` : '';
+  const safeLabel = escapeHtml(getDisplayInitial(label));
+  const safeImageUrl = escapeAttr(imageUrl || '');
+  const safeDotClass = escapeAttr(extraDotClass || '');
+  const image = safeImageUrl ? `<img class="avatar-image" src="${safeImageUrl}" alt="${safeLabel}" onerror="this.remove()">` : '';
   const fallback = `<span class="avatar-fallback">${safeLabel}</span>`;
-  return `${image}${fallback}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
+  return `${image}${fallback}${safeDotClass ? `<div class="avatar-dot ${safeDotClass}"></div>` : ''}`;
 }
 
 window.getDisplayInitial = getDisplayInitial;
+window.escapeHtml = escapeHtml;
+window.escapeAttr = escapeAttr;
 window.setAvatarNode = setAvatarNode;
 window.avatarMarkup = avatarMarkup;
 
@@ -1596,16 +1614,17 @@ function renderFriendActionButton(targetId, relation){
     relation.sender_id === window.me.id ||
     String(relation.sender_email || '').trim().toLowerCase() === meEmail
   );
+  const safeTargetId = escapeAttr(targetId);
   if(!relation){
-    return `<button class="add-btn" data-friend-state="none" onclick="window.sendFriendRequest('${targetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
+    return `<button class="add-btn" data-friend-state="none" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
   }
   if(relation.status === 'accepted'){
     return `<button class="add-btn" data-friend-state="accepted" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
   }
   if(relation.status === 'pending' && sentByMe){
-    return `<button class="add-btn" data-friend-state="sent" onclick="window.sendFriendRequest('${targetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إلغاء الطلب ⏳</button>`;
+    return `<button class="add-btn" data-friend-state="sent" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إلغاء الطلب ⏳</button>`;
   }
-  return `<button class="add-btn" data-friend-state="incoming" onclick="window.sendFriendRequest('${targetId}', this)" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">قبول الطلب ✔</button>`;
+  return `<button class="add-btn" data-friend-state="incoming" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">قبول الطلب ✔</button>`;
 }
 window.getFriendRelation = getFriendRelation;
 window.getFriendRelationsForUsers = getFriendRelationsForUsers;
@@ -1634,23 +1653,29 @@ window.searchFriends = async function() {
 
     resDiv.innerHTML = filtered.map(u => {
       const subtitle = u.email || (u.username ? `@${u.username}` : '—');
+      const safeId = escapeAttr(u.id);
+      const safeName = escapeHtml(u.name || 'User');
+      const safeSubtitle = escapeHtml(subtitle);
+      const safeMemberCode = escapeHtml(u.memberCode || '');
+      const safeColor = escapeAttr(u.color || 'var(--surface2)');
+      const safeText = escapeAttr(u.text || 'var(--accent)');
       const btnHtml = renderFriendActionButton(u.id, relations.get(u.id));
 
       return `
       <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-        <div class="avatar" style="background:${u.color}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${u.text}" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">
+        <div class="avatar" style="background:${safeColor}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${safeText}" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">
           ${window.avatarMarkup(u.init, u.avatar)}
         </div>
         <div style="flex:1;">
-          <div style="font-weight:600; font-size:14px; color:var(--text);">${u.name}${u.memberCode ? ` <span class="member-code">#${u.memberCode}</span>` : ''}</div>
-          <div style="font-size:12px; color:var(--muted);">${subtitle}</div>
+          <div style="font-weight:600; font-size:14px; color:var(--text);">${safeName}${safeMemberCode ? ` <span class="member-code">#${safeMemberCode}</span>` : ''}</div>
+          <div style="font-size:12px; color:var(--muted);">${safeSubtitle}</div>
         </div>
         ${btnHtml}
       </div>`;
     }).join('');
   } catch(err) {
     console.error("Search Error:", err);
-    resDiv.innerHTML = `<div style="color:red; text-align:center; padding:10px; font-size:12px;">خطأ: ${err.message}</div>`;
+    resDiv.innerHTML = `<div style="color:red; text-align:center; padding:10px; font-size:12px;">خطأ: ${escapeHtml(err.message)}</div>`;
   }
 };
 
@@ -1717,11 +1742,7 @@ window.sendFriendRequest = async function(targetId, btnElement) {
         ? await callRpcSafe('respond_friend_request_for_email', { current_email: currentEmail, request_id: relation.id, new_status: 'accepted' })
         : await callRpcSafe('respond_friend_request', { request_id: relation.id, new_status: 'accepted' });
       if(acceptRpc.error){
-        const res = await window.sb
-          .from('friend_requests')
-          .update({ status: 'accepted' })
-          .eq('id', relation.id);
-        error = res.error;
+        error = acceptRpc.error;
       }
 
       if (error) throw new Error(error.message);
@@ -2007,6 +2028,16 @@ function fallbackDisplayInitial(value, fallback = '?'){
   return text.charAt(0).toUpperCase();
 }
 
+function fallbackEscapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[ch]));
+}
+
 function fallbackSetAvatarNode(el, label, imageUrl){
   if(!el) return;
   el.innerHTML = '';
@@ -2026,10 +2057,12 @@ function fallbackSetAvatarNode(el, label, imageUrl){
 }
 
 function fallbackAvatarMarkup(label, imageUrl, extraDotClass = ''){
-  const safeLabel = fallbackDisplayInitial(label);
-  const image = imageUrl ? `<img class="avatar-image" src="${imageUrl}" alt="${safeLabel}" onerror="this.remove()">` : '';
+  const safeLabel = fallbackEscapeHtml(fallbackDisplayInitial(label));
+  const safeImageUrl = fallbackEscapeHtml(imageUrl || '').replace(/`/g, '&#96;');
+  const safeDotClass = fallbackEscapeHtml(extraDotClass || '').replace(/`/g, '&#96;');
+  const image = safeImageUrl ? `<img class="avatar-image" src="${safeImageUrl}" alt="${safeLabel}" onerror="this.remove()">` : '';
   const fallback = `<span class="avatar-fallback">${safeLabel}</span>`;
-  return `${image}${fallback}${extraDotClass ? `<div class="avatar-dot ${extraDotClass}"></div>` : ''}`;
+  return `${image}${fallback}${safeDotClass ? `<div class="avatar-dot ${safeDotClass}"></div>` : ''}`;
 }
 
 window.getDisplayInitial = window.getDisplayInitial || fallbackDisplayInitial;
@@ -3597,12 +3630,22 @@ async function loadInboxContacts(){
 window.loadInboxContacts = loadInboxContacts;
 // CONTACTS
 function renderContacts(list=contacts){
-  document.getElementById('contacts').innerHTML=list.length?list.map(c=>`
-    <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${c.id}')">
-      <div class="avatar" style="background:${c.color};color:${c.text};" onclick="event.stopPropagation();openUserAvatarOrProfile('${c.id}')">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
-      <div class="contact-info"><div class="contact-name">${c.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(c.id) : '000'}</span></div><div class="contact-preview">${c.preview}</div></div>
-      <div class="contact-meta"><div class="contact-time">${c.time}</div>${c.unread?`<div class="badge">${c.unread}</div>`:''}</div>
-    </div>`).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
+  document.getElementById('contacts').innerHTML=list.length?list.map(c=>{
+    const safeId = escapeAttr(c.id);
+    const safeColor = escapeAttr(c.color || 'var(--surface2)');
+    const safeText = escapeAttr(c.text || 'var(--accent)');
+    const safeName = escapeHtml(c.name || 'User');
+    const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(c.id) : '000');
+    const safePreview = escapeHtml(c.preview || '');
+    const safeTime = escapeHtml(c.time || '');
+    const safeUnread = Number(c.unread || 0);
+    return `
+    <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${safeId}')">
+      <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
+      <div class="contact-info"><div class="contact-name">${safeName}<span class="member-code">#${safeCode}</span></div><div class="contact-preview">${safePreview}</div></div>
+      <div class="contact-meta"><div class="contact-time">${safeTime}</div>${safeUnread?`<div class="badge">${safeUnread}</div>`:''}</div>
+    </div>`;
+  }).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
 async function selectContact(id, options = {}){
   let found = contacts.find(c => c.id === id);
@@ -3699,12 +3742,20 @@ function renderSidebarSearchResults(results){
     el.innerHTML=`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyNoUser')}</div>`;
     return;
   }
-  el.innerHTML = results.map(u => `
-    <div class="contact" onclick="startChatFromSidebar('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
-      <div class="contact-info"><div class="contact-name">${u.name}<span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="contact-preview">${u.secondary || u.email || (u.username ? '@' + u.username : '')}</div></div>
+  el.innerHTML = results.map(u => {
+    const safeId = escapeAttr(u.id);
+    const safeColor = escapeAttr(u.color || 'var(--surface2)');
+    const safeText = escapeAttr(u.text || 'var(--accent)');
+    const safeName = escapeHtml(u.name || 'User');
+    const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
+    const safePreview = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    return `
+    <div class="contact" onclick="startChatFromSidebar('${safeId}')">
+      <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
+      <div class="contact-info"><div class="contact-name">${safeName}<span class="member-code">#${safeCode}</span></div><div class="contact-preview">${safePreview}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 window.startChatFromSidebar = function(id){
@@ -3789,11 +3840,19 @@ window.searchFromMainArea = async function(){
   }
   window._mainSearchResults = results;
   if(!results.length){ out.innerHTML = `<div class="empty-search-hint">${t('searchEmpty')}</div>`; return; }
-  out.innerHTML = results.map(u => `
-    <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${u.id}')">
-      <div class="avatar" style="background:${u.color};color:${u.text};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${u.id}')">${window.avatarMarkup(u.init, u.avatar)}</div>
-      <div class="result-info"><div class="result-name">${u.name} <span class="member-code">#${window.getLabCode ? window.getLabCode(u.id) : '000'}</span></div><div class="result-email">${u.secondary || u.email || (u.username ? '@' + u.username : '')}</div></div>
-    </div>`).join('');
+  out.innerHTML = results.map(u => {
+    const safeId = escapeAttr(u.id);
+    const safeColor = escapeAttr(u.color || 'var(--surface2)');
+    const safeText = escapeAttr(u.text || 'var(--accent)');
+    const safeName = escapeHtml(u.name || 'User');
+    const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
+    const safeEmail = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    return `
+    <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${safeId}')">
+      <div class="avatar" style="background:${safeColor};color:${safeText};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar)}</div>
+      <div class="result-info"><div class="result-name">${safeName} <span class="member-code">#${safeCode}</span></div><div class="result-email">${safeEmail}</div></div>
+    </div>`;
+  }).join('');
 };
 window.startChatFromMain = function(id){
   const list = window._mainSearchResults || [];
@@ -4520,11 +4579,7 @@ window.respondRequest = async function(requestId, newStatus) {
       ? await callRpcSafe('respond_friend_request_for_email', { current_email: currentEmail, request_id: requestId, new_status: newStatus })
       : await callRpcSafe('respond_friend_request', { request_id: requestId, new_status: newStatus });
     if(rpcRes.error){
-      const res = await window.sb
-        .from('friend_requests')
-        .update({ status: newStatus })
-        .eq('id', requestId);
-      error = res.error;
+      error = rpcRes.error;
     }
       
     if(error) throw error;

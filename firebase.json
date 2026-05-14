@@ -7,6 +7,7 @@
       ".github/**",
       ".git/**",
       "**/.git/**",
+      "admin.html",
       "**/*.bat",
       "**/*.md",
       "**/node_modules/**"

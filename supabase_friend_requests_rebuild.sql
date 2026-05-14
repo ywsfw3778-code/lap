@@ -486,31 +486,6 @@ with check (
   and lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
 );
 
-create policy "friend_requests_update_same_email"
-on public.friend_requests
-for update
-to authenticated
-using (
-  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
-  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
-  or exists (
-    select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and (ui.user_id = friend_requests.sender_id or ui.user_id = friend_requests.receiver_id)
-  )
-)
-with check (
-  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
-  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
-  or exists (
-    select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and (ui.user_id = friend_requests.sender_id or ui.user_id = friend_requests.receiver_id)
-  )
-);
-
 create policy "friend_requests_delete_sender_same_email"
 on public.friend_requests
 for delete
@@ -560,7 +535,7 @@ to authenticated
 using (auth.uid() = sender_id);
 
 grant select on public.user_identities to authenticated;
-grant select, insert, update, delete on public.friend_requests to authenticated;
+grant select, insert, delete on public.friend_requests to authenticated;
 grant select, insert, update, delete on public.messages to authenticated;
 grant execute on function public.friend_assert_current_email(text) to authenticated;
 grant execute on function public.friend_target_email(uuid) to authenticated;
