@@ -1836,57 +1836,6 @@ window.sendFriendRequest = async function(targetId, btnElement) {
 </script>
 
 <script>
-  async function loadFriendRequests(){
-    alert("friend requests loaded");
-    console.log("ME:", me);
-alert(me.id);
-
-
-  const { data, error } = await sb
-    .from("friend_requests")
-    .select("*")
-    .eq("receiver_id", me.id)
-    .eq("status", "pending");
-    console.log(data);
-alert(JSON.stringify(data));
-
-  if(error){
-    console.log(error);
-    return;
-  }
-
-  const box = document.getElementById("friendRequestsList");
-
-  if(!box) return;
-
-  box.innerHTML = "";
-
-  if(data.length === 0){
-    box.innerHTML = "<div>لا توجد طلبات</div>";
-    return;
-  }
-
-  data.forEach(req => {
-
-    box.innerHTML += `
-      <div class="req-row">
-
-        <div>طلب صداقة جديد 👀</div>
-
-        <div class="req-btns">
-          <button onclick="acceptFriendRequest('${req.id}')">
-            قبول
-          </button>
-        </div>
-
-      </div>
-    `;
-
-  });
-
-}
-
-loadFriendRequests();
 window._contacts=[];
 window._convos={};
 let activeContact=null;
@@ -4462,17 +4411,20 @@ function renderFriendRequestRows(rows, senderMap = new Map()){
     const senderName = req.sender_name || sender.full_name || sender.username || sender.email || req.sender_email || req.sender_id || 'مستخدم';
     const senderEmail = req.sender_email || sender.email || req.sender_id || '';
     const senderAvatar = req.sender_avatar || sender.avatar_url || '';
+    const safeRequestId = escapeAttr(req.id || req.request_id || '');
+    const safeSenderName = escapeHtml(senderName);
+    const safeSenderEmail = escapeHtml(senderEmail);
     return `
       <div class="req-row">
         <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(senderName, senderAvatar)}</div>
         <div style="font-size:13px;">
-          <b>${senderName}</b>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${senderEmail}</div>
-          <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${req.id || req.request_id}</div>
+          <b>${safeSenderName}</b>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${safeSenderEmail}</div>
+          <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${safeRequestId}</div>
         </div>
         <div class="req-btns">
-          <button class="accept-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'accepted')">✔</button>
-          <button class="decline-btn" onclick="window.respondRequest('${req.id || req.request_id}', 'declined')">✖</button>
+          <button class="accept-btn" onclick="window.respondRequest('${safeRequestId}', 'accepted')">✔</button>
+          <button class="decline-btn" onclick="window.respondRequest('${safeRequestId}', 'declined')">✖</button>
         </div>
       </div>`;
   }).join('');
