@@ -71,7 +71,8 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
 .header-actions{display:flex;gap:6px;}
 .icon-btn{width:30px;height:30px;border:1px solid var(--border2);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:13px;transition:all .2s;user-select:none;}
-.icon-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
+  .icon-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
+  .admin-quick-btn{width:auto;min-width:44px;padding:0 9px;font:700 11px 'Share Tech Mono',monospace;color:var(--online);border-color:var(--online);background:rgba(52,211,153,.08);}
 .friend-requests-btn{width:auto;min-width:58px;padding:0 10px;font-size:11px;font-weight:600;gap:6px;position:relative;}
 .friend-requests-btn .friend-btn-mark{font-size:14px;line-height:1;}
 .friend-requests-btn .friend-btn-text{white-space:nowrap;}
@@ -690,6 +691,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <span class="logo">Lab Members</span>
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
+  <div class="icon-btn admin-quick-btn" id="adminQuickBtn" onclick="openSearchPanel()" title="Admin direct chat" style="display:none;">ADM</div>
   
   <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();(function(){if(window.openFriendRequestsPanel){window.openFriendRequestsPanel();return;}const p=document.getElementById('friendRequestsPanel');if(!p)return;p.classList.add('active');p.style.display='flex';p.style.opacity='1';p.style.pointerEvents='auto';setTimeout(function(){window.loadPendingRequests&&window.loadPendingRequests();},0);})()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span class="friend-btn-mark">+</span>
@@ -950,13 +952,19 @@ window.me = me;
 window.memberCodeMap = {};
 const ADMIN_USERNAME = 'ywsfw3778';
 const ADMIN_EMAIL = 'ywsfw3778@gmail.com';
+const ADMIN_ID = '95632ed1-ecbc-4483-8692-eafbe3d76d65';
 function isCurrentAdmin(){
   const user = window.me || me;
   const email = String(user?.email || '').trim().toLowerCase();
   const username = String(user?.user_metadata?.username || myUsername || '').trim().toLowerCase();
-  return email === ADMIN_EMAIL || username === ADMIN_USERNAME;
+  const id = String(user?.id || '').trim();
+  return email === ADMIN_EMAIL || username === ADMIN_USERNAME || id === ADMIN_ID;
 }
 window.isCurrentAdmin = isCurrentAdmin;
+function syncAdminChrome(){
+  const btn = document.getElementById('adminQuickBtn');
+  if(btn) btn.style.display = isCurrentAdmin() ? 'flex' : 'none';
+}
 window.getLabCode = function(uid){
   return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
@@ -964,10 +972,12 @@ let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
 let myAvatarUrl = me.user_metadata?.avatar_url || '';
+syncAdminChrome();
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
     window.me = nextSession.user;
+    try{ syncAdminChrome(); }catch(_e){}
     if(!window.__labBootstrapStarted){
       window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: nextSession.user } }));
       return;
@@ -1680,6 +1690,7 @@ window.searchFriends = async function() {
           <div style="font-weight:600; font-size:14px; color:var(--text);">${safeName}${safeMemberCode ? ` <span class="member-code">#${safeMemberCode}</span>` : ''}</div>
           <div style="font-size:12px; color:var(--muted);">${safeSubtitle}</div>
         </div>
+        ${typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin() ? `<button class="add-btn admin-search-chat" onclick="window.startAdminDirectChat('${safeId}')" style="background:rgba(52,211,153,.12); color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">فتح شات</button>` : ''}
         ${btnHtml}
       </div>`;
     }).join('');
@@ -3778,11 +3789,14 @@ function renderSidebarSearchResults(results){
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
     const safePreview = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    const adminButton = (typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())
+      ? `<button class="badge admin-chat-badge" onclick="event.stopPropagation();window.startAdminDirectChat('${safeId}')">شات</button>`
+      : '<div class="badge">+</div>';
     return `
     <div class="contact" onclick="startChatFromSidebar('${safeId}')">
       <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${safeName}<span class="member-code">#${safeCode}</span></div><div class="contact-preview">${safePreview}</div></div>
-      <div class="contact-meta"><div class="badge">+</div></div>
+      <div class="contact-meta">${adminButton}</div>
     </div>`;
   }).join('');
 }
@@ -3876,10 +3890,14 @@ window.searchFromMainArea = async function(){
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
     const safeEmail = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    const adminButton = (typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())
+      ? `<button class="empty-search-btn admin-main-chat" onclick="event.stopPropagation();window.startAdminDirectChat('${safeId}')">فتح شات</button>`
+      : '';
     return `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${safeId}')">
       <div class="avatar" style="background:${safeColor};color:${safeText};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${safeName} <span class="member-code">#${safeCode}</span></div><div class="result-email">${safeEmail}</div></div>
+      ${adminButton}
     </div>`;
   }).join('');
 };
@@ -4394,10 +4412,12 @@ document.getElementById('friendRequestsPanel')?.addEventListener('click', (event
   if(event.target === event.currentTarget) window.closeFriendRequestsPanel?.();
 });
 
-document.querySelector('[data-close-friend-requests]')?.addEventListener('click', (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  window.closeFriendRequestsPanel?.();
+document.addEventListener('click', (event) => {
+  if(event.target?.closest?.('[data-close-friend-requests]')){
+    event.preventDefault();
+    event.stopPropagation();
+    window.closeFriendRequestsPanel?.();
+  }
 });
 
 window.toggleFriendRequestsPanel = function() {
