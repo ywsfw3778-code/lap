@@ -688,7 +688,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
   
-  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();(function(){if(window.openFriendRequestsPanel){window.openFriendRequestsPanel();return;}const p=document.getElementById('friendRequestsPanel');if(!p)return;p.classList.add('active');p.style.display='block';p.style.opacity='1';p.style.pointerEvents='auto';setTimeout(function(){window.loadPendingRequests&&window.loadPendingRequests();},0);})()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
+  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();(function(){if(window.openFriendRequestsPanel){window.openFriendRequestsPanel();return;}const p=document.getElementById('friendRequestsPanel');if(!p)return;p.classList.add('active');p.style.display='flex';p.style.opacity='1';p.style.pointerEvents='auto';setTimeout(function(){window.loadPendingRequests&&window.loadPendingRequests();},0);})()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span class="friend-btn-mark">+</span>
     <span class="friend-btn-text">طلبات</span>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
@@ -4280,7 +4280,7 @@ window.openFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
   if(!panel) return;
   panel.classList.add('active');
-  panel.style.display = 'block';
+  panel.style.display = 'flex';
   panel.style.opacity = '1';
   panel.style.pointerEvents = 'auto';
   const meta = document.getElementById('friendRequestsMeta');
@@ -4414,17 +4414,21 @@ function renderFriendRequestRows(rows, senderMap = new Map()){
     const safeRequestId = escapeAttr(req.id || req.request_id || '');
     const safeSenderName = escapeHtml(senderName);
     const safeSenderEmail = escapeHtml(senderEmail);
+    const safeCreatedAt = req.created_at ? escapeHtml(formatChatTime(req.created_at)) : '';
     return `
-      <div class="req-row">
-        <div class="avatar" style="width:30px; height:30px; background:var(--surface2)">${window.avatarMarkup(senderName, senderAvatar)}</div>
-        <div style="font-size:13px;">
-          <b>${safeSenderName}</b>
-          <div style="font-size:11px; color:var(--muted); margin-top:2px;">${safeSenderEmail}</div>
-          <div style="font-size:10px; color:var(--muted); margin-top:2px;">request: ${safeRequestId}</div>
+      <div class="req-card">
+        <div class="req-avatar avatar">${window.avatarMarkup(senderName, senderAvatar)}</div>
+        <div class="req-copy">
+          <div class="req-topline">
+            <b>${safeSenderName}</b>
+            ${safeCreatedAt ? `<span>${safeCreatedAt}</span>` : ''}
+          </div>
+          <div class="req-email">${safeSenderEmail || 'عضو في المعمل'}</div>
+          <div class="req-code">request ${safeRequestId}</div>
         </div>
         <div class="req-btns">
-          <button class="accept-btn" onclick="window.respondRequest('${safeRequestId}', 'accepted')">✔</button>
-          <button class="decline-btn" onclick="window.respondRequest('${safeRequestId}', 'declined')">✖</button>
+          <button class="accept-btn" onclick="window.respondRequest('${safeRequestId}', 'accepted')">قبول</button>
+          <button class="decline-btn" onclick="window.respondRequest('${safeRequestId}', 'declined')">رفض</button>
         </div>
       </div>`;
   }).join('');
@@ -4438,7 +4442,7 @@ window.loadPendingRequests = async function() {
   if(meta){
     meta.textContent = currentUser?.email ? `الحساب الحالي: ${currentUser.email} • ${currentUser.id || '—'}` : 'الحساب الحالي غير معروف';
   }
-  listDiv.innerHTML = '<div style="text-align:center;">جارِ التحميل...</div>';
+  listDiv.innerHTML = '<div class="friend-empty"><div class="friend-empty-mark">...</div><strong>جارِ تحميل الطلبات</strong><span>بنراجع الطلبات الواردة لحسابك</span></div>';
 
   try {
     if(!window.sb || !currentUser) throw new Error('الحساب الحالي غير متاح');
@@ -4510,13 +4514,13 @@ window.loadPendingRequests = async function() {
       const rpcNote = rpcRes.error ? `<br><small style="opacity:.75;">RPC: ${rpcRes.error.message || rpcRes.error}</small>` : '';
       const legacyNote = legacyRpc.error ? `<br><small style="opacity:.75;">legacy: ${legacyRpc.error.message || legacyRpc.error}</small>` : '';
       const directNote = directErrors.length ? `<br><small style="opacity:.75;">direct: ${escapeHtml(directErrors.join(' | '))}</small>` : '';
-      listDiv.innerHTML = `<div style="text-align:center; color:var(--muted); margin-top:20px;">لا توجد طلبات جديدة<br><small style="opacity:.75;">receiver: ${escapeHtml(currentUser?.email || 'unknown')} • ids: ${escapeHtml(receiverIds.join(', '))}</small>${directNote}${rpcNote}${legacyNote}</div>`;
+      listDiv.innerHTML = `<div class="friend-empty"><div class="friend-empty-mark">0</div><strong>لا توجد طلبات جديدة</strong><span>receiver: ${escapeHtml(currentUser?.email || 'unknown')}</span><small>ids: ${escapeHtml(receiverIds.join(', '))}</small>${directNote}${rpcNote}${legacyNote}</div>`;
       window.refreshFriendRequestBadge?.();
       return;
     }
   } catch (err) {
     console.error(err);
-    listDiv.innerHTML = `<div style="text-align:center; color:#ff6b6b; margin-top:20px;">حدث خطأ في التحميل<br><small>${err?.message || err}</small></div>`;
+    listDiv.innerHTML = `<div class="friend-empty friend-empty-error"><div class="friend-empty-mark">!</div><strong>حدث خطأ في التحميل</strong><span>${escapeHtml(err?.message || err)}</span></div>`;
     window.refreshFriendRequestBadge?.();
   }
 };
@@ -4551,28 +4555,135 @@ window.respondRequest = async function(requestId, newStatus) {
   }
 };
 </script>
-<div id="friendRequestsPanel" class="side-panel" style="display:none; opacity:0; pointer-events:none; position:fixed; top:84px; left:18px; width:min(360px, calc(100vw - 36px)); max-height:calc(100dvh - 110px); overflow:auto; background:var(--sidebar); border:1px solid var(--border2); border-radius:18px; box-shadow:0 20px 50px rgba(0,0,0,.42); transform:none; transition:opacity .2s ease; z-index:4000; padding:20px;">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-    <h3>طلبات الصداقة</h3>
-    <div style="display:flex; gap:8px; align-items:center;">
-      <button onclick="window.loadPendingRequests?.()" class="friend-refresh-btn">تحديث</button>
-      <button onclick="window.closeFriendRequestsPanel?.()" style="background:none; border:none; color:var(--text); font-size:20px; cursor:pointer;">×</button>
+<div id="friendRequestsPanel" class="friend-requests-drawer" style="display:none; opacity:0; pointer-events:none;">
+  <div class="friend-panel-shell">
+    <div class="friend-panel-head">
+      <div>
+        <div class="friend-panel-kicker">Lab Members</div>
+        <h3>طلبات الصداقة</h3>
+      </div>
+      <div class="friend-panel-actions">
+        <button onclick="window.loadPendingRequests?.()" class="friend-refresh-btn">تحديث</button>
+        <button onclick="window.closeFriendRequestsPanel?.()" class="friend-close-btn" aria-label="إغلاق">×</button>
+      </div>
     </div>
-  </div>
-  <div id="friendRequestsMeta" style="font-size:11px; color:var(--muted); margin-bottom:12px;">الحساب الحالي: —</div>
-  <div id="friendRequestsList">
-    
-    <div style="text-align:center; color:var(--muted); font-size:13px; margin-top:20px;">لا توجد طلبات معلقة</div>
+    <div class="friend-panel-meta" id="friendRequestsMeta">الحساب الحالي: —</div>
+    <div id="friendRequestsList" class="friend-requests-list">
+      <div class="friend-empty">
+        <div class="friend-empty-mark">0</div>
+        <strong>لا توجد طلبات معلقة</strong>
+        <span>أي طلب جديد هيظهر هنا فورًا</span>
+      </div>
+    </div>
   </div>
 </div>
 
 <style>
-  #friendRequestsPanel.active { display:block; opacity:1; pointer-events:auto; }
-  .friend-refresh-btn { background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; font-size:12px; }
-  .req-row { display:flex; align-items:center; gap:10px; padding:10px; background:var(--surface2); border-radius:10px; margin-bottom:10px; }
-  .req-btns { display:flex; gap:5px; margin-right:auto; }
-  .accept-btn { background:var(--online); border:none; border-radius:5px; color:white; padding:5px; cursor:pointer; }
-  .decline-btn { background:#ff4444; border:none; border-radius:5px; color:white; padding:5px; cursor:pointer; }
+  .friend-requests-drawer{
+    position:fixed;inset:0;z-index:4000;
+    display:none;align-items:flex-start;justify-content:flex-start;
+    padding:72px 18px 18px;
+    background:rgba(0,0,0,.38);
+    backdrop-filter:blur(10px);
+    transition:opacity .2s ease;
+  }
+  .friend-requests-drawer.active{display:flex;opacity:1;pointer-events:auto;}
+  .friend-panel-shell{
+    width:min(430px,calc(100vw - 36px));
+    max-height:calc(100dvh - 96px);
+    overflow:auto;
+    background:linear-gradient(180deg,var(--surface),var(--sidebar));
+    border:1px solid var(--border2);
+    border-radius:22px;
+    box-shadow:0 24px 70px rgba(0,0,0,.5),0 0 34px var(--accent-glow);
+    padding:18px;
+  }
+  .friend-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;}
+  .friend-panel-kicker{font:11px 'Share Tech Mono',monospace;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
+  .friend-panel-head h3{font-size:22px;line-height:1.2;margin:0;}
+  .friend-panel-actions{display:flex;align-items:center;gap:8px;}
+  .friend-refresh-btn,.friend-close-btn{
+    border:1px solid var(--border2);
+    background:var(--surface2);
+    color:var(--text);
+    border-radius:12px;
+    min-height:36px;
+    padding:0 12px;
+    cursor:pointer;
+    font:inherit;
+    font-size:12px;
+  }
+  .friend-refresh-btn{border-color:var(--accent);color:var(--accent);box-shadow:0 0 14px var(--accent-glow);}
+  .friend-close-btn{width:36px;padding:0;font-size:22px;line-height:1;}
+  .friend-panel-meta{
+    border:1px solid var(--border);
+    background:rgba(255,255,255,.03);
+    color:var(--muted);
+    border-radius:14px;
+    padding:10px 12px;
+    font-size:11px;
+    line-height:1.6;
+    margin-bottom:14px;
+    word-break:break-word;
+  }
+  .friend-requests-list{display:flex;flex-direction:column;gap:10px;}
+  .req-card{
+    display:grid;
+    grid-template-columns:48px minmax(0,1fr);
+    gap:12px;
+    padding:14px;
+    background:var(--surface2);
+    border:1px solid var(--border2);
+    border-radius:18px;
+  }
+  .req-avatar{width:48px;height:48px;border-radius:16px;background:var(--surface);font-weight:700;color:var(--accent);overflow:hidden;}
+  .req-copy{min-width:0;}
+  .req-topline{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+  .req-topline b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .req-topline span{font-size:10px;color:var(--muted);white-space:nowrap;}
+  .req-email{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;}
+  .req-code{font:10px 'Share Tech Mono',monospace;color:var(--muted);opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .req-btns{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+  .accept-btn,.decline-btn{
+    border:none;
+    border-radius:12px;
+    min-height:38px;
+    color:white;
+    cursor:pointer;
+    font:inherit;
+    font-size:13px;
+    font-weight:700;
+  }
+  .accept-btn{background:linear-gradient(135deg,var(--online),#10b981);}
+  .decline-btn{background:linear-gradient(135deg,#ef4444,#b91c1c);}
+  .friend-empty{
+    min-height:180px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    gap:8px;
+    color:var(--muted);
+    border:1px dashed var(--border2);
+    border-radius:18px;
+    padding:22px;
+  }
+  .friend-empty-mark{
+    width:46px;height:46px;border-radius:16px;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--accent-glow);
+    color:var(--accent);
+    font:700 18px 'Share Tech Mono',monospace;
+  }
+  .friend-empty strong{color:var(--text);font-size:15px;}
+  .friend-empty span,.friend-empty small{font-size:11px;line-height:1.6;max-width:100%;word-break:break-word;}
+  .friend-empty-error .friend-empty-mark{background:#ef44442a;color:#ff8888;}
+  @media (max-width:640px){
+    .friend-requests-drawer{padding:58px 10px 10px;align-items:stretch;}
+    .friend-panel-shell{width:100%;max-height:calc(100dvh - 68px);border-radius:18px;padding:14px;}
+    .friend-panel-head h3{font-size:19px;}
+  }
 </style>
 </body>
 </html>
