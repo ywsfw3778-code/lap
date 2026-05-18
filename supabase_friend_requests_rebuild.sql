@@ -433,6 +433,16 @@ alter table public.friend_requests enable row level security;
 alter table public.user_identities enable row level security;
 alter table public.messages enable row level security;
 
+create table if not exists public.admin_message_blocks (
+  admin_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (admin_id, user_id),
+  constraint admin_message_blocks_no_self check (admin_id <> user_id)
+);
+
+alter table public.admin_message_blocks enable row level security;
+
 drop policy if exists "user_identities_select_authenticated" on public.user_identities;
 create policy "user_identities_select_authenticated"
 on public.user_identities
@@ -457,6 +467,14 @@ begin
     where schemaname = 'public' and tablename = 'messages'
   loop
     execute format('drop policy if exists %I on public.messages', pol.policyname);
+  end loop;
+
+  for pol in
+    select policyname
+    from pg_policies
+    where schemaname = 'public' and tablename = 'admin_message_blocks'
+  loop
+    execute format('drop policy if exists %I on public.admin_message_blocks', pol.policyname);
   end loop;
 end $$;
 
@@ -519,7 +537,15 @@ create policy "messages_insert_self"
 on public.messages
 for insert
 to authenticated
-with check (auth.uid() = sender_id);
+with check (
+  auth.uid() = sender_id
+  and not exists (
+    select 1
+    from public.admin_message_blocks amb
+    where amb.admin_id = messages.receiver_id
+      and amb.user_id = auth.uid()
+  )
+);
 
 create policy "messages_update_sender"
 on public.messages
@@ -534,9 +560,28 @@ for delete
 to authenticated
 using (auth.uid() = sender_id);
 
+create policy "admin_message_blocks_select_related"
+on public.admin_message_blocks
+for select
+to authenticated
+using (auth.uid() = admin_id or auth.uid() = user_id);
+
+create policy "admin_message_blocks_insert_admin"
+on public.admin_message_blocks
+for insert
+to authenticated
+with check (auth.uid() = admin_id);
+
+create policy "admin_message_blocks_delete_admin"
+on public.admin_message_blocks
+for delete
+to authenticated
+using (auth.uid() = admin_id);
+
 grant select on public.user_identities to authenticated;
 grant select, insert, delete on public.friend_requests to authenticated;
 grant select, insert, update, delete on public.messages to authenticated;
+grant select, insert, delete on public.admin_message_blocks to authenticated;
 grant execute on function public.friend_assert_current_email(text) to authenticated;
 grant execute on function public.friend_target_email(uuid) to authenticated;
 grant execute on function public.friend_current_ids(text) to authenticated;

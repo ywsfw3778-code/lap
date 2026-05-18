@@ -465,6 +465,9 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .profile-row:last-of-type{border-bottom:none;}
 .picon{font-size:15px;width:22px;text-align:center;}
 .profile-acts{display:flex;gap:8px;margin-top:16px;}
+#profileFriendAction{display:flex;gap:8px;flex-wrap:wrap;}
+.admin-direct-btn{border-color:var(--online);color:var(--online);background:rgba(52,211,153,.08);}
+.admin-block-btn{background:#ef444418;}
 .pbtn{flex:1;padding:10px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:all .2s;border:1px solid var(--border2);color:var(--muted);background:var(--surface);}
 .pbtn:hover{border-color:var(--accent);color:var(--accent);}
 .pbtn.danger{border-color:#ff444433;color:#ff6666;}
@@ -947,6 +950,13 @@ window.me = me;
 window.memberCodeMap = {};
 const ADMIN_USERNAME = 'ywsfw3778';
 const ADMIN_EMAIL = 'ywsfw3778@gmail.com';
+function isCurrentAdmin(){
+  const user = window.me || me;
+  const email = String(user?.email || '').trim().toLowerCase();
+  const username = String(user?.user_metadata?.username || myUsername || '').trim().toLowerCase();
+  return email === ADMIN_EMAIL || username === ADMIN_USERNAME;
+}
+window.isCurrentAdmin = isCurrentAdmin;
 window.getLabCode = function(uid){
   return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
@@ -2464,7 +2474,7 @@ async function fillProfileOverlay(data){
   overlay.classList.toggle('profile-overlay-user', !isSelf);
 
   // --- نظام الحماية لأماديوس (إخفاء الإيميل) ---
-  const isAdmin = (window.me && window.me.email === 'ywsfw3778@gmail.com');
+  const isAdmin = typeof window.isCurrentAdmin === 'function' ? window.isCurrentAdmin() : (window.me && window.me.email === 'ywsfw3778@gmail.com');
   const canSeeEmail = isSelf || isAdmin;
   const displayEmail = canSeeEmail ? email : 'مخفي 🔒';
 
@@ -2496,15 +2506,20 @@ async function fillProfileOverlay(data){
   if (actsDiv && friendSlot) {
     friendSlot.innerHTML = '';
     if (!isSelf && id) {
-      friendSlot.innerHTML = `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${id}', this)">إضافة صديق ➕</button>`;
+      const safeProfileId = escapeAttr(id);
+      const adminTools = isAdmin ? `<button class="pbtn admin-direct-btn" onclick="window.startAdminDirectChat('${safeProfileId}')">فتح شات مباشر</button><button class="pbtn danger admin-block-btn" onclick="window.toggleAdminMessageBlock('${safeProfileId}', this)">إيقاف مراسلته</button>` : '';
+      friendSlot.innerHTML = `${adminTools}<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
       let request = null;
       try{
         request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
       }catch(_e){
         request = null;
       }
-      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${id}', this)">إضافة صديق ➕</button>`;
-      friendSlot.innerHTML = friendBtnHtml;
+      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
+      friendSlot.innerHTML = `${adminTools}${friendBtnHtml}`;
+      if(isAdmin && typeof window.syncAdminBlockButton === 'function'){
+        window.syncAdminBlockButton(id).catch(() => {});
+      }
     }
   }
 }
@@ -2768,6 +2783,63 @@ async function updateMyLastSeen(){
   }catch(_e){}
 }
 window.updateMyLastSeen = updateMyLastSeen;
+
+async function isBlockedFromMessagingAdmin(senderId, adminId){
+  const sbClient = getSbClient();
+  if(!sbClient || !senderId || !adminId) return false;
+  try{
+    const { data, error } = await sbClient
+      .from('admin_message_blocks')
+      .select('user_id')
+      .eq('admin_id', adminId)
+      .eq('user_id', senderId)
+      .maybeSingle();
+    if(error) return false;
+    return !!data;
+  }catch(_e){
+    return false;
+  }
+}
+window.isBlockedFromMessagingAdmin = isBlockedFromMessagingAdmin;
+
+window.syncAdminBlockButton = async function(userId){
+  const btn = document.querySelector('.admin-block-btn');
+  const currentUser = getCurrentUser();
+  if(!btn || !currentUser || !userId) return;
+  const blocked = await isBlockedFromMessagingAdmin(userId, currentUser.id);
+  btn.textContent = blocked ? 'تشغيل مراسلته' : 'إيقاف مراسلته';
+  btn.dataset.blocked = blocked ? 'true' : 'false';
+};
+
+window.toggleAdminMessageBlock = async function(userId, btn){
+  if(!(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())) return;
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
+  if(!sbClient || !currentUser || !userId) return;
+  const wasBlocked = btn?.dataset.blocked === 'true';
+  if(btn) btn.disabled = true;
+  try{
+    if(wasBlocked){
+      const { error } = await sbClient
+        .from('admin_message_blocks')
+        .delete()
+        .eq('admin_id', currentUser.id)
+        .eq('user_id', userId);
+      if(error) throw error;
+    }else{
+      const { error } = await sbClient
+        .from('admin_message_blocks')
+        .insert([{ admin_id: currentUser.id, user_id: userId }]);
+      if(error) throw error;
+    }
+    await window.syncAdminBlockButton(userId);
+  }catch(err){
+    alert('تعذر تحديث إيقاف المراسلة. شغّل SQL الخاص بـ admin_message_blocks من Supabase أولًا.');
+    console.warn('admin block toggle failed:', err?.message || err);
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+};
 
 function initPresence(){
   const sbClient = getSbClient();
@@ -3600,7 +3672,7 @@ async function selectContact(id, options = {}){
   let found = contacts.find(c => c.id === id);
   const hasExistingConversation = Array.isArray(conversations[id]) && conversations[id].length > 0;
   const hasInboxEntry = !!(found && (found._lastInboxAt || found.preview || found.time));
-  const bypassFriendGate = !!options.bypassFriendGate;
+  const bypassFriendGate = !!options.bypassFriendGate || (typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin());
 
   if(!bypassFriendGate && !hasExistingConversation && !hasInboxEntry){
     const relation = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
@@ -3683,7 +3755,15 @@ window.startChat = function(id, name, color, text, avatar = ''){
   }else if(avatar && !found.avatar){
     found.avatar = avatar;
   }
-  selectContact(id);
+  selectContact(id, { bypassFriendGate: typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin() });
+};
+
+window.startAdminDirectChat = function(id){
+  if(!(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())) return;
+  const profile = (window.profilesDirectory || []).find((u) => u.id === id) || {};
+  const label = profile.full_name || profile.username || (profile.email ? profile.email.split('@')[0] : 'User');
+  window.startChat(id, label, 'var(--surface2)', 'var(--accent)', profile.avatar_url || '');
+  closeProfile();
 };
 function renderSidebarSearchResults(results){
   const el = document.getElementById('contacts');
@@ -3930,6 +4010,17 @@ async function sendMessage(){
   const inp=document.getElementById('msgInput');
   const txt=inp.value.trim();
   if(!txt) return;
+
+  const activeEmail = String(activeContact.email || '').trim().toLowerCase();
+  const activeUsername = String(activeContact.username || '').trim().toLowerCase();
+  const activeIsAdmin = activeEmail === ADMIN_EMAIL || activeUsername === ADMIN_USERNAME;
+  if(activeIsAdmin && !(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())){
+    const blocked = await isBlockedFromMessagingAdmin(currentUser.id, activeContact.id);
+    if(blocked){
+      alert('الأدمن أوقف استقبال الرسائل منك حاليًا.');
+      return;
+    }
+  }
 
   inp.value='';
   const payload = { sender_id: currentUser.id, receiver_id: activeContact.id, content: txt };
@@ -4299,6 +4390,16 @@ window.closeFriendRequestsPanel = function() {
   panel.style.display = 'none';
 };
 
+document.getElementById('friendRequestsPanel')?.addEventListener('click', (event) => {
+  if(event.target === event.currentTarget) window.closeFriendRequestsPanel?.();
+});
+
+document.querySelector('[data-close-friend-requests]')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  window.closeFriendRequestsPanel?.();
+});
+
 window.toggleFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
   if(!panel) return;
@@ -4555,7 +4656,7 @@ window.respondRequest = async function(requestId, newStatus) {
   }
 };
 </script>
-<div id="friendRequestsPanel" class="friend-requests-drawer" style="display:none; opacity:0; pointer-events:none;">
+<div id="friendRequestsPanel" class="friend-requests-drawer" style="display:none; opacity:0; pointer-events:none;" onclick="if(event.target===this)window.closeFriendRequestsPanel?.()">
   <div class="friend-panel-shell">
     <div class="friend-panel-head">
       <div>
@@ -4564,7 +4665,7 @@ window.respondRequest = async function(requestId, newStatus) {
       </div>
       <div class="friend-panel-actions">
         <button onclick="window.loadPendingRequests?.()" class="friend-refresh-btn">تحديث</button>
-        <button onclick="window.closeFriendRequestsPanel?.()" class="friend-close-btn" aria-label="إغلاق">×</button>
+        <button type="button" data-close-friend-requests onclick="event.preventDefault();event.stopPropagation();window.closeFriendRequestsPanel?.()" class="friend-close-btn" aria-label="إغلاق">×</button>
       </div>
     </div>
     <div class="friend-panel-meta" id="friendRequestsMeta">الحساب الحالي: —</div>
