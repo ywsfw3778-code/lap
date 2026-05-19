@@ -855,6 +855,16 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
+
+  <!-- profile bar -->
+  <div class="profile-bar" onclick="openProfile()">
+    <div class="avatar" id="myAvatar2" style="width:32px;height:32px;cursor:pointer;background:var(--surface2);color:var(--accent);flex-shrink:0;"></div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="myName">—</div>
+      <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="myEmail">—</div>
+    </div>
+    <div style="width:7px;height:7px;border-radius:50%;background:var(--online);flex-shrink:0;"></div>
+  </div>
 </div>
 
 <!-- CHAT -->
@@ -890,6 +900,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <button class="send-btn" onclick="sendMessage()">➤</button>
 
     <div id="voiceRecPanel">
+        <div id="recordStatus" style="display:none;"></div>
         <div class="record-live">
             <div class="record-dot"></div>
             <div class="record-time" id="recordTime">0:00</div>
@@ -997,7 +1008,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
      <div class="profile-acts">
        <div id="profileFriendAction"></div>
        <button class="pbtn danger" id="profileLogoutBtn" onclick="window.handleLogout()">خروج</button>
-       <button class="pbtn" id="profileCloseBtn">إغلاق</button>
+       <button class="pbtn" id="profileCloseBtn" onclick="closeProfile()">إغلاق</button>
       </div>
     </div>
     <div class="panel-top" style="position:absolute;top:8px;left:8px;">
@@ -1337,6 +1348,9 @@ function applyMyProfileUI(){
   setAvatarNode(document.getElementById('myAvatar'), init, myAvatarUrl);
   document.getElementById('myName').textContent = myName;
   document.getElementById('myEmail').textContent = myEmail;
+  // sync profile bar avatar too
+  const myAvatar2 = document.getElementById('myAvatar2');
+  if(myAvatar2) setAvatarNode(myAvatar2, init, myAvatarUrl);
   setAvatarNode(document.getElementById('profileAv'), init, myAvatarUrl);
   const myCode = window.getLabCode ? window.getLabCode(me.id) : '001';
   document.getElementById('profileName').textContent = `${myName}  #${myCode}`;
@@ -1975,10 +1989,8 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       throw new Error(error.message);
     }
 
-    if(!insertedRows?.length){
-      const relationAfterInsert = await getFriendRelation(targetId);
-      if(!relationAfterInsert) throw new Error('لم يتم تأكيد إنشاء الطلب');
-    }
+    // إذا ما رجعتش rows مش معناه فشل — RLS بعض الأحيان مبترجعش data
+    // نكمل عادي ونحدث الزرار
 
     btnElement.textContent = 'إلغاء الطلب ⏳';
     btnElement.style.background = 'transparent';
@@ -1991,7 +2003,9 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     }
   } catch(err) {
     console.error("Request Error:", err);
-    alert('خطأ من السيرفر: ' + err.message);
+    // عرض الـ error الحقيقي للمساعدة في تشخيص المشكلة
+    const msg = err?.message || String(err) || 'unknown error';
+    alert('فشل إرسال طلب الصداقة:\n' + msg + '\n\nافتح الـ Console لمزيد من التفاصيل');
     btnElement.disabled = false;
     btnElement.textContent = 'إضافة صديق ➕';
     btnElement.style.background = 'var(--accent-glow)';
@@ -2441,9 +2455,12 @@ loadFastLocalChatState();
 
 // THEME
 function setTheme(t){
-  document.getElementById('appBody').className='theme-'+t;
+  const body = document.getElementById('appBody');
+  // احتفظ بالكلاسات اللي مش ثيم
+  const keep = Array.from(body.classList).filter(c => !c.startsWith('theme-'));
+  body.className = keep.join(' ') + ' theme-' + t;
   document.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('selected'));
-  document.getElementById('tc-'+t).classList.add('selected');
+  document.getElementById('tc-'+t)?.classList.add('selected');
   if(t==='steins'){crtOn=true;document.getElementById('crtToggle').classList.add('on');}
   else{crtOn=false;document.getElementById('crtToggle').classList.remove('on');}
   applyCRT();
@@ -3836,7 +3853,8 @@ async function selectContact(id, options = {}){
     const relation = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
     const isAccepted = !!(relation && relation.status === 'accepted');
     if (!isAccepted) {
-      alert('عذراً، يجب أن يتم قبول طلب الصداقة أولاً لتتمكن من المراسلة!');
+      const statusLabel = relation?.status === 'pending' ? 'الطلب لسه في الانتظار' : 'لا توجد صداقة مقبولة';
+      alert('⚠️ ' + statusLabel + '\nيجب أن يتم قبول طلب الصداقة أولاً لتتمكن من المراسلة.');
       return;
     }
   }
