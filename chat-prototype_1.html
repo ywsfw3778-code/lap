@@ -1170,6 +1170,9 @@ window.memberCodeMap = {};
 const ADMIN_USERNAME = 'ywsfw3778';
 const ADMIN_EMAIL = 'ywsfw3778@gmail.com';
 const ADMIN_ID = '95632ed1-ecbc-4483-8692-eafbe3d76d65';
+window.ADMIN_USERNAME = ADMIN_USERNAME;
+window.ADMIN_EMAIL = ADMIN_EMAIL;
+window.ADMIN_ID = ADMIN_ID;
 function isCurrentAdmin(){
   const user = window.me || me;
   const email = String(user?.email || '').trim().toLowerCase();
@@ -1913,16 +1916,21 @@ window.searchFriends = async function() {
       const btnHtml = renderFriendActionButton(u.id, relations.get(u.id));
 
       return `
-      <div class="result-row" style="display:flex; align-items:center; gap:12px; padding:12px; border-bottom:1px solid var(--border);">
-        <div class="avatar" style="background:${safeColor}; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${safeText}" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">
+      <div class="result-row" onclick="window.openUserProfile('${safeId}')" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--glass-border); cursor:pointer; transition: all 0.25s ease; border-radius:12px; margin: 4px 8px; background: rgba(255,255,255,0.02);" onmouseover="this.style.background='var(--glass-bg)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.transform='none'; this.style.boxShadow='none';">
+        <div class="avatar" style="background:${safeColor}; width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:${safeText}; flex-shrink:0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
           ${window.avatarMarkup(u.init, u.avatar)}
         </div>
-        <div style="flex:1;">
-          <div style="font-weight:600; font-size:14px; color:var(--text);">${safeName}${safeMemberCode ? ` <span class="member-code">#${safeMemberCode}</span>` : ''}</div>
-          <div style="font-size:12px; color:var(--muted);">${safeSubtitle}</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:14px; color:var(--text); display:flex; align-items:center; gap:6px;">
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safeName}</span>
+            ${safeMemberCode ? `<span class="member-code" style="font-size:10px; background:var(--accent-glow); color:var(--accent); padding:2px 6px; border-radius:4px; font-weight:normal;">#${safeMemberCode}</span>` : ''}
+          </div>
+          <div style="font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${safeSubtitle}</div>
         </div>
-        ${typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin() ? `<button class="add-btn admin-search-chat" onclick="window.startAdminDirectChat('${safeId}')" style="background:rgba(52,211,153,.12); color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">فتح شات</button>` : ''}
-        ${btnHtml}
+        <div onclick="event.stopPropagation();" style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+          ${typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin() ? `<button class="add-btn admin-search-chat" onclick="window.startAdminDirectChat('${safeId}')" style="background:rgba(52,211,153,.12); color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.2s;" onmouseover="this.style.background='var(--online)'; this.style.color='var(--bg)';" onmouseout="this.style.background='rgba(52,211,153,.12)'; this.style.color='var(--online)';">فتح شات</button>` : ''}
+          ${btnHtml}
+        </div>
       </div>`;
     }).join('');
   } catch(err) {
@@ -1980,6 +1988,10 @@ window.sendFriendRequest = async function(targetId, btnElement) {
         if (document.getElementById('searchOverlay')?.classList.contains('open')) {
           window.searchFriends().catch(() => {});
         }
+        const profileOverlay = document.getElementById('profileOverlay');
+        if (profileOverlay?.classList.contains('open') && profileOverlay?.dataset?.userId === targetId) {
+          window.openUserProfile(targetId).catch(() => {});
+        }
       }
       return;
     }
@@ -2015,6 +2027,10 @@ window.sendFriendRequest = async function(targetId, btnElement) {
       }
       if (document.getElementById('searchOverlay')?.classList.contains('open')) {
         window.searchFriends().catch(() => {});
+      }
+      const profileOverlay = document.getElementById('profileOverlay');
+      if (profileOverlay?.classList.contains('open') && profileOverlay?.dataset?.userId === targetId) {
+        window.openUserProfile(targetId).catch(() => {});
       }
       return;
     }
@@ -2075,6 +2091,10 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     if (document.getElementById('searchOverlay')?.classList.contains('open')) {
       window.searchFriends().catch(() => {});
     }
+    const profileOverlay = document.getElementById('profileOverlay');
+    if (profileOverlay?.classList.contains('open') && profileOverlay?.dataset?.userId === targetId) {
+      window.openUserProfile(targetId).catch(() => {});
+    }
   } catch(err) {
     console.error("Request Error:", err);
     // عرض الـ error الحقيقي للمساعدة في تشخيص المشكلة
@@ -2111,8 +2131,9 @@ const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
 async function getFreshCurrentUser(){
   const cached = getCurrentUser();
+  if(cached) return cached;
   const sbClient = getSbClient();
-  if(!sbClient) return cached;
+  if(!sbClient) return null;
   try{
     const { data, error } = await sbClient.auth.getUser();
     if(!error && data?.user){
@@ -2120,7 +2141,7 @@ async function getFreshCurrentUser(){
       return data.user;
     }
   }catch(_e){}
-  return cached;
+  return null;
 }
 async function callRpcSafe(name, params = {}){
   const sbClient = getSbClient();
@@ -2933,20 +2954,13 @@ window.openActiveAvatarFromMenu = function(){
 };
 
 window.openUserAvatarOrProfile = async function(userId){
+  if(!userId) return;
   const me = getCurrentUser();
   if(me && userId === me.id){
-    const mineAvatar = window.myProfileState?.avatar || '';
-    if(mineAvatar) window.openImageViewer(mineAvatar, window.myProfileState?.name || 'You');
-    else window.openProfile();
+    window.openProfile();
     return;
   }
-  const existing = contacts.find((c) => c.id === userId) || {};
-  const profileRows = typeof window.queryProfilesByIds === 'function' ? await window.queryProfilesByIds([userId]) : [];
-  const profile = (profileRows && profileRows[0]) ? profileRows[0] : {};
-  const avatar = profile.avatar_url || existing.avatar || '';
-  const label = String(profile.full_name || '').trim() || existing.name || String(profile.username || '').trim() || 'User';
-  if(avatar) window.openImageViewer(avatar, label);
-  else window.openUserProfile(userId);
+  window.openUserProfile(userId);
 };
 
 function getNotifyStoreKey(){
@@ -4310,7 +4324,7 @@ async function sendMessage(){
 
   const activeEmail = String(activeContact.email || '').trim().toLowerCase();
   const activeUsername = String(activeContact.username || '').trim().toLowerCase();
-  const activeIsAdmin = activeEmail === ADMIN_EMAIL || activeUsername === ADMIN_USERNAME;
+  const activeIsAdmin = activeEmail === (window.ADMIN_EMAIL || 'ywsfw3778@gmail.com') || activeUsername === (window.ADMIN_USERNAME || 'ywsfw3778');
   if(activeIsAdmin && !(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())){
     const blocked = await isBlockedFromMessagingAdmin(currentUser.id, activeContact.id);
     if(blocked){

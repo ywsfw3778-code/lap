@@ -367,18 +367,38 @@ set search_path = public, auth
 as $$
   with me as (select public.friend_assert_current_email(current_email) as email),
   my_ids as (select user_id from public.friend_current_ids((select email from me))),
-  ranked as (
+  combined as (
     select
       case when m.sender_id in (select user_id from my_ids) then m.receiver_id else m.sender_id end as partner_id,
       m.content,
-      m.created_at,
-      row_number() over (
-        partition by case when m.sender_id in (select user_id from my_ids) then m.receiver_id else m.sender_id end
-        order by m.created_at desc
-      ) as rn
+      m.created_at as activity_at
     from public.messages m
     where m.sender_id in (select user_id from my_ids)
        or m.receiver_id in (select user_id from my_ids)
+    union all
+    select
+      case when fr.sender_id in (select user_id from my_ids) then fr.receiver_id else fr.sender_id end as partner_id,
+      null::text as content,
+      fr.updated_at as activity_at
+    from public.friend_requests fr
+    where fr.status = 'accepted'
+      and (
+        fr.sender_id in (select user_id from my_ids)
+        or fr.receiver_id in (select user_id from my_ids)
+        or lower(fr.sender_email) = (select email from me)
+        or lower(fr.receiver_email) = (select email from me)
+      )
+  ),
+  ranked as (
+    select
+      partner_id,
+      content,
+      activity_at,
+      row_number() over (
+        partition by partner_id
+        order by activity_at desc
+      ) as rn
+    from combined
   )
   select
     r.partner_id,
@@ -389,11 +409,11 @@ as $$
     p.member_code,
     p.last_seen_at,
     r.content as last_content,
-    r.created_at as last_created_at
+    r.activity_at as last_created_at
   from ranked r
   left join public.profiles p on p.id = r.partner_id
   where r.rn = 1
-  order by r.created_at desc
+  order by r.activity_at desc
 $$;
 
 create or replace function public.get_chat_messages_for_email(
@@ -524,6 +544,24 @@ using (
   )
 );
 
+create policy "friend_requests_update_receiver_same_email"
+on public.friend_requests
+for update
+to authenticated
+using (
+  auth.uid() = receiver_id
+  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  or exists (
+    select 1
+    from public.user_identities ui
+    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
+      and ui.user_id = friend_requests.receiver_id
+  )
+)
+with check (
+  status in ('accepted', 'declined')
+);
+
 create policy "messages_select_same_email"
 on public.messages
 for select
@@ -585,7 +623,7 @@ to authenticated
 using (auth.uid() = admin_id);
 
 grant select on public.user_identities to authenticated;
-grant select, insert, delete on public.friend_requests to authenticated;
+grant select, insert, update, delete on public.friend_requests to authenticated;
 grant select, insert, update, delete on public.messages to authenticated;
 grant select, insert, delete on public.admin_message_blocks to authenticated;
 grant execute on function public.friend_assert_current_email(text) to authenticated;
