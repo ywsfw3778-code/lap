@@ -2093,8 +2093,12 @@ window.sendFriendRequest = async function(targetId, btnElement) {
 
 <script>
 // Scoping and delegation helpers to bridge ES Modules and Standard Scripts
-const escapeHtml = (value) => (window.escapeHtml ? window.escapeHtml(value) : fallbackEscapeHtml(value));
-const escapeAttr = (value) => (window.escapeAttr ? window.escapeAttr(value) : fallbackEscapeHtml(value));
+function escapeHtml(value) {
+  return window.escapeHtml ? window.escapeHtml(value) : fallbackEscapeHtml(value);
+}
+function escapeAttr(value) {
+  return window.escapeAttr ? window.escapeAttr(value) : fallbackEscapeHtml(value);
+}
 
 window._contacts=[];
 window._convos={};
