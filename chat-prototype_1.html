@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css'>
@@ -69,13 +69,11 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 .sidebar-header{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .logo{font-family:var(--logo-font);font-size:20px;font-weight:500;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;filter:drop-shadow(0 0 6px var(--accent-glow));}
 body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
-.header-actions{display:flex;gap:6px;}
+.header-actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;}
 .icon-btn{width:30px;height:30px;border:1px solid var(--border2);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:13px;transition:all .2s;user-select:none;}
   .icon-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
-  .admin-quick-btn{width:auto;min-width:44px;padding:0 9px;font:700 11px 'Share Tech Mono',monospace;color:var(--online);border-color:var(--online);background:rgba(52,211,153,.08);}
-.friend-requests-btn{width:auto;min-width:58px;padding:0 10px;font-size:11px;font-weight:600;gap:6px;position:relative;}
-.friend-requests-btn .friend-btn-mark{font-size:14px;line-height:1;}
-.friend-requests-btn .friend-btn-text{white-space:nowrap;}
+  .admin-quick-btn{color:var(--online);border-color:var(--online);background:rgba(52,211,153,.08);}
+.friend-requests-btn{position:relative;}
 .search-box{margin:12px 12px 8px;position:relative;}
 .search-box input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:8px 34px 8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s;direction:rtl;}
 .search-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
@@ -720,15 +718,15 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 .sidebar{width:270px!important;border-radius:20px!important;overflow:hidden;border-left:1px solid var(--glass-border)!important;}
 .chat-area{border-radius:20px!important;overflow:hidden;min-width:0;}
 .sidebar-header{padding:16px 14px 12px;border-bottom:1px solid var(--glass-border);gap:8px;}
-.header-actions{display:flex;align-items:center;gap:4px;}
+.header-actions{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;}
 .logo{font-size:18px;letter-spacing:.4px;filter:none;}
 .icon-btn{
   width:30px;height:30px;border-radius:10px;border:1px solid transparent;background:transparent;
   color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .18s;
 }
 .icon-btn:hover{background:var(--glass-hover);border-color:var(--glass-border);color:var(--accent);}
-.friend-requests-btn{width:auto!important;padding:0 9px;gap:4px;font-size:11px;font-weight:700;}
-.admin-quick-btn{width:auto!important;padding:0 9px;font-size:10px;letter-spacing:.8px;color:var(--accent);border-color:rgba(var(--accent-rgb),.26);}
+.friend-requests-btn{position:relative;}
+.admin-quick-btn{color:var(--accent);border-color:rgba(var(--accent-rgb),.26);}
 .search-box{padding:10px 12px 8px;position:relative;border-bottom:0;}
 .search-box input{
   width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:12px;
@@ -837,16 +835,14 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <span class="logo">Lab Members</span>
     <div class="header-actions">
   <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
-  <div class="icon-btn admin-quick-btn" id="adminQuickBtn" onclick="openSearchPanel()" title="Admin direct chat" style="display:none;">ADM</div>
+  <div class="icon-btn admin-quick-btn" id="adminQuickBtn" onclick="openSearchPanel()" title="بوابة الإدارة (Admin Panel)" style="display:none;">👑</div>
   
   <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();(function(){if(window.openFriendRequestsPanel){window.openFriendRequestsPanel();return;}const p=document.getElementById('friendRequestsPanel');if(!p)return;p.classList.add('active');p.style.display='flex';p.style.opacity='1';p.style.pointerEvents='auto';setTimeout(function(){window.loadPendingRequests&&window.loadPendingRequests();},0);})()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
-    <span class="friend-btn-mark">+</span>
-    <span class="friend-btn-text">طلبات</span>
+    <span>👥</span>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
   <div class="icon-btn" onclick="openSettings()">⚙️</div>
-  <div class="avatar" id="myAvatar" style="width:30px;height:30px;cursor:pointer;background:var(--surface2);color:var(--accent);" onclick="openProfile()" title="الملف الشخصي"></div>
 </div>
   </div>
   <div class="search-box">
