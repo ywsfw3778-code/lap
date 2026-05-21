@@ -5,7 +5,70 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script>
+// Amadeus Error & Initialization Guard
 (() => {
+  window.onerror = function(message, source, lineno, colno, error) {
+    showGlobalErrorBanner(message, source, lineno, colno, error);
+    return false;
+  };
+  window.addEventListener('unhandledrejection', function(event) {
+    showGlobalErrorBanner(event.reason?.message || event.reason || 'Unhandled Rejection', '', '', '', event.reason);
+  });
+
+  function showGlobalErrorBanner(message, source, lineno, colno, error) {
+    if (document.getElementById('global-error-banner')) return;
+    const container = document.createElement('div');
+    container.id = 'global-error-banner';
+    container.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;width:90%;max-width:600px;background:rgba(26,8,11,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid #ff1735;border-radius:12px;padding:16px;box-shadow:0 8px 32px rgba(255,23,53,0.2),0 0 0 1px rgba(255,255,255,0.05) inset;color:#ffd6da;font-family:\'Outfit\',\'IBM Plex Sans Arabic\',sans-serif;display:flex;flex-direction:column;gap:8px;animation:slideDownError 0.4s cubic-bezier(0.16,1,0.3,1) forwards;';
+    
+    const styleEl = document.createElement('style');
+    styleEl.textContent = '@keyframes slideDownError{from{transform:translate(-50%,-50px);opacity:0;}to{transform:translate(-50%,0);opacity:1;}}';
+    document.head.appendChild(styleEl);
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,23,53,0.2);padding-bottom:8px;';
+    
+    const title = document.createElement('div');
+    title.style.cssText = 'display:flex;align-items:center;gap:8px;font-weight:600;color:#ff6b7a;';
+    title.innerHTML = '⚠️ <span>خطأ في النظام (System Error)</span>';
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'background:none;border:none;color:#6b3a3e;font-size:24px;cursor:pointer;line-height:1;padding:0 4px;transition:color 0.2s;';
+    closeBtn.onmouseover = () => closeBtn.style.color = '#ff6b7a';
+    closeBtn.onmouseout = () => closeBtn.style.color = '#6b3a3e';
+    closeBtn.onclick = () => container.remove();
+    
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    
+    const body = document.createElement('div');
+    body.style.cssText = 'font-size:14px;line-height:1.5;word-break:break-all;max-height:150px;overflow-y:auto;font-family:monospace;background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;border:1px solid rgba(255,255,255,0.05);';
+    const fileInfo = source ? '<br><small style="color:#6b3a3e;font-size:11px;">في: ' + source.split('/').pop() + ' (السطر: ' + lineno + ':' + colno + ')</small>' : '';
+    body.innerHTML = '<strong>' + message + '</strong>' + fileInfo;
+    
+    const footer = document.createElement('div');
+    footer.style.cssText = 'display:flex;justify-content:flex-end;gap:10px;margin-top:4px;';
+    
+    const reloadBtn = document.createElement('button');
+    reloadBtn.textContent = 'إعادة تحميل (Reload)';
+    reloadBtn.style.cssText = 'background:rgba(255,23,53,0.1);border:1px solid rgba(255,23,53,0.3);color:#ff6b7a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;transition:all 0.2s;';
+    reloadBtn.onmouseover = () => { reloadBtn.style.background = 'rgba(255, 23, 53, 0.2)'; reloadBtn.style.borderColor = '#ff1735'; };
+    reloadBtn.onmouseout = () => { reloadBtn.style.background = 'rgba(255, 23, 53, 0.1)'; reloadBtn.style.borderColor = 'rgba(255, 23, 53, 0.3)'; };
+    reloadBtn.onclick = () => window.location.reload();
+    
+    footer.appendChild(reloadBtn);
+    container.appendChild(header);
+    container.appendChild(body);
+    container.appendChild(footer);
+    
+    if (document.body) {
+      document.body.appendChild(container);
+    } else {
+      document.documentElement.appendChild(container);
+    }
+  }
+
   try{
     const savedLang = localStorage.getItem('lm-lang');
     const lang = savedLang === 'en' ? 'en' : 'ar';
@@ -2212,9 +2275,25 @@ function fallbackAvatarMarkup(label, imageUrl, extraDotClass = ''){
   return `${image}${fallback}${safeDotClass ? `<div class="avatar-dot ${safeDotClass}"></div>` : ''}`;
 }
 
+function fallbackFormatLastSeenLabel(input){
+  if(!input) return typeof window.t === 'function' ? window.t('offline') : 'غير متصل';
+  const date = new Date(input);
+  if(Number.isNaN(date.getTime())) return typeof window.t === 'function' ? window.t('offline') : 'غير متصل';
+  const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
+  const formatted = date.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+    day: 'numeric',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+  return lang === 'ar' ? `آخر ظهور ${formatted}` : `Last seen ${formatted}`;
+}
+
 window.getDisplayInitial = window.getDisplayInitial || fallbackDisplayInitial;
 window.setAvatarNode = window.setAvatarNode || fallbackSetAvatarNode;
 window.avatarMarkup = window.avatarMarkup || fallbackAvatarMarkup;
+window.formatLastSeenLabel = window.formatLastSeenLabel || fallbackFormatLastSeenLabel;
 window.getStorageIdentityPart = window.getStorageIdentityPart || function(user){
   const email = String(user?.email || '').trim().toLowerCase();
   if(email) return email;
