@@ -69,10 +69,36 @@
 </style>
 </head>
 <body>
+<!-- Key Input Overlay -->
+<div id="keyOverlay" style="position:fixed;inset:0;background:rgba(7,7,15,0.85);backdrop-filter:blur(12px);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;">
+  <div class="card" style="width:100%;max-width:460px;margin-bottom:0;text-align:center;border-color:var(--accent);box-shadow:0 0 40px rgba(91,106,240,0.25);">
+    <div class="logo" style="font-size:24px;margin-bottom:12px;display:inline-block;">Lab Members</div>
+    <div style="font-size:14px;font-weight:600;color:var(--accent2);margin-bottom:16px;">مفتاح لوحة الإدارة الآمن 🔒</div>
+    <p style="font-size:12px;color:var(--text);line-height:1.6;margin-bottom:20px;text-align:right;">
+      يرجى إدخال مفتاح الخدمة (Service Role Secret Key) الخاص بـ Supabase للتمكن من إدارة وإضافة المستخدمين. 
+      <br><br>
+      <strong>⚠️ تنبيه أمني هام:</strong> يتم تخزين هذا المفتاح محلياً في متصفحك بشكل آمن تماماً (Local Storage) ولا يتم إرساله إلى أي سيرفر خارجي.
+    </p>
+    <div class="form-group full" style="margin-bottom:20px;text-align:right;">
+      <label>مفتاح الـ service_role الخاص بـ Supabase</label>
+      <input type="password" id="inputServiceKey" placeholder="eyJhbGciOiJIUzI1NiIsIn..." style="width:100%;margin-top:6px;direction:ltr;">
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-full" onclick="saveServiceKey()" style="flex:2;">حفظ وتفعيل المفتاح</button>
+      <button class="btn btn-danger" onclick="window.location.href='chat-prototype_1.html'" style="flex:1;">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <div class="header">
     <span class="logo">Lab Members</span>
-    <span class="badge">⚙️ ADMIN PANEL</span>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <a href="chat-prototype_1.html" style="text-decoration:none;display:flex;align-items:center;gap:6px;font-size:12px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:6px 14px;border-radius:10px;transition:all .2s;font-weight:500;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 8px var(--accent-glow)'" onmouseout="this.style.borderColor='var(--border2)';this.style.boxShadow='none'">
+        <span>🔙 العودة للمحادثة</span>
+      </a>
+      <span class="badge" id="keyBadge" style="cursor:pointer;" onclick="promptResetKey()" title="اضغط لتغيير مفتاح الخدمة">⚙️ ADMIN PANEL</span>
+    </div>
   </div>
 
   <!-- stats -->
@@ -122,7 +148,38 @@
 
 <script>
 const URL  = 'https://fetmbjnehfdtousenflp.supabase.co';
-const KEY  = '';
+let KEY  = localStorage.getItem('sb_service_role_key') || '';
+
+function checkServiceKey() {
+  if (!KEY) {
+    document.getElementById('keyOverlay').style.display = 'flex';
+  } else {
+    document.getElementById('keyOverlay').style.display = 'none';
+    loadUsers();
+  }
+}
+
+function saveServiceKey() {
+  const val = document.getElementById('inputServiceKey').value.trim();
+  if (!val) {
+    showToast('يرجى إدخال مفتاح صالح', 'error');
+    return;
+  }
+  localStorage.setItem('sb_service_role_key', val);
+  KEY = val;
+  showToast('✅ تم حفظ وتفعيل مفتاح الإدارة بنجاح!');
+  document.getElementById('keyOverlay').style.display = 'none';
+  loadUsers();
+}
+
+function promptResetKey() {
+  if (confirm('هل تريد تغيير مفتاح الخدمة (Service Role Key) المخزن حالياً؟')) {
+    localStorage.removeItem('sb_service_role_key');
+    KEY = '';
+    document.getElementById('inputServiceKey').value = '';
+    checkServiceKey();
+  }
+}
 
 const colors = [
   {bg:'#12123a',text:'#818cf8'},{bg:'#0d2010',text:'#34d399'},
@@ -220,7 +277,7 @@ async function deleteUser(id){
   loadUsers();
 }
 
-loadUsers();
+checkServiceKey();
 </script>
 </body>
 </html>

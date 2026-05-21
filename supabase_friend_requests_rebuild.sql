@@ -483,7 +483,9 @@ on public.friend_requests
 for select
 to authenticated
 using (
-  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  auth.uid() = sender_id
+  or auth.uid() = receiver_id
+  or lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
   or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
   or exists (
     select 1
@@ -501,7 +503,10 @@ with check (
   auth.uid() = sender_id
   and sender_id <> receiver_id
   and status = 'pending'
-  and lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  and (
+    sender_email is null
+    or lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  )
 );
 
 create policy "friend_requests_delete_sender_same_email"
@@ -509,7 +514,8 @@ on public.friend_requests
 for delete
 to authenticated
 using (
-  lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+  auth.uid() = sender_id
+  or lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
   or exists (
     select 1
     from public.user_identities ui

@@ -66,10 +66,10 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 
 /* SIDEBAR */
 .sidebar{width:290px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
-.sidebar-header{padding:18px 16px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.logo{font-family:var(--logo-font);font-size:20px;font-weight:500;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:1px;filter:drop-shadow(0 0 6px var(--accent-glow));}
-body.theme-steins .logo{font-size:26px;letter-spacing:3px;}
-.header-actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;}
+.sidebar-header{padding:18px 10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.logo{font-family:var(--logo-font);font-size:18px;font-weight:500;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:0.5px;filter:drop-shadow(0 0 6px var(--accent-glow));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;}
+body.theme-steins .logo{font-size:20px;letter-spacing:1px;}
+.header-actions{display:flex;gap:4px;align-items:center;flex-wrap:nowrap;flex-shrink:0;}
 .icon-btn{width:30px;height:30px;border:1px solid var(--border2);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:13px;transition:all .2s;user-select:none;}
   .icon-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
   .admin-quick-btn{color:var(--online);border-color:var(--online);background:rgba(52,211,153,.08);}
@@ -717,9 +717,9 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 }
 .sidebar{width:270px!important;border-radius:20px!important;overflow:hidden;border-left:1px solid var(--glass-border)!important;}
 .chat-area{border-radius:20px!important;overflow:hidden;min-width:0;}
-.sidebar-header{padding:16px 14px 12px;border-bottom:1px solid var(--glass-border);gap:8px;}
-.header-actions{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;}
-.logo{font-size:18px;letter-spacing:.4px;filter:none;}
+.sidebar-header{padding:16px 10px 12px;border-bottom:1px solid var(--glass-border);gap:6px;display:flex;align-items:center;justify-content:space-between;}
+.header-actions{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;flex-shrink:0;}
+.logo{font-size:16px;letter-spacing:.2px;filter:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;}
 .icon-btn{
   width:30px;height:30px;border-radius:10px;border:1px solid transparent;background:transparent;
   color:var(--muted);display:flex;align-items:center;justify-content:center;transition:all .18s;
@@ -834,15 +834,15 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
     <div class="header-actions">
-  <div class="icon-btn" onclick="openSearchPanel()" title="ابحث عن صديق">🔎</div>
-  <div class="icon-btn admin-quick-btn" id="adminQuickBtn" onclick="openSearchPanel()" title="بوابة الإدارة (Admin Panel)" style="display:none;">👑</div>
+  <div class="icon-btn" id="openSearchBtn" title="ابحث عن صديق">🔎</div>
+  <div class="icon-btn admin-quick-btn" id="adminQuickBtn" title="بوابة الإدارة (Admin Panel)" style="display:none;">👑</div>
   
-  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" onclick="event.preventDefault();event.stopPropagation();(function(){if(window.openFriendRequestsPanel){window.openFriendRequestsPanel();return;}const p=document.getElementById('friendRequestsPanel');if(!p)return;p.classList.add('active');p.style.display='flex';p.style.opacity='1';p.style.pointerEvents='auto';setTimeout(function(){window.loadPendingRequests&&window.loadPendingRequests();},0);})()" title="طلبات الصداقة" aria-label="طلبات الصداقة">
+  <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span>👥</span>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
-  <div class="icon-btn" onclick="openSettings()">⚙️</div>
+  <div class="icon-btn" id="openSettingsBtn">⚙️</div>
 </div>
   </div>
   <div class="search-box">
@@ -1353,6 +1353,17 @@ function applyMyProfileUI(){
   document.getElementById('profileEmail').textContent = myUsername ? '@'+myUsername : myEmail;
   document.getElementById('profileEmail2').textContent = myEmail;
   document.getElementById('profileUsername').textContent = myUsername ? '@'+myUsername : '@—';
+
+  // --- منع تكرار الحقول في البروفايل ---
+  const emailRow = document.getElementById('profileEmail2')?.closest('.profile-row');
+  const usernameRow = document.getElementById('profileUsername')?.closest('.profile-row');
+  if (myUsername) {
+    if (emailRow) emailRow.style.display = 'flex';
+    if (usernameRow) usernameRow.style.display = 'none';
+  } else {
+    if (emailRow) emailRow.style.display = 'none';
+    if (usernameRow) usernameRow.style.display = 'none';
+  }
   if(document.getElementById('profileCodeValue')) document.getElementById('profileCodeValue').textContent = `#${myCode}`;
   if(document.getElementById('profileStatusText')) document.getElementById('profileStatusText').textContent = typeof window.t === 'function' ? window.t('online') : 'متصل الآن';
   if(document.getElementById('profileRoleText')) document.getElementById('profileRoleText').textContent = document.documentElement.lang === 'en' ? 'Lab Member' : 'عضو في المعمل';
@@ -1920,10 +1931,14 @@ window.sendFriendRequest = async function(targetId, btnElement) {
         ? await callRpcSafe('respond_friend_request_for_email', { current_email: currentEmail, request_id: relation.id, new_status: 'accepted' })
         : await callRpcSafe('respond_friend_request', { request_id: relation.id, new_status: 'accepted' });
       if(acceptRpc.error){
-        error = acceptRpc.error;
+        const res = await window.sb
+          .from('friend_requests')
+          .update({ status: 'accepted' })
+          .eq('id', relation.id);
+        error = res.error;
       }
 
-      if (error) throw new Error(error.message);
+      if (error) throw new Error(error.message || String(error));
 
       btnElement.textContent = 'أصدقاء ✅';
       btnElement.style.background = 'transparent';
@@ -2053,8 +2068,13 @@ function rpcHasArray(result){
   return !result?.error && Array.isArray(result?.data);
 }
 function isSchemaCacheMissingColumn(error){
-  const msg = String(error?.message || error || '').toLowerCase();
-  return msg.includes('schema cache') && msg.includes('could not find') && msg.includes('column');
+  if (!error) return false;
+  const msg = String(error?.message || error?.details || error || '').toLowerCase();
+  return msg.includes('does not exist') ||
+         msg.includes('not found') ||
+         msg.includes('could not find') ||
+         msg.includes('column') ||
+         msg.includes('schema cache');
 }
 const identityIdsCache = new Map();
 function sqlInList(values){
@@ -2577,14 +2597,14 @@ function applyLanguage(){
 }
 
 // PANELS
-function openSettings(){document.getElementById('settingsOverlay').classList.add('open');}
-function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');}
-function closeProfile(){
+window.openSettings = function(){document.getElementById('settingsOverlay').classList.add('open');};
+window.closeSettings = function(){document.getElementById('settingsOverlay').classList.remove('open');};
+window.closeProfile = function(){
   document.getElementById('profileOverlay').classList.remove('open');
   document.body.classList.remove('profile-overlay-open');
-}
-function openSearchPanel(){document.getElementById('searchOverlay').classList.add('open');}
-function closeSearchPanel(){document.getElementById('searchOverlay').classList.remove('open');}
+};
+window.openSearchPanel = function(){document.getElementById('searchOverlay').classList.add('open');};
+window.closeSearchPanel = function(){document.getElementById('searchOverlay').classList.remove('open');};
 function closeChatHeaderMenu(){document.getElementById('chatHeaderMenu')?.classList.remove('open');}
 window.toggleChatHeaderMenu = function(event){
   event?.preventDefault?.();
@@ -2653,6 +2673,17 @@ async function fillProfileOverlay(data){
   document.getElementById('profileEmail').textContent = username ? `@${username}` : (canSeeEmail ? email : 'عضو مخفي');
   document.getElementById('profileEmail2').textContent = displayEmail;
   document.getElementById('profileUsername').textContent = username ? `@${username}` : '@—';
+
+  // --- منع تكرار الحقول في البروفايل ---
+  const emailRow = document.getElementById('profileEmail2')?.closest('.profile-row');
+  const usernameRow = document.getElementById('profileUsername')?.closest('.profile-row');
+  if (username) {
+    if (emailRow) emailRow.style.display = 'flex';
+    if (usernameRow) usernameRow.style.display = 'none';
+  } else {
+    if (emailRow) emailRow.style.display = 'none';
+    if (usernameRow) usernameRow.style.display = 'none';
+  }
   document.getElementById('profileCodeValue').textContent = `#${code}`;
   document.getElementById('profileStatusText').textContent = isOnline ? t('online') : window.formatLastSeenLabel(lastSeenAt);
   document.getElementById('profileRoleText').textContent = appLang === 'ar' ? 'عضو في المعمل' : 'Lab Member';
@@ -4543,56 +4574,147 @@ window.addEventListener('resize', () => {
 });
 window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
 setMobileChatMode(!!activeContact);
-// فتح وقفل لوحة الطلبات
-// فتح وقفل لوحة الطلبات
-// فتح وقفل لوحة الطلبات
+// --- البرمجة الهيكلية لإدارة لوحة طلبات الصداقة (Structured Friend Requests Control) ---
+
+// 1. دالة نمطية لتحديث بيانات البريد المعروضة في اللوحة
+function updateFriendRequestsPanelMeta(currentUser) {
+  const meta = document.getElementById('friendRequestsMeta');
+  if (!meta) return;
+  const user = currentUser || window.me;
+  meta.textContent = user?.email 
+    ? `الحساب الحالي: ${user.email} • ${user.id || '—'}` 
+    : 'الحساب الحالي غير معروف';
+}
+
+
 window.openFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
-  if(!panel) return;
+  if (!panel) return;
+  
   panel.classList.add('active');
   panel.style.display = 'flex';
   panel.style.opacity = '1';
   panel.style.pointerEvents = 'auto';
-  const meta = document.getElementById('friendRequestsMeta');
-  if(meta){
-    meta.textContent = window.me?.email ? `الحساب الحالي: ${window.me.email}` : 'الحساب الحالي غير معروف';
+
+  getFreshCurrentUser().then((user) => {
+    updateFriendRequestsPanelMeta(user);
+  }).catch((err) => {
+    console.warn("Failed to get fresh user for panel meta:", err);
+    updateFriendRequestsPanelMeta(null);
+  });
+
+  if (typeof window.loadPendingRequests === 'function') {
+    window.loadPendingRequests().catch((err) => {
+      console.error("Failed to load pending friend requests:", err);
+    });
   }
-  window.loadPendingRequests?.().catch?.(() => {});
 };
 
 window.closeFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
-  if(!panel) return;
+  if (!panel) return;
+  
   panel.classList.remove('active');
   panel.style.opacity = '0';
   panel.style.pointerEvents = 'none';
   panel.style.display = 'none';
 };
 
-document.getElementById('friendRequestsPanel')?.addEventListener('click', (event) => {
-  if(event.target === event.currentTarget) window.closeFriendRequestsPanel?.();
-});
-
-document.addEventListener('click', (event) => {
-  if(event.target?.closest?.('[data-close-friend-requests]')){
-    event.preventDefault();
-    event.stopPropagation();
-    window.closeFriendRequestsPanel?.();
-  }
-});
-
 window.toggleFriendRequestsPanel = function() {
   const panel = document.getElementById('friendRequestsPanel');
-  if(!panel) return;
-  if(panel.classList.contains('active')) window.closeFriendRequestsPanel();
-  else window.openFriendRequestsPanel();
+  if (!panel) return;
+  
+  if (panel.classList.contains('active') || panel.style.display === 'flex') {
+    window.closeFriendRequestsPanel();
+  } else {
+    window.openFriendRequestsPanel();
+  }
 };
 
-document.getElementById('friendRequestsBtn')?.addEventListener('click', (event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  window.openFriendRequestsPanel?.();
-});
+// 5. ربط العناصر البرمجية بمستمعي الأحداث الهيكلية (Event Listeners Setup)
+function runAfterDOMReady(callback) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', callback);
+  } else {
+    callback();
+  }
+}
+
+function initializeFriendRequestsUI() {
+  // 1. فتح لوحة طلبات الصداقة
+  const openBtn = document.getElementById('friendRequestsBtn');
+  if (openBtn) {
+    openBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.openFriendRequestsPanel();
+    });
+  }
+
+  // 2. إغلاق لوحة طلبات الصداقة
+  const closeBtn = document.getElementById('friendRequestsCloseBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.closeFriendRequestsPanel();
+    });
+  }
+
+  // 3. النقر على الخلفية لإغلاق لوحة طلبات الصداقة
+  const panel = document.getElementById('friendRequestsPanel');
+  if (panel) {
+    panel.addEventListener('click', (event) => {
+      if (event.target === event.currentTarget) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.closeFriendRequestsPanel();
+      }
+    });
+  }
+
+  // 4. تحديث لوحة طلبات الصداقة يدوياً
+  const refreshBtn = document.getElementById('friendRequestsRefreshBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.loadPendingRequests().catch(console.error);
+    });
+  }
+
+  // 5. فتح لوحة البحث عن الأصدقاء (🔎)
+  const openSearchBtn = document.getElementById('openSearchBtn');
+  if (openSearchBtn) {
+    openSearchBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.openSearchPanel();
+    });
+  }
+
+  // 6. بوابة الإدارة للآدمن (👑)
+  const adminBtn = document.getElementById('adminQuickBtn');
+  if (adminBtn) {
+    adminBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.location.href = 'admin.html';
+    });
+  }
+
+  // 7. فتح لوحة الإعدادات (⚙️)
+  const openSettingsBtn = document.getElementById('openSettingsBtn');
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      window.openSettings();
+    });
+  }
+}
+
+runAfterDOMReady(initializeFriendRequestsUI);
 
 window.startFriendRequestsPolling = function() {
   if(friendRequestPollTimer) clearInterval(friendRequestPollTimer);
@@ -4734,6 +4856,8 @@ window.loadPendingRequests = async function() {
     const directRows = [];
     const directErrors = [];
 
+    let useBasicSelect = false;
+
     if(currentEmail){
       const emailRes = await window.sb
         .from('friend_requests')
@@ -4741,18 +4865,56 @@ window.loadPendingRequests = async function() {
         .eq('receiver_email', currentEmail.toLowerCase())
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
-      if(!emailRes.error) directRows.push(...(emailRes.data || []));
-      else directErrors.push(emailRes.error.message || String(emailRes.error));
+      if(!emailRes.error) {
+        directRows.push(...(emailRes.data || []));
+      } else {
+        if (isSchemaCacheMissingColumn(emailRes.error)) {
+          useBasicSelect = true;
+        } else {
+          directErrors.push(emailRes.error.message || String(emailRes.error));
+        }
+      }
     }
 
-    const idRes = await window.sb
-      .from('friend_requests')
-      .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
-      .in('receiver_id', receiverIds)
-      .eq('status', 'pending')
-      .order('created_at', { ascending: false });
-    if(!idRes.error) directRows.push(...(idRes.data || []));
-    else directErrors.push(idRes.error.message || String(idRes.error));
+    if (useBasicSelect) {
+      const fallbackRes = await window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, status, created_at')
+        .in('receiver_id', receiverIds)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if (!fallbackRes.error) {
+        directRows.push(...(fallbackRes.data || []));
+      } else {
+        directErrors.push(fallbackRes.error.message || String(fallbackRes.error));
+      }
+    } else {
+      const idRes = await window.sb
+        .from('friend_requests')
+        .select('id, sender_id, receiver_id, sender_email, receiver_email, status, created_at')
+        .in('receiver_id', receiverIds)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      if(!idRes.error) {
+        directRows.push(...(idRes.data || []));
+      } else {
+        if (isSchemaCacheMissingColumn(idRes.error)) {
+          const fallbackRes = await window.sb
+            .from('friend_requests')
+            .select('id, sender_id, receiver_id, status, created_at')
+            .in('receiver_id', receiverIds)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
+          if (!fallbackRes.error) {
+            directRows.push(...(fallbackRes.data || []));
+          } else {
+            directErrors.push(fallbackRes.error.message || String(fallbackRes.error));
+          }
+        } else {
+          directErrors.push(idRes.error.message || String(idRes.error));
+        }
+      }
+    }
 
     const uniqueRows = Array.from(new Map(directRows.map((row) => [row.id, row])).values())
       .sort((a, b) => String(b?.created_at || '').localeCompare(String(a?.created_at || '')));
@@ -4817,7 +4979,11 @@ window.respondRequest = async function(requestId, newStatus) {
       ? await callRpcSafe('respond_friend_request_for_email', { current_email: currentEmail, request_id: requestId, new_status: newStatus })
       : await callRpcSafe('respond_friend_request', { request_id: requestId, new_status: newStatus });
     if(rpcRes.error){
-      error = rpcRes.error;
+      const directRes = await window.sb
+        .from('friend_requests')
+        .update({ status: newStatus })
+        .eq('id', requestId);
+      error = directRes.error;
     }
       
     if(error) throw error;
@@ -4833,11 +4999,11 @@ window.respondRequest = async function(requestId, newStatus) {
     window.loadPendingRequests();
   } catch(err) {
     console.error(err);
-    alert('حدث خطأ في الرد على الطلب');
+    alert('حدث خطأ في الرد على الطلب: ' + (err?.message || err));
   }
 };
 </script>
-<div id="friendRequestsPanel" class="friend-requests-drawer" style="display:none; opacity:0; pointer-events:none;" onclick="if(event.target===this)window.closeFriendRequestsPanel?.()">
+<div id="friendRequestsPanel" class="friend-requests-drawer" style="display:none; opacity:0; pointer-events:none;">
   <div class="friend-panel-shell">
     <div class="friend-panel-head">
       <div>
@@ -4845,8 +5011,8 @@ window.respondRequest = async function(requestId, newStatus) {
         <h3>طلبات الصداقة</h3>
       </div>
       <div class="friend-panel-actions">
-        <button onclick="window.loadPendingRequests?.()" class="friend-refresh-btn">تحديث</button>
-        <button type="button" data-close-friend-requests onclick="event.preventDefault();event.stopPropagation();window.closeFriendRequestsPanel?.()" class="friend-close-btn" aria-label="إغلاق">×</button>
+        <button type="button" class="friend-refresh-btn" id="friendRequestsRefreshBtn">تحديث</button>
+        <div class="panel-close" id="friendRequestsCloseBtn" aria-label="إغلاق" style="position:static; margin:0;">×</div>
       </div>
     </div>
     <div class="friend-panel-meta" id="friendRequestsMeta">الحساب الحالي: —</div>
