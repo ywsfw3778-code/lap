@@ -135,7 +135,7 @@ body.theme-steins .logo{font-size:20px;letter-spacing:1px;}
 .header-actions{display:flex;gap:4px;align-items:center;flex-wrap:nowrap;flex-shrink:0;}
 .icon-btn{width:30px;height:30px;border:1px solid var(--border2);background:var(--surface);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:13px;transition:all .2s;user-select:none;}
   .icon-btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow);}
-  .admin-quick-btn{color:var(--online);border-color:var(--online);background:rgba(52,211,153,.08);}
+
 .friend-requests-btn{position:relative;}
 .search-box{margin:12px 12px 8px;position:relative;}
 .search-box input{width:100%;background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:8px 34px 8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;transition:border-color .2s;direction:rtl;}
@@ -450,6 +450,11 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .typing span:nth-child(2){animation-delay:.2s;}
 .typing span:nth-child(3){animation-delay:.4s;}
 @keyframes typingAnim{0%,100%{opacity:.3;transform:translateY(0);}50%{opacity:1;transform:translateY(-3px);}}
+.typing-bubble-wrapper{display:flex;padding:2px 16px 6px;animation:slideIn .2s ease;}
+.typing-bubble-wrapper .typing{background:var(--msg-in);border:1px solid var(--border2);border-radius:18px 18px 18px 4px;}
+.chat-user-status em{font-style:normal;color:var(--accent);font-size:12px;}
+.status-pulse.typing-pulse{background:var(--accent);animation:typingPulse 0.8s ease-in-out infinite;}
+@keyframes typingPulse{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.4);opacity:.7;}}
 
 /* EMPTY CHAT SEARCH */
 .empty-search-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;}
@@ -528,8 +533,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .picon{font-size:15px;width:22px;text-align:center;}
 .profile-acts{display:flex;gap:8px;margin-top:16px;}
 #profileFriendAction{display:flex;gap:8px;flex-wrap:wrap;}
-.admin-direct-btn{border-color:var(--online);color:var(--online);background:rgba(52,211,153,.08);}
-.admin-block-btn{background:#ef444418;}
+
 .pbtn{flex:1;padding:10px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:all .2s;border:1px solid var(--border2);color:var(--muted);background:var(--surface);}
 .pbtn:hover{border-color:var(--accent);color:var(--accent);}
 .pbtn.danger{border-color:#ff444433;color:#ff6666;}
@@ -789,7 +793,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 }
 .icon-btn:hover{background:var(--glass-hover);border-color:var(--glass-border);color:var(--accent);}
 .friend-requests-btn{position:relative;}
-.admin-quick-btn{color:var(--accent);border-color:rgba(var(--accent-rgb),.26);}
+
 .search-box{padding:10px 12px 8px;position:relative;border-bottom:0;}
 .search-box input{
   width:100%;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:12px;
@@ -898,7 +902,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <span class="logo">Lab Members</span>
     <div class="header-actions">
   <div class="icon-btn" id="openSearchBtn" title="ابحث عن صديق">🔎</div>
-  <div class="icon-btn admin-quick-btn" id="adminQuickBtn" title="بوابة الإدارة (Admin Panel)" style="display:none;">👑</div>
+
   
   <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" title="طلبات الصداقة" aria-label="طلبات الصداقة">
     <span>👥</span>
@@ -933,7 +937,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);cursor:pointer;" onclick="openActiveAvatarPreview()">💬</div>
       <div>
         <div class="chat-user-name" id="headerName">اختر محادثة</div>
-        <div class="chat-user-status"><span class="status-pulse"></span> Online</div>
+        <div class="chat-user-status" id="chatUserStatus"><span class="status-pulse"></span> Online</div>
       </div>
     </div>
  <div class="chat-actions">
@@ -952,7 +956,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
  <div class="input-area">
     <div class="input-wrap">
         <button class="emoji-btn" onclick="addEmoji()">😊</button>
-        <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)">
+        <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="handleTypingInput()">
         <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
     </div>
     <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
@@ -1167,24 +1171,6 @@ if(!me){ window.location.href='login.html'; throw 0; }
 window.sb = sb;
 window.me = me;
 window.memberCodeMap = {};
-const ADMIN_USERNAME = 'ywsfw3778';
-const ADMIN_EMAIL = 'ywsfw3778@gmail.com';
-const ADMIN_ID = '95632ed1-ecbc-4483-8692-eafbe3d76d65';
-window.ADMIN_USERNAME = ADMIN_USERNAME;
-window.ADMIN_EMAIL = ADMIN_EMAIL;
-window.ADMIN_ID = ADMIN_ID;
-function isCurrentAdmin(){
-  const user = window.me || me;
-  const email = String(user?.email || '').trim().toLowerCase();
-  const username = String(user?.user_metadata?.username || myUsername || '').trim().toLowerCase();
-  const id = String(user?.id || '').trim();
-  return email === ADMIN_EMAIL || username === ADMIN_USERNAME || id === ADMIN_ID;
-}
-window.isCurrentAdmin = isCurrentAdmin;
-function syncAdminChrome(){
-  const btn = document.getElementById('adminQuickBtn');
-  if(btn) btn.style.display = isCurrentAdmin() ? 'flex' : 'none';
-}
 window.getLabCode = function(uid){
   return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
@@ -1192,12 +1178,10 @@ let myName = me.user_metadata?.full_name || me.email.split('@')[0];
 const myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
 let myAvatarUrl = me.user_metadata?.avatar_url || '';
-syncAdminChrome();
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
     window.me = nextSession.user;
-    try{ syncAdminChrome(); }catch(_e){}
     if(!window.__labBootstrapStarted){
       window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: nextSession.user } }));
       return;
@@ -1207,7 +1191,6 @@ sb.auth.onAuthStateChange((_event, nextSession) => {
       if(typeof window.loadPendingRequests === 'function' && document.getElementById('friendRequestsPanel')?.classList.contains('active')){
         window.loadPendingRequests().catch(() => {});
       }
-      if(typeof window.loadInboxContacts === 'function') window.loadInboxContacts();
     }catch(_e){}
   }
 });
@@ -1928,7 +1911,7 @@ window.searchFriends = async function() {
           <div style="font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${safeSubtitle}</div>
         </div>
         <div onclick="event.stopPropagation();" style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
-          ${typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin() ? `<button class="add-btn admin-search-chat" onclick="window.startAdminDirectChat('${safeId}')" style="background:rgba(52,211,153,.12); color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; transition:all 0.2s;" onmouseover="this.style.background='var(--online)'; this.style.color='var(--bg)';" onmouseout="this.style.background='rgba(52,211,153,.12)'; this.style.color='var(--online)';">فتح شات</button>` : ''}
+
           ${btnHtml}
         </div>
       </div>`;
@@ -2772,9 +2755,7 @@ async function fillProfileOverlay(data){
   overlay.dataset.lastSeenAt = lastSeenAt || '';
   overlay.classList.toggle('profile-overlay-user', !isSelf);
 
-  // --- نظام الحماية لأماديوس (إخفاء الإيميل) ---
-  const isAdmin = typeof window.isCurrentAdmin === 'function' ? window.isCurrentAdmin() : (window.me && window.me.email === 'ywsfw3778@gmail.com');
-  const canSeeEmail = isSelf || isAdmin;
+  const canSeeEmail = isSelf;
   const displayEmail = canSeeEmail ? email : 'مخفي 🔒';
 
   document.getElementById('profileName').textContent = `${name} #${code}`;
@@ -2817,8 +2798,7 @@ async function fillProfileOverlay(data){
     friendSlot.innerHTML = '';
     if (!isSelf && id) {
       const safeProfileId = escapeAttr(id);
-      const adminTools = isAdmin ? `<button class="pbtn admin-direct-btn" onclick="window.startAdminDirectChat('${safeProfileId}')">فتح شات مباشر</button><button class="pbtn danger admin-block-btn" onclick="window.toggleAdminMessageBlock('${safeProfileId}', this)">إيقاف مراسلته</button>` : '';
-      friendSlot.innerHTML = `${adminTools}<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
+      friendSlot.innerHTML = `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
       let request = null;
       try{
         request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
@@ -2826,10 +2806,7 @@ async function fillProfileOverlay(data){
         request = null;
       }
       const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
-      friendSlot.innerHTML = `${adminTools}${friendBtnHtml}`;
-      if(isAdmin && typeof window.syncAdminBlockButton === 'function'){
-        window.syncAdminBlockButton(id).catch(() => {});
-      }
+      friendSlot.innerHTML = friendBtnHtml;
     }
   }
 }
@@ -3054,8 +3031,10 @@ function syncActiveHeader(){
 }
 
 function updateHeaderPresence(){
-  const st = document.querySelector('.chat-user-status');
+  const st = document.getElementById('chatUserStatus') || document.querySelector('.chat-user-status');
   if(!st) return;
+  // لا تبدّل الحالة لو في شخص يكتب الآن
+  if(typingUsers && typingUsers.size > 0) return;
   if(!activeContact){
     st.classList.remove('offline');
     st.innerHTML = `<span class="status-pulse"></span> ${t('online')}`;
@@ -3087,61 +3066,62 @@ async function updateMyLastSeen(){
 }
 window.updateMyLastSeen = updateMyLastSeen;
 
-async function isBlockedFromMessagingAdmin(senderId, adminId){
-  const sbClient = getSbClient();
-  if(!sbClient || !senderId || !adminId) return false;
-  try{
-    const { data, error } = await sbClient
-      .from('admin_message_blocks')
-      .select('user_id')
-      .eq('admin_id', adminId)
-      .eq('user_id', senderId)
-      .maybeSingle();
-    if(error) return false;
-    return !!data;
-  }catch(_e){
-    return false;
+// --- Typing Indicator System ---
+const typingUsers = new Map(); // userId -> timeout handle
+let typingChannel = null;
+let myTypingTimer = null;
+let isTypingNow = false;
+
+function showTypingBubble(userId){
+  const msgs = document.getElementById('messages');
+  if(!msgs) return;
+  let bubble = msgs.querySelector('.typing-bubble-wrapper');
+  if(!bubble){
+    bubble = document.createElement('div');
+    bubble.className = 'typing-bubble-wrapper in';
+    bubble.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+    msgs.appendChild(bubble);
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTypingBubble(userId){
+  typingUsers.delete(userId);
+  if(typingUsers.size === 0){
+    const bubble = document.getElementById('messages')?.querySelector('.typing-bubble-wrapper');
+    if(bubble) bubble.remove();
+    updateHeaderPresence();
   }
 }
-window.isBlockedFromMessagingAdmin = isBlockedFromMessagingAdmin;
 
-window.syncAdminBlockButton = async function(userId){
-  const btn = document.querySelector('.admin-block-btn');
-  const currentUser = getCurrentUser();
-  if(!btn || !currentUser || !userId) return;
-  const blocked = await isBlockedFromMessagingAdmin(userId, currentUser.id);
-  btn.textContent = blocked ? 'تشغيل مراسلته' : 'إيقاف مراسلته';
-  btn.dataset.blocked = blocked ? 'true' : 'false';
+function showTypingInHeader(name){
+  const st = document.getElementById('chatUserStatus');
+  if(!st) return;
+  st.classList.remove('offline');
+  st.innerHTML = `<span class="status-pulse typing-pulse"></span> <em>${name || 'يكتب الآن...'}</em>`;
+}
+
+window.handleTypingInput = function(){
+  if(!activeContact || !typingChannel) return;
+  const me = getCurrentUser();
+  if(!me) return;
+  if(!isTypingNow){
+    isTypingNow = true;
+    try{ typingChannel.send({ type:'broadcast', event:'typing', payload:{ userId: me.id, isTyping: true } }); }catch(_e){}
+  }
+  clearTimeout(myTypingTimer);
+  myTypingTimer = setTimeout(() => {
+    isTypingNow = false;
+    try{ typingChannel.send({ type:'broadcast', event:'typing', payload:{ userId: me.id, isTyping: false } }); }catch(_e){}
+  }, 2500);
 };
 
-window.toggleAdminMessageBlock = async function(userId, btn){
-  if(!(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())) return;
-  const sbClient = getSbClient();
-  const currentUser = getCurrentUser();
-  if(!sbClient || !currentUser || !userId) return;
-  const wasBlocked = btn?.dataset.blocked === 'true';
-  if(btn) btn.disabled = true;
-  try{
-    if(wasBlocked){
-      const { error } = await sbClient
-        .from('admin_message_blocks')
-        .delete()
-        .eq('admin_id', currentUser.id)
-        .eq('user_id', userId);
-      if(error) throw error;
-    }else{
-      const { error } = await sbClient
-        .from('admin_message_blocks')
-        .insert([{ admin_id: currentUser.id, user_id: userId }]);
-      if(error) throw error;
-    }
-    await window.syncAdminBlockButton(userId);
-  }catch(err){
-    alert('تعذر تحديث إيقاف المراسلة. شغّل SQL الخاص بـ admin_message_blocks من Supabase أولًا.');
-    console.warn('admin block toggle failed:', err?.message || err);
-  }finally{
-    if(btn) btn.disabled = false;
-  }
+window.stopTypingSignal = function(){
+  if(!typingChannel || !isTypingNow) return;
+  isTypingNow = false;
+  clearTimeout(myTypingTimer);
+  const me = getCurrentUser();
+  if(me) try{ typingChannel.send({ type:'broadcast', event:'typing', payload:{ userId: me.id, isTyping: false } }); }catch(_e){}
 };
 
 function initPresence(){
@@ -3169,13 +3149,48 @@ function initPresence(){
       });
       applyPresenceToContacts();
     })
+    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      (leftPresences || []).forEach(p => {
+        const uid = p.key;
+        if(uid){ onlineUserIds.delete(uid); }
+      });
+      updateHeaderPresence();
+      renderContacts();
+    })
     .subscribe(async (status) => {
       if(status === 'SUBSCRIBED'){
         try { await presenceChannel.track({ online_at: new Date().toISOString() }); } catch(_e){}
         updateMyLastSeen();
       }
     });
+
+  // قناة مؤشر الكتابة
+  if(typingChannel){
+    try { sbClient.removeChannel(typingChannel); } catch(_e){}
+    typingChannel = null;
+  }
+  typingChannel = sbClient.channel('typing-indicators');
+  typingChannel
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      const senderId = payload?.userId;
+      const isTypingFlag = payload?.isTyping;
+      if(!senderId || !activeContact || senderId !== activeContact.id) return;
+      const me2 = getCurrentUser();
+      if(!me2 || senderId === me2.id) return;
+      if(isTypingFlag){
+        showTypingBubble(senderId);
+        showTypingInHeader(appLang === 'ar' ? 'يكتب الآن...' : 'typing...');
+        if(typingUsers.has(senderId)) clearTimeout(typingUsers.get(senderId));
+        const handle = setTimeout(() => hideTypingBubble(senderId), 4000);
+        typingUsers.set(senderId, handle);
+      } else {
+        if(typingUsers.has(senderId)) clearTimeout(typingUsers.get(senderId));
+        hideTypingBubble(senderId);
+      }
+    })
+    .subscribe();
 }
+
 
 function formatChatTime(input){
   const d = new Date(input || Date.now());
@@ -3975,7 +3990,7 @@ async function selectContact(id, options = {}){
   let found = contacts.find(c => c.id === id);
   const hasExistingConversation = Array.isArray(conversations[id]) && conversations[id].length > 0;
   const hasInboxEntry = !!(found && (found._lastInboxAt || found.preview || found.time));
-  const bypassFriendGate = !!options.bypassFriendGate || (typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin());
+  const bypassFriendGate = !!options.bypassFriendGate;
 
   if(!bypassFriendGate && !hasExistingConversation && !hasInboxEntry){
     const relation = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
@@ -3986,6 +4001,12 @@ async function selectContact(id, options = {}){
       return;
     }
   }
+
+  // امسح مؤشر الكتابة عند الانتقال لمحادثة أخرى
+  typingUsers.forEach((handle) => clearTimeout(handle));
+  typingUsers.clear();
+  const existingBubble = document.getElementById('messages')?.querySelector('.typing-bubble-wrapper');
+  if(existingBubble) existingBubble.remove();
 
   // ... باقي الكود القديم يكمل عادي ...
   
@@ -4059,16 +4080,10 @@ window.startChat = function(id, name, color, text, avatar = ''){
   }else if(avatar && !found.avatar){
     found.avatar = avatar;
   }
-  selectContact(id, { bypassFriendGate: typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin() });
+  selectContact(id, { bypassFriendGate: false });
 };
 
-window.startAdminDirectChat = function(id){
-  if(!(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())) return;
-  const profile = (window.profilesDirectory || []).find((u) => u.id === id) || {};
-  const label = profile.full_name || profile.username || (profile.email ? profile.email.split('@')[0] : 'User');
-  window.startChat(id, label, 'var(--surface2)', 'var(--accent)', profile.avatar_url || '');
-  closeProfile();
-};
+
 function renderSidebarSearchResults(results){
   const el = document.getElementById('contacts');
   if(!results.length){
@@ -4082,14 +4097,11 @@ function renderSidebarSearchResults(results){
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
     const safePreview = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
-    const adminButton = (typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())
-      ? `<button class="badge admin-chat-badge" onclick="event.stopPropagation();window.startAdminDirectChat('${safeId}')">شات</button>`
-      : '<div class="badge">+</div>';
     return `
     <div class="contact" onclick="startChatFromSidebar('${safeId}')">
       <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${safeName}<span class="member-code">#${safeCode}</span></div><div class="contact-preview">${safePreview}</div></div>
-      <div class="contact-meta">${adminButton}</div>
+      <div class="contact-meta"><div class="badge">+</div></div>
     </div>`;
   }).join('');
 }
@@ -4183,14 +4195,10 @@ window.searchFromMainArea = async function(){
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
     const safeEmail = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
-    const adminButton = (typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())
-      ? `<button class="empty-search-btn admin-main-chat" onclick="event.stopPropagation();window.startAdminDirectChat('${safeId}')">فتح شات</button>`
-      : '';
     return `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${safeId}')">
       <div class="avatar" style="background:${safeColor};color:${safeText};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar)}</div>
       <div class="result-info"><div class="result-name">${safeName} <span class="member-code">#${safeCode}</span></div><div class="result-email">${safeEmail}</div></div>
-      ${adminButton}
     </div>`;
   }).join('');
 };
@@ -4322,18 +4330,8 @@ async function sendMessage(){
   const txt=inp.value.trim();
   if(!txt) return;
 
-  const activeEmail = String(activeContact.email || '').trim().toLowerCase();
-  const activeUsername = String(activeContact.username || '').trim().toLowerCase();
-  const activeIsAdmin = activeEmail === (window.ADMIN_EMAIL || 'ywsfw3778@gmail.com') || activeUsername === (window.ADMIN_USERNAME || 'ywsfw3778');
-  if(activeIsAdmin && !(typeof window.isCurrentAdmin === 'function' && window.isCurrentAdmin())){
-    const blocked = await isBlockedFromMessagingAdmin(currentUser.id, activeContact.id);
-    if(blocked){
-      alert('الأدمن أوقف استقبال الرسائل منك حاليًا.');
-      return;
-    }
-  }
-
   inp.value='';
+  if(typeof window.stopTypingSignal === 'function') window.stopTypingSignal();
   const payload = { sender_id: currentUser.id, receiver_id: activeContact.id, content: txt };
   const { error } = await sbClient.from('messages').insert(payload);
   if(error){
