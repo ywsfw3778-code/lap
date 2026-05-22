@@ -151,6 +151,21 @@ background:var(--bg);
 .msg-group.out{align-items:flex-start;}
 .msg-group.in{align-items:flex-end;}
 .msg-row{display:flex;align-items:flex-end;gap:7px;min-width:0;position:relative;overflow:visible;}
+
+/* Generous spacing to allow floating action buttons (3-dots) on the screen edges */
+html[dir="rtl"] .msg-group.in .msg-row {
+  padding-left: 36px;
+}
+html[dir="rtl"] .msg-group.out .msg-row {
+  padding-right: 12px;
+}
+html[dir="ltr"] .msg-group.in .msg-row {
+  padding-right: 36px;
+}
+html[dir="ltr"] .msg-group.out .msg-row {
+  padding-left: 12px;
+}
+
 .msg-content{
   width:fit-content;
   max-width:85%;
@@ -159,8 +174,19 @@ background:var(--bg);
   position:relative;
 }
 .msg-tools{position:absolute;top:50%;display:flex;align-items:center;opacity:0;transform:translateY(-50%);transition:opacity .16s ease;pointer-events:none;z-index:8;}
-html[dir="ar"] .msg-tools{left:-36px;}
-html[dir="en"] .msg-tools{right:-36px;}
+
+/* In RTL: Always place 3-dots on the LEFT side of the message content */
+html[dir="rtl"] .msg-tools {
+  left: -36px;
+  right: auto;
+}
+
+/* In LTR: Always place 3-dots on the RIGHT side of the message content */
+html[dir="ltr"] .msg-tools {
+  right: -36px;
+  left: auto;
+}
+
 .msg-row:hover .msg-tools,
 .msg-row:focus-within .msg-tools,
 .msg-tools.active{opacity:1;pointer-events:auto;}
@@ -1216,9 +1242,32 @@ window.getLabCode = function(uid){
   return (window.memberCodeMap && window.memberCodeMap[uid]) ? window.memberCodeMap[uid] : '000';
 };
 let myName = me.user_metadata?.full_name || me.email.split('@')[0];
-const myEmail = me.email;
+let myEmail = me.email;
 let myUsername = (me.user_metadata?.username || '').toLowerCase();
 let myAvatarUrl = me.user_metadata?.avatar_url || '';
+
+// Bridge ES Module-scoped variables to standard scripts via explicit window properties
+// Redefining them here also overrides browser fallback behavior where DOM element IDs would shadow undefined variables.
+Object.defineProperty(window, 'myName', {
+  get: () => myName,
+  set: (v) => { myName = v; },
+  configurable: true
+});
+Object.defineProperty(window, 'myEmail', {
+  get: () => myEmail,
+  set: (v) => { myEmail = v; },
+  configurable: true
+});
+Object.defineProperty(window, 'myUsername', {
+  get: () => myUsername,
+  set: (v) => { myUsername = v; },
+  configurable: true
+});
+Object.defineProperty(window, 'myAvatarUrl', {
+  get: () => myAvatarUrl,
+  set: (v) => { myAvatarUrl = v; },
+  configurable: true
+});
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
@@ -2809,14 +2858,14 @@ window.openSettings = function() {
   const codeValue = document.getElementById('settingsCodeValue');
   const settingsAv = document.getElementById('settingsProfileAv');
   
-  if (editName) editName.value = myName || '';
-  if (editUsername) editUsername.value = myUsername || '';
-  if (emailValue) emailValue.textContent = myEmail || me.email || '—';
+  if (editName) editName.value = window.myName || '';
+  if (editUsername) editUsername.value = window.myUsername || '';
+  if (emailValue) emailValue.textContent = window.myEmail || me.email || '—';
   if (codeValue) codeValue.textContent = '#' + (window.getLabCode && me.id ? window.getLabCode(me.id) : '001');
   
   if (settingsAv) {
     settingsAv.innerHTML = '';
-    window.setAvatarNode(settingsAv, myName || myEmail, myAvatarUrl || '');
+    window.setAvatarNode(settingsAv, window.myName || window.myEmail, window.myAvatarUrl || '');
   }
   
   // Fill appearance tab fields
@@ -2878,21 +2927,21 @@ window.handleSettingsAvatarPick = async function(event) {
     }
 
     const { data: urlData } = sbClient.storage.from('avatars').getPublicUrl(fileName);
-    myAvatarUrl = urlData.publicUrl;
+    window.myAvatarUrl = urlData.publicUrl;
 
     if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploaded successfully!' : 'تم الرفع بنجاح!';
     
-    saveLocalAvatar(myAvatarUrl);
+    saveLocalAvatar(window.myAvatarUrl);
     applyMyProfileUI();
     
     const settingsAv = document.getElementById('settingsProfileAv');
     if (settingsAv) {
       settingsAv.innerHTML = '';
-      window.setAvatarNode(settingsAv, myName, myAvatarUrl);
+      window.setAvatarNode(settingsAv, window.myName, window.myAvatarUrl);
     }
     
-    await sbClient.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
-    await upsertMyProfileOnServer({ avatar_url: myAvatarUrl || null });
+    await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
+    await upsertMyProfileOnServer({ avatar_url: window.myAvatarUrl || null });
     
     if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
     if(typeof window.renderContacts === 'function') window.renderContacts();
@@ -2942,7 +2991,7 @@ window.saveSettingsProfile = async function() {
       return;
     }
 
-    const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: myAvatarUrl || null } });
+    const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: window.myAvatarUrl || null } });
     if(authErr){
       btn.disabled = false;
       btn.textContent = originalText;
@@ -2950,16 +2999,16 @@ window.saveSettingsProfile = async function() {
       return;
     }
 
-    myName = name;
-    myUsername = username;
-    saveLocalAvatar(myAvatarUrl);
+    window.myName = name;
+    window.myUsername = username;
+    saveLocalAvatar(window.myAvatarUrl);
     applyMyProfileUI();
     if(typeof window.applyLanguage === 'function') window.applyLanguage();
 
     await upsertMyProfileOnServer({
       username,
       full_name: name,
-      avatar_url: myAvatarUrl || null
+      avatar_url: window.myAvatarUrl || null
     });
     
     try {
@@ -3990,6 +4039,31 @@ function createMessageRow(msg, isOut, showAvatar){
     bubble.textContent = msg.text || '';
   }
   bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
+
+  // --- Mobile Premium Long Press Options ---
+  let touchTimer = null;
+  bubble.addEventListener('touchstart', (event) => {
+    if (event.touches.length > 1) return;
+    touchTimer = setTimeout(() => {
+      if (navigator.vibrate) {
+        try { navigator.vibrate(50); } catch(_v){}
+      }
+      openMessageMenu(event, msg, bubble);
+      touchTimer = null;
+    }, 600); // 600ms long press duration
+  }, { passive: true });
+
+  bubble.addEventListener('touchmove', () => {
+    clearTimeout(touchTimer);
+  });
+
+  bubble.addEventListener('touchend', () => {
+    clearTimeout(touchTimer);
+  });
+
+  bubble.addEventListener('touchcancel', () => {
+    clearTimeout(touchTimer);
+  });
 
   content.appendChild(tools);
   content.appendChild(bubble);
