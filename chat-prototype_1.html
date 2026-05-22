@@ -339,7 +339,9 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
 .message-menu button[disabled]{opacity:.45;cursor:not-allowed;background:transparent;}
 html[dir="rtl"] .message-menu{left:0;right:auto;}
 html[dir="ltr"] .message-menu{right:0;left:auto;}
-.tick{color:var(--accent);font-size:10px;}
+.tick{display:inline-flex;align-items:center;margin-inline-start:4px;flex-shrink:0;}
+.tick.read{color:#34b7f1 !important;}
+.tick.unread{color:rgba(255, 255, 255, 0.4) !important;}
 .input-area{padding:12px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;}
 .input-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:13px;display:flex;align-items:center;padding:6px 11px;gap:7px;transition:border-color .2s,box-shadow .2s;}
 .input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
@@ -2287,7 +2289,12 @@ function setMobileChatMode(openChat){
 
 window.openSidebarMobile = function(){
   mobileSidebarOpen = true;
+  activeContact = null;
+  window.activeContactRef = null;
   setMobileChatMode(false);
+  saveLocalChatState();
+  renderContacts();
+  renderMessages();
 };
 
 function getChatStateKey(){
@@ -3573,16 +3580,14 @@ function createMessageRow(msg, isOut, showAvatar){
     const meta = document.createElement('div');
     meta.className = 'bubble-meta';
     meta.append(document.createTextNode(msg.time || ''));
-if(isOut){
+    if(isOut){
       const tick = document.createElement('span');
-      tick.className = 'tick';
-      if (msg.read) {
-        tick.innerHTML = appLang === 'ar' ? 'شوهد 👁️' : 'Seen 👁️';
-        tick.style.fontSize = '10px';
-        tick.style.fontWeight = '600';
-      } else {
-        tick.textContent = '✓';
-      }
+      tick.className = `tick ${msg.read ? 'read' : 'unread'}`;
+      tick.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" style="display: inline-block; fill: currentColor; transition: fill 0.25s ease;">
+          <path d="M12.22 17.58L8.11 13.47L9.52 12.06L12.22 14.76L18.48 8.5L19.89 9.91L12.22 17.58ZM6.89 13.47L2.78 9.36L4.19 7.95L6.89 10.65L8.3 9.24L9.71 10.65L6.89 13.47Z"/>
+        </svg>
+      `;
       meta.append(document.createTextNode(' '));
       meta.appendChild(tick);
     }
@@ -3705,6 +3710,7 @@ window.loadMessagesForContact = loadMessagesForContact;
 let _markReadInProgress = {};
 async function markMessagesAsRead(contactId){
   if(_markReadInProgress[contactId]) return;
+  if(isMobileView() && mobileSidebarOpen) return; // Don't mark as read when mobile sidebar is open (chat is visually hidden)
   _markReadInProgress[contactId] = true;
   try {
     const sbClient = getSbClient();
