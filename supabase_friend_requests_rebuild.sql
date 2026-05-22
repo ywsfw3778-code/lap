@@ -519,13 +519,14 @@ to authenticated
 using (
   auth.uid() = sender_id
   or auth.uid() = receiver_id
-  or lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
-  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
   or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and (ui.user_id = friend_requests.sender_id or ui.user_id = friend_requests.receiver_id)
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and (
+        lower(ui_my.email) = lower(friend_requests.sender_email)
+        or lower(ui_my.email) = lower(friend_requests.receiver_email)
+      )
   )
 );
 
@@ -539,7 +540,12 @@ with check (
   and status = 'pending'
   and (
     sender_email is null
-    or lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
+    or exists (
+      select 1
+      from public.user_identities ui
+      where ui.user_id = auth.uid()
+        and lower(ui.email) = lower(sender_email)
+    )
   )
 );
 
@@ -549,12 +555,11 @@ for delete
 to authenticated
 using (
   auth.uid() = sender_id
-  or lower(sender_email) = lower(coalesce(auth.jwt()->>'email', ''))
   or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and ui.user_id = friend_requests.sender_id
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and lower(ui_my.email) = lower(friend_requests.sender_email)
   )
 );
 
@@ -564,12 +569,11 @@ for update
 to authenticated
 using (
   auth.uid() = receiver_id
-  or lower(receiver_email) = lower(coalesce(auth.jwt()->>'email', ''))
   or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and ui.user_id = friend_requests.receiver_id
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and lower(ui_my.email) = lower(friend_requests.receiver_email)
   )
 )
 with check (
@@ -581,14 +585,19 @@ on public.messages
 for select
 to authenticated
 using (
-  exists (
+  auth.uid() = sender_id
+  or auth.uid() = receiver_id
+  or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and (ui.user_id = messages.sender_id or ui.user_id = messages.receiver_id)
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and exists (
+        select 1
+        from public.user_identities ui_msg
+        where lower(ui_msg.email) = lower(ui_my.email)
+          and (ui_msg.user_id = messages.sender_id or ui_msg.user_id = messages.receiver_id)
+      )
   )
-  or auth.uid() = messages.sender_id
-  or auth.uid() = messages.receiver_id
 );
 
 create policy "messages_insert_self"
@@ -613,18 +622,28 @@ using (
   auth.uid() = sender_id
   or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and ui.user_id = messages.sender_id
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and exists (
+        select 1
+        from public.user_identities ui_sender
+        where ui_sender.user_id = messages.sender_id
+          and lower(ui_sender.email) = lower(ui_my.email)
+      )
   )
 )
 with check (
   auth.uid() = sender_id
   or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and ui.user_id = messages.sender_id
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and exists (
+        select 1
+        from public.user_identities ui_sender
+        where ui_sender.user_id = messages.sender_id
+          and lower(ui_sender.email) = lower(ui_my.email)
+      )
   )
 );
 
@@ -636,9 +655,14 @@ using (
   auth.uid() = sender_id
   or exists (
     select 1
-    from public.user_identities ui
-    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
-      and ui.user_id = messages.sender_id
+    from public.user_identities ui_my
+    where ui_my.user_id = auth.uid()
+      and exists (
+        select 1
+        from public.user_identities ui_sender
+        where ui_sender.user_id = messages.sender_id
+          and lower(ui_sender.email) = lower(ui_my.email)
+      )
   )
 );
 
