@@ -2041,10 +2041,10 @@ window.sendFriendRequest = async function(targetId, btnElement) {
 <script>
 // Scoping and delegation helpers to bridge ES Modules and Standard Scripts
 function escapeHtml(value) {
-  return window.escapeHtml ? window.escapeHtml(value) : fallbackEscapeHtml(value);
+  return fallbackEscapeHtml(value);
 }
 function escapeAttr(value) {
-  return window.escapeAttr ? window.escapeAttr(value) : fallbackEscapeHtml(value);
+  return fallbackEscapeHtml(value).replace(/`/g, '&#96;');
 }
 
 window._contacts=[];
