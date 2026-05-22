@@ -2169,7 +2169,7 @@ function isUserOnline(contactOrId){
   if(onlineUserIds.has(id)) return true;
   if(contact && contact.lastSeenAt){
     const diff = Date.now() - new Date(contact.lastSeenAt).getTime();
-    if(diff > 0 && diff < 20000) return true;
+    if(Math.abs(diff) < 35000) return true;
   }
   if(contact && contact.online) return true;
   return false;
@@ -3589,6 +3589,7 @@ async function loadMessagesForContact(contactId){
   const sbClient = getSbClient();
   const currentUser = await getFreshCurrentUser();
   if(!sbClient || !currentUser || !contactId) return;
+  const identityIds = await getCurrentIdentityIds();
   let data = null;
   let error = null;
   const currentEmail = String(currentUser.email || '').trim();
@@ -3606,7 +3607,6 @@ async function loadMessagesForContact(contactId){
   if(rpcHasRows(rpcRes)){
     data = rpcRes.data;
   }else{
-    const identityIds = await getCurrentIdentityIds();
     const ids = identityIds.length ? identityIds : [currentUser.id];
     const [sentRes, recvRes] = await Promise.all([
       sbClient
@@ -3644,17 +3644,20 @@ async function loadMessagesForContact(contactId){
 
   const rows = (data || [])
     .filter((m) => !hiddenMessageIds.has(String(m.id)))
-    .map(m => ({
-    id: m.id,
-    out: (m.sender_id || m.from_user_id) === currentUser.id,
-    text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
-    previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), (m.sender_id || m.from_user_id) === currentUser.id),
-    time: formatChatTime(m.created_at),
-    createdAt: m.created_at,
-    dayKey: getMessageDayKey(m.created_at),
-    dayLabel: formatDayDivider(m.created_at),
-    read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
-  }));
+    .map(m => {
+      const senderIsMe = idBelongsToCurrentUser(m.sender_id || m.from_user_id, identityIds, currentUser);
+      return {
+        id: m.id,
+        out: senderIsMe,
+        text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
+        previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), senderIsMe),
+        time: formatChatTime(m.created_at),
+        createdAt: m.created_at,
+        dayKey: getMessageDayKey(m.created_at),
+        dayLabel: formatDayDivider(m.created_at),
+        read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
+      };
+    });
 
   if(!rows.length && Array.isArray(conversations[contactId]) && conversations[contactId].length){
     console.warn('chat messages returned empty; preserving cached conversation for', contactId);
@@ -3738,9 +3741,6 @@ async function loadInboxContacts(){
       if(refreshedActive){
         activeContact = refreshedActive;
         window.activeContactRef = refreshedActive;
-      }else{
-        activeContact = contacts[0] || null;
-        window.activeContactRef = activeContact;
       }
     }else if(contacts.length){
       activeContact = contacts[0];
@@ -3812,7 +3812,7 @@ async function loadInboxContacts(){
         avatar: row.avatar_url || existing?.avatar || '',
         memberCode: Number.isFinite(Number(row.member_code)) ? String(Number(row.member_code)).padStart(3, '0') : (existing?.memberCode || ''),
         lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '',
-        online: !!existing?.online,
+        online: isUserOnline({ id: row.partner_id, lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '', online: !!existing?.online }),
         preview: formatMessagePreviewText(row.last_content || ''),
         time: formatChatTime(row.last_created_at || new Date()),
         unread: unreadCount,
@@ -3925,7 +3925,7 @@ async function loadInboxContacts(){
       avatar: existing?.avatar || '',
       memberCode: existing?.memberCode || '',
       lastSeenAt: existing?.lastSeenAt || '',
-      online: !!existing?.online,
+      online: isUserOnline({ id, lastSeenAt: existing?.lastSeenAt || '', online: !!existing?.online }),
       preview: formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id),
       time: formatChatTime(last?.created_at || last?.createdAt || new Date()),
       unread: existingUnread.get(id) || 0,
@@ -3974,7 +3974,11 @@ async function loadInboxContacts(){
       const code = String(Number(p.member_code)).padStart(3, '0');
       if(c.memberCode !== code){ c.memberCode = code; enriched = true; }
     }
-    if(p.last_seen_at && c.lastSeenAt !== p.last_seen_at){ c.lastSeenAt = p.last_seen_at; enriched = true; }
+    if(p.last_seen_at && c.lastSeenAt !== p.last_seen_at){ 
+      c.lastSeenAt = p.last_seen_at; 
+      c.online = isUserOnline(c);
+      enriched = true; 
+    }
   }
 
   if(enriched){

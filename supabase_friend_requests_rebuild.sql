@@ -53,6 +53,7 @@ drop function if exists public.respond_friend_request_for_email(text, uuid, text
 drop function if exists public.get_pending_friend_requests_for_email(text);
 drop function if exists public.get_inbox_contacts_for_email(text);
 drop function if exists public.get_chat_messages_for_email(text, uuid, integer);
+drop function if exists public.get_profiles_by_ids(uuid[]);
 
 create or replace function public.friend_assert_current_email(current_email text)
 returns text
@@ -399,6 +400,17 @@ as $$
         order by activity_at desc
       ) as rn
     from combined
+  ),
+  partner_emails as (
+    select id as user_id, lower(email) as email from public.profiles where email is not null
+    union
+    select user_id as user_id, lower(email) as email from public.user_identities where email is not null
+  ),
+  max_activity as (
+    select lower(email) as email, max(last_seen_at) as max_last_seen
+    from public.profiles
+    where last_seen_at is not null
+    group by lower(email)
   )
   select
     r.partner_id,
@@ -407,11 +419,13 @@ as $$
     p.email,
     p.avatar_url,
     p.member_code,
-    p.last_seen_at,
+    coalesce(ma.max_last_seen, p.last_seen_at) as last_seen_at,
     r.content as last_content,
     r.activity_at as last_created_at
   from ranked r
   left join public.profiles p on p.id = r.partner_id
+  left join partner_emails pe on pe.user_id = r.partner_id
+  left join max_activity ma on ma.email = pe.email
   where r.rn = 1
   order by r.activity_at desc
 $$;
@@ -637,6 +651,71 @@ grant execute on function public.respond_friend_request_for_email(text, uuid, te
 grant execute on function public.get_pending_friend_requests_for_email(text) to authenticated;
 grant execute on function public.get_inbox_contacts_for_email(text) to authenticated;
 grant execute on function public.get_chat_messages_for_email(text, uuid, integer) to authenticated;
+
+-- profiles RLS Setup
+alter table public.profiles enable row level security;
+
+do $$
+declare
+  pol record;
+begin
+  for pol in (
+    select policyname
+    from pg_policies
+    where schemaname = 'public' and tablename = 'profiles'
+  ) loop
+    execute format('drop policy if exists %I on public.profiles', pol.policyname);
+  end loop;
+end;
+$$;
+
+create policy "profiles_select_authenticated" on public.profiles for select to authenticated using (true);
+create policy "profiles_insert_self" on public.profiles for insert to authenticated with check (auth.uid() = id);
+create policy "profiles_update_self" on public.profiles for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
+
+grant select, insert, update on public.profiles to authenticated;
+
+-- get_profiles_by_ids RPC definition
+create or replace function public.get_profiles_by_ids(user_ids uuid[])
+returns table(
+  id uuid,
+  username text,
+  full_name text,
+  email text,
+  avatar_url text,
+  member_code integer,
+  last_seen_at timestamptz
+)
+language sql
+security definer
+set search_path = public, auth
+as $$
+  with target_emails as (
+    select p.id as target_user_id, lower(p.email) as email from public.profiles p where p.id = any(user_ids) and p.email is not null
+    union
+    select ui.user_id as target_user_id, lower(ui.email) as email from public.user_identities ui where ui.user_id = any(user_ids) and ui.email is not null
+  ),
+  max_activity as (
+    select lower(email) as email, max(last_seen_at) as max_last_seen
+    from public.profiles
+    where email is not null
+    group by lower(email)
+  )
+  select
+    p.id,
+    p.username,
+    p.full_name,
+    p.email,
+    p.avatar_url,
+    p.member_code,
+    coalesce(ma.max_last_seen, p.last_seen_at) as last_seen_at
+  from public.profiles p
+  left join target_emails te on te.target_user_id = p.id
+  left join max_activity ma on ma.email = te.email
+  where p.id = any(user_ids)
+$$;
+
+grant execute on function public.get_profiles_by_ids(uuid[]) to authenticated;
 
 notify pgrst, 'reload schema';
 notify pgrst, 'reload config';
