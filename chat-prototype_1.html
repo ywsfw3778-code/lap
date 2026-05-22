@@ -3794,7 +3794,7 @@ async function loadInboxContacts(){
         activeContact = refreshedActive;
         window.activeContactRef = refreshedActive;
       }
-    }else if(contacts.length){
+    }else if(contacts.length && !(isMobileView() && mobileSidebarOpen)){
       activeContact = contacts[0];
       window.activeContactRef = activeContact;
     }
@@ -3827,7 +3827,7 @@ async function loadInboxContacts(){
       const existing = existingById.get(row.partner_id);
       const clr = existing ? { bg: existing.color, t: existing.text } : colorFromId(row.partner_id);
       
-      let unreadCount = existingUnread.get(row.partner_id) || 0;
+      let unreadCount = Number(row.unread_count !== undefined && row.unread_count !== null ? row.unread_count : (existingUnread.get(row.partner_id) || 0));
       const newStamp = String(row.last_created_at || '');
       const oldStamp = existing ? String(existing._lastInboxAt || '') : '';
       

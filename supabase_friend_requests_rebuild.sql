@@ -373,7 +373,8 @@ returns table(
   member_code integer,
   last_seen_at timestamptz,
   last_content text,
-  last_created_at timestamptz
+  last_created_at timestamptz,
+  unread_count integer
 )
 language sql
 security definer
@@ -434,7 +435,14 @@ as $$
     p.member_code,
     coalesce(ma.max_last_seen, p.last_seen_at) as last_seen_at,
     r.content as last_content,
-    r.activity_at as last_created_at
+    r.activity_at as last_created_at,
+    (
+      select count(*)::integer
+      from public.messages m2
+      where m2.sender_id = r.partner_id
+        and m2.receiver_id in (select user_id from my_ids)
+        and m2.read_at is null
+    ) as unread_count
   from ranked r
   left join public.profiles p on p.id = r.partner_id
   left join partner_emails pe on pe.user_id = r.partner_id
