@@ -3606,14 +3606,18 @@ async function loadMessagesForContact(contactId){
       partner_user_id: contactId,
       result_limit: 200
     });
+    console.log(`[MsgLoad] RPC get_chat_messages_for_email => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
   }
   if(!rpcHasRows(rpcRes)){
     rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
+    console.log(`[MsgLoad] RPC get_chat_messages => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
   }
   if(rpcHasRows(rpcRes)){
     data = rpcRes.data;
+    console.log(`[MsgLoad] Using RPC data, ${data.length} messages`);
   }else{
     const ids = identityIds.length ? identityIds : [currentUser.id];
+    console.log(`[MsgLoad] Fallback direct query with ids:`, ids, 'contactId:', contactId);
     const [sentRes, recvRes] = await Promise.all([
       sbClient
         .from('messages')
@@ -3631,6 +3635,7 @@ async function loadMessagesForContact(contactId){
         .limit(200)
     ]);
     error = sentRes.error || recvRes.error || null;
+    console.log(`[MsgLoad] Fallback sent: ${sentRes.data?.length ?? 'null'} (err: ${sentRes.error?.message || 'none'}), recv: ${recvRes.data?.length ?? 'null'} (err: ${recvRes.error?.message || 'none'})`);
     const merged = [...(sentRes.data || []), ...(recvRes.data || [])];
     const seen = new Set();
     data = merged
@@ -3664,6 +3669,8 @@ async function loadMessagesForContact(contactId){
         read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
       };
     });
+
+  console.log(`[MsgLoad] Final processed rows: ${rows.length}, existing cached: ${(conversations[contactId] || []).length}`);
 
   if(!rows.length && Array.isArray(conversations[contactId]) && conversations[contactId].length){
     console.warn('chat messages returned empty; preserving cached conversation for', contactId);
