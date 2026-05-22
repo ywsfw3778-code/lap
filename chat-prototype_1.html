@@ -2135,6 +2135,12 @@ const conversations=window._convos;
 let sidebarSearchResults=[];
 const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
+const isAdmin = (u) => {
+  if(!u) return false;
+  const email = String(u.email || '').trim().toLowerCase();
+  return email === 'ywsfw3778@gmail.com' || u.user_metadata?.role === 'admin' || u.user_metadata?.is_admin === true;
+};
+window.isAdmin = isAdmin;
 async function getFreshCurrentUser(){
   return window.me || null;
 }
@@ -2767,7 +2773,9 @@ async function fillProfileOverlay(data){
   overlay.dataset.lastSeenAt = lastSeenAt || '';
   overlay.classList.toggle('profile-overlay-user', !isSelf);
 
-  const canSeeEmail = isSelf;
+  const viewer = getCurrentUser();
+  const isAdminUser = typeof isAdmin === 'function' ? isAdmin(viewer) : false;
+  const canSeeEmail = isSelf || isAdminUser;
   const displayEmail = canSeeEmail ? email : 'مخفي 🔒';
 
   document.getElementById('profileName').textContent = `${name} #${code}`;
@@ -2778,12 +2786,17 @@ async function fillProfileOverlay(data){
   // --- منع تكرار الحقول في البروفايل ---
   const emailRow = document.getElementById('profileEmail2')?.closest('.profile-row');
   const usernameRow = document.getElementById('profileUsername')?.closest('.profile-row');
-  if (username) {
+  if (isAdminUser || isSelf) {
     if (emailRow) emailRow.style.display = 'flex';
-    if (usernameRow) usernameRow.style.display = 'none';
+    if (usernameRow) usernameRow.style.display = username ? 'flex' : 'none';
   } else {
-    if (emailRow) emailRow.style.display = 'none';
-    if (usernameRow) usernameRow.style.display = 'none';
+    if (username) {
+      if (emailRow) emailRow.style.display = 'flex';
+      if (usernameRow) usernameRow.style.display = 'none';
+    } else {
+      if (emailRow) emailRow.style.display = 'none';
+      if (usernameRow) usernameRow.style.display = 'none';
+    }
   }
   document.getElementById('profileCodeValue').textContent = `#${code}`;
   document.getElementById('profileStatusText').textContent = isOnline ? t('online') : window.formatLastSeenLabel(lastSeenAt);
@@ -2850,7 +2863,7 @@ window.openActiveProfile = function(){
   openProfileOverlayWithData({
     id: activeContact.id,
     name: activeContact.name || 'User',
-    email: activeContact.preview || '—',
+    email: activeContact.email || '—',
     username: activeContact.username || '',
     avatar: activeContact.avatar || '',
     memberCode: window.getLabCode ? window.getLabCode(activeContact.id) : '000',
@@ -3200,7 +3213,9 @@ function initPresence(){
         hideTypingBubble(senderId);
       }
     })
-    .subscribe();
+    .subscribe((status, err) => {
+      if(err) console.warn('Typing indicators channel subscription error:', err);
+    });
 }
 
 
@@ -3723,9 +3738,21 @@ window.loadMessagesForContact = loadMessagesForContact;
 
 function startMessagePolling(){
   if(messagePollTimer) clearInterval(messagePollTimer);
-  messagePollTimer = setInterval(() => {
-    loadInboxContacts();
-  }, 2500);
+  messagePollTimer = setInterval(async () => {
+    try {
+      await loadInboxContacts();
+    } catch(e) {
+      console.warn('Inbox polling failed:', e);
+    }
+    try {
+      const activeRef = window.activeContactRef || activeContact;
+      if (activeRef && activeRef.id) {
+        await loadMessagesForContact(activeRef.id);
+      }
+    } catch(e) {
+      console.warn('Active messages polling failed:', e);
+    }
+  }, 3000);
   window.messagePollTimer = messagePollTimer;
 }
 
@@ -3779,7 +3806,6 @@ async function loadInboxContacts(){
       syncActiveHeader();
       lastRenderedMessageSig = '';
       renderMessages();
-      loadMessagesForContact(activeContact.id);
     }else{
       syncActiveHeader();
       renderMessages();
@@ -4003,7 +4029,10 @@ async function selectContact(id, options = {}){
   const hasInboxEntry = !!(found && (found._lastInboxAt || found.preview || found.time));
   const bypassFriendGate = !!options.bypassFriendGate;
 
-  if(!bypassFriendGate && !hasExistingConversation && !hasInboxEntry){
+  const me = getCurrentUser();
+  const isAdminUser = typeof isAdmin === 'function' ? isAdmin(me) : false;
+
+  if(!bypassFriendGate && !hasExistingConversation && !hasInboxEntry && !isAdminUser){
     const relation = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
     const isAccepted = !!(relation && relation.status === 'accepted');
     if (!isAccepted) {
@@ -4680,11 +4709,18 @@ document.getElementById('chatHeaderMenu')?.addEventListener('click', (event) => 
   event.stopPropagation();
 });
 window.addEventListener('scroll', closeMessageMenu, true);
+let lastWindowWidth = window.innerWidth;
+let lastWindowHeight = window.innerHeight;
 window.addEventListener('resize', () => {
+  if (window.innerWidth === lastWindowWidth && window.innerHeight === lastWindowHeight) {
+    return;
+  }
+  lastWindowWidth = window.innerWidth;
+  lastWindowHeight = window.innerHeight;
+
   closeMessageMenu();
   closeChatHeaderMenu();
-});
-window.addEventListener('resize', () => {
+
   if (isMobileView()) {
     setMobileChatMode(!mobileSidebarOpen && !!activeContact);
   } else {
@@ -4866,7 +4902,9 @@ window.startFriendRequestsRealtime = function() {
           window.loadPendingRequests?.().catch?.(() => {});
         }
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if(err) console.warn('Friend requests realtime channel subscription error:', err);
+      });
 
     window.friendRequestsChannel = friendRequestsChannel;
   }).catch(() => {});
@@ -4903,7 +4941,9 @@ window.startMessagesRealtime = function() {
           loadInboxContacts();
         }
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if(err) console.warn('Messages realtime channel subscription error:', err);
+      });
 
     window.messagesRealtimeChannel = messagesRealtimeChannel;
   }).catch(() => {});
