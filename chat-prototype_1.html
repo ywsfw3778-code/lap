@@ -1114,6 +1114,105 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 .video-progress-container:hover .video-progress-thumb {
   transform: translateY(-50%) scale(1);
 }
+
+/* Attachment Preview Tray */
+.attachment-preview-tray {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 14px;
+  margin-bottom: 8px;
+  width: 100%;
+  max-height: 90px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.attachment-preview-tray::-webkit-scrollbar {
+  height: 4px;
+}
+.attachment-preview-tray::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 99px;
+}
+
+.preview-item {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.preview-item img, .preview-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.preview-video-badge {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  font-size: 9px;
+  padding: 1px 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-family: monospace;
+}
+.preview-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(239, 68, 68, 0.5);
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+.preview-remove-btn:hover {
+  transform: scale(1.15);
+  background: #ff5555;
+  box-shadow: 0 0 8px #ff5555;
+}
+
+/* Make input area stack vertically to accommodate the tray above text input */
+.input-area {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+.input-main-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
 </style>
 </head>
 <body id="appBody">
@@ -1172,14 +1271,17 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
   <div class="messages" id="messages"></div>
  <div class="input-area">
-    <div class="input-wrap">
-        <button class="emoji-btn" onclick="addEmoji()">😊</button>
-        <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="handleTypingInput()">
-        <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
-        <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleFileSelected(event)">
+    <div class="attachment-preview-tray" id="attachmentPreviewTray" style="display:none;"></div>
+    <div class="input-main-row">
+        <div class="input-wrap">
+            <button class="emoji-btn" onclick="addEmoji()">😊</button>
+            <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="handleTypingInput()">
+            <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+            <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleFileSelected(event)" multiple>
+        </div>
+        <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
+        <button class="send-btn" onclick="sendMessage()">➤</button>
     </div>
-    <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
-    <button class="send-btn" onclick="sendMessage()">➤</button>
 
     <div id="voiceRecPanel">
         <div id="recordStatus" style="display:none;"></div>
@@ -1413,6 +1515,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 
 <div class="message-menu" id="messageMenu">
   <div class="message-menu-date" id="messageMenuDate">—</div>
+  <button type="button" id="messageMenuDownloadBtn" style="display:none;"><span>حفظ إلى الجهاز</span><span>💾</span></button>
   <button type="button" id="messageMenuEditBtn" onclick="editMessageFromMenu()"><span>تعديل الرسالة</span><span>✏️</span></button>
   <button type="button" id="messageMenuDeleteMineBtn" onclick="deleteMessageMineFromMenu()"><span>حذف لديك</span><span>🗑</span></button>
   <button type="button" class="danger" id="messageMenuDeleteAllBtn" onclick="deleteMessageAllFromMenu()"><span>حذف لدى الجميع</span><span>⛔</span></button>
@@ -4014,89 +4117,128 @@ function isSafeVoiceUrl(url){
   return /^https?:\/\//i.test(url);
 }
 
+let pendingFiles = [];
+
+function clearPendingAttachments(){
+  if(pendingFiles && pendingFiles.length > 0){
+    pendingFiles.forEach(item => {
+      if(item.previewUrl){
+        URL.revokeObjectURL(item.previewUrl);
+      }
+    });
+  }
+  pendingFiles = [];
+  const tray = document.getElementById('attachmentPreviewTray');
+  if(tray){
+    tray.style.display = 'none';
+    tray.innerHTML = '';
+  }
+  const fileInput = document.getElementById('fileInput');
+  if(fileInput) fileInput.value = '';
+}
+
+function removePendingFile(id){
+  const idx = pendingFiles.findIndex(item => item.id === id);
+  if(idx > -1){
+    const item = pendingFiles[idx];
+    if(item.previewUrl){
+      URL.revokeObjectURL(item.previewUrl);
+    }
+    pendingFiles.splice(idx, 1);
+  }
+  renderAttachmentPreviews();
+}
+
+function renderAttachmentPreviews(){
+  const tray = document.getElementById('attachmentPreviewTray');
+  if(!tray) return;
+  if(pendingFiles.length === 0){
+    tray.style.display = 'none';
+    tray.innerHTML = '';
+    return;
+  }
+  
+  tray.style.display = 'flex';
+  tray.innerHTML = pendingFiles.map(item => {
+    const isImage = item.file.type.startsWith('image/');
+    const previewContent = isImage 
+      ? `<img src="${item.previewUrl}" alt="Preview">`
+      : `<video src="${item.previewUrl}" muted></video><div class="preview-video-badge">📹</div>`;
+    
+    return `
+      <div class="preview-item">
+        ${previewContent}
+        <button type="button" class="preview-remove-btn" onclick="removePendingFile(${item.id})">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
 async function handleFileSelected(event){
-  const file = event.target.files[0];
-  if(!file) return;
+  const files = event.target.files;
+  if(!files || files.length === 0) return;
   
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if(!sbClient || !currentUser || !activeContact) return;
   
-  const isImage = file.type.startsWith('image/');
-  const isVideo = file.type.startsWith('video/');
-  if(!isImage && !isVideo){
-    alert(appLang === 'ar' ? '⚠️ يرجى اختيار صورة أو فيديو فقط!' : '⚠️ Please select an image or video only!');
+  const MAX_FILES = 10;
+  if(pendingFiles.length + files.length > MAX_FILES){
+    alert(appLang === 'ar' 
+      ? `⚠️ الحد الأقصى للمرفقات هو ${MAX_FILES} ملفات!` 
+      : `⚠️ Maximum limit is ${MAX_FILES} attachments!`);
+    event.target.value = '';
     return;
   }
   
-  // Show uploading state
-  const msgInput = document.getElementById('msgInput');
-  const attachBtn = document.querySelector('.attach-btn');
-  const emojiBtn = document.querySelector('.emoji-btn');
-  const sendBtn = document.querySelector('.send-btn');
-  const inputWrap = document.querySelector('.input-wrap');
-  
-  const oldPlaceholder = msgInput.placeholder;
-  const oldVal = msgInput.value;
-  
-  msgInput.disabled = true;
-  msgInput.placeholder = appLang === 'ar' ? 'جاري رفع الملف... ⏳' : 'Uploading file... ⏳';
-  msgInput.value = '';
-  if(attachBtn) attachBtn.style.opacity = '0.5';
-  if(emojiBtn) emojiBtn.style.opacity = '0.5';
-  if(sendBtn) sendBtn.style.opacity = '0.5';
-  if(inputWrap) inputWrap.classList.add('uploading-state');
-  
-  // Create unique filename
-  const extension = file.name.split('.').pop() || (isImage ? 'png' : 'mp4');
-  const fileName = `media_${Date.now()}.${extension}`;
-  
-  try {
-    const { data, error } = await sbClient.storage.from('voices').upload(fileName, file, {
-      contentType: file.type,
-      cacheControl: '3600'
-    });
-    
-    if(error){
-      alert((appLang === 'ar' ? 'فشل رفع الملف: ' : 'File upload failed: ') + error.message);
-      return;
+  for(let i=0; i<files.length; i++){
+    const file = files[i];
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    if(!isImage && !isVideo){
+      alert(appLang === 'ar' 
+        ? `⚠️ الملف "${file.name}" ليس صورة أو فيديو!` 
+        : `⚠️ File "${file.name}" is not an image or video!`);
+      continue;
     }
     
-    const { data: urlData } = sbClient.storage.from('voices').getPublicUrl(fileName);
-    const publicUrl = urlData.publicUrl;
-    
-    const payload = isImage ? `[image]${publicUrl}` : `[video]${publicUrl}`;
-    
-    const { error: insertError } = await sbClient.from('messages').insert({
-      sender_id: currentUser.id,
-      receiver_id: activeContact.id,
-      content: payload
+    const id = Date.now() + Math.floor(Math.random() * 1000000);
+    const previewUrl = URL.createObjectURL(file);
+    pendingFiles.push({
+      id: id,
+      file: file,
+      previewUrl: previewUrl
     });
-    
-    if(insertError){
-      alert((appLang === 'ar' ? 'فشل إرسال الملف: ' : 'File send failed: ') + insertError.message);
-      return;
-    }
-    
-    bumpActiveChatToTop(formatMessagePreviewText(payload, true));
-    lastRenderedMessageSig = '';
-    await loadMessagesForContact(activeContact.id);
-    await loadInboxContacts();
-  } catch(err) {
-    console.error('Upload error:', err);
-    alert(appLang === 'ar' ? 'حدث خطأ أثناء الرفع!' : 'An error occurred during upload!');
-  } finally {
-    msgInput.disabled = false;
-    msgInput.placeholder = oldPlaceholder;
-    msgInput.value = oldVal;
-    if(attachBtn) attachBtn.style.opacity = '1';
-    if(emojiBtn) emojiBtn.style.opacity = '1';
-    if(sendBtn) sendBtn.style.opacity = '1';
-    if(inputWrap) inputWrap.classList.remove('uploading-state');
-    event.target.value = ''; // clear selection
   }
+  
+  renderAttachmentPreviews();
+  event.target.value = ''; // Reset input selection
 }
+
 window.handleFileSelected = handleFileSelected;
+window.removePendingFile = removePendingFile;
+window.clearPendingAttachments = clearPendingAttachments;
+
+window.downloadMediaFromMenu = async function(url, type) {
+  closeMessageMenu();
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Fetch failed');
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    const ext = type === 'image' ? 'png' : 'mp4';
+    link.download = `media_${Date.now()}.${ext}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch(err) {
+    console.error('Download failed, falling back to open in tab', err);
+    window.open(url, '_blank');
+  }
+};
 
 function formatVoiceDuration(seconds){
   const safe = Math.max(0, Math.floor(seconds || 0));
@@ -4232,10 +4374,29 @@ function openMessageMenu(event, msg, anchorEl = null){
   const editBtn = document.getElementById('messageMenuEditBtn');
   const deleteMineBtn = document.getElementById('messageMenuDeleteMineBtn');
   const deleteAllBtn = document.getElementById('messageMenuDeleteAllBtn');
+  const downloadBtn = document.getElementById('messageMenuDownloadBtn');
+  
   if(dateEl) dateEl.textContent = formatFullMessageDate(msg.createdAt || Date.now());
   if(editBtn) editBtn.disabled = !canEdit;
   if(deleteMineBtn) deleteMineBtn.disabled = false;
   if(deleteAllBtn) deleteAllBtn.disabled = !msg.out;
+  
+  // Media download integration
+  const media = typeof parseMediaMessage === 'function' ? parseMediaMessage(msg.text) : { isImage: false, isVideo: false, url: '' };
+  const isMedia = media.isImage || media.isVideo;
+  if(downloadBtn){
+    if (isMedia) {
+      downloadBtn.style.display = 'flex';
+      downloadBtn.onclick = function() {
+        if(typeof window.downloadMediaFromMenu === 'function') {
+          window.downloadMediaFromMenu(media.url, media.isImage ? 'image' : 'video');
+        }
+      };
+    } else {
+      downloadBtn.style.display = 'none';
+    }
+  }
+  
   tools.classList.add('active');
   document.body.appendChild(menu);
   menu.classList.add('open');
@@ -5244,6 +5405,7 @@ function renderContacts(list=contacts){
   }).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
 async function selectContact(id, options = {}){
+  if(typeof window.clearPendingAttachments === 'function') window.clearPendingAttachments();
   let found = contacts.find(c => c.id === id);
   const hasExistingConversation = Array.isArray(conversations[id]) && conversations[id].length > 0;
   const hasInboxEntry = !!(found && (found._lastInboxAt || found.preview || found.time));
@@ -5683,24 +5845,115 @@ async function sendMessage(){
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if(!activeContact || !sbClient || !currentUser) return;
+  
   const inp=document.getElementById('msgInput');
   const txt=inp.value.trim();
-  if(!txt) return;
-
-  inp.value='';
+  
+  if(!txt && pendingFiles.length === 0) return;
+  
+  // Cache target contact, text, and files
+  const targetContact = activeContact;
+  const textToSend = txt;
+  const filesToSend = [...pendingFiles];
+  
+  // Clear input fields and pending files immediately to feel responsive
+  inp.value = '';
+  clearPendingAttachments();
+  
   if(typeof window.stopTypingSignal === 'function') window.stopTypingSignal();
-  const payload = { sender_id: currentUser.id, receiver_id: activeContact.id, content: txt };
-  const { error } = await sbClient.from('messages').insert(payload);
-  if(error){
-    alert('Message send failed: ' + error.message);
-    return;
+  
+  // Lock UI if we are uploading files
+  const attachBtn = document.querySelector('.attach-btn');
+  const emojiBtn = document.querySelector('.emoji-btn');
+  const sendBtn = document.querySelector('.send-btn');
+  const inputWrap = document.querySelector('.input-wrap');
+  
+  const oldPlaceholder = inp.placeholder;
+  
+  if(filesToSend.length > 0) {
+    inp.disabled = true;
+    if(attachBtn) attachBtn.style.opacity = '0.5';
+    if(emojiBtn) emojiBtn.style.opacity = '0.5';
+    if(sendBtn) sendBtn.style.opacity = '0.5';
+    if(inputWrap) inputWrap.classList.add('uploading-state');
+    
+    // Upload each file sequentially
+    for(let i = 0; i < filesToSend.length; i++){
+      const item = filesToSend[i];
+      const isImage = item.file.type.startsWith('image/');
+      
+      inp.placeholder = appLang === 'ar' 
+        ? `جاري رفع ${i + 1} من ${filesToSend.length}... ⏳` 
+        : `Uploading ${i + 1} of ${filesToSend.length}... ⏳`;
+        
+      const extension = item.file.name.split('.').pop() || (isImage ? 'png' : 'mp4');
+      const fileName = `media_${Date.now()}_${Math.floor(Math.random()*1000)}.${extension}`;
+      
+      try {
+        const { data, error } = await sbClient.storage.from('voices').upload(fileName, item.file, {
+          contentType: item.file.type,
+          cacheControl: '3600'
+        });
+        
+        if(error){
+          alert((appLang === 'ar' ? 'فشل رفع الملف: ' : 'File upload failed: ') + error.message);
+          continue;
+        }
+        
+        const { data: urlData } = sbClient.storage.from('voices').getPublicUrl(fileName);
+        const publicUrl = urlData.publicUrl;
+        
+        const payload = isImage ? `[image]${publicUrl}` : `[video]${publicUrl}`;
+        
+        const { error: insertError } = await sbClient.from('messages').insert({
+          sender_id: currentUser.id,
+          receiver_id: targetContact.id,
+          content: payload
+        });
+        
+        if(insertError){
+          alert((appLang === 'ar' ? 'فشل إرسال الملف: ' : 'File send failed: ') + insertError.message);
+        }
+      } catch(err) {
+        console.error('Batch upload error:', err);
+        alert(appLang === 'ar' ? 'حدث خطأ أثناء الرفع!' : 'An error occurred during upload!');
+      }
+    }
+    
+    // Unlock UI
+    inp.disabled = false;
+    inp.placeholder = oldPlaceholder;
+    if(attachBtn) attachBtn.style.opacity = '1';
+    if(emojiBtn) emojiBtn.style.opacity = '1';
+    if(sendBtn) sendBtn.style.opacity = '1';
+    if(inputWrap) inputWrap.classList.remove('uploading-state');
   }
-
-  bumpActiveChatToTop(formatMessagePreviewText(txt, true));
+  
+  // If there's text, send it now
+  if (textToSend) {
+    const payload = { sender_id: currentUser.id, receiver_id: targetContact.id, content: textToSend };
+    const { error } = await sbClient.from('messages').insert(payload);
+    if(error){
+      alert('Message send failed: ' + error.message);
+    }
+  }
+  
+  // Trigger update
+  const lastMsgPreview = textToSend || (filesToSend.length > 0 
+    ? (filesToSend[filesToSend.length - 1].file.type.startsWith('image/') 
+      ? (appLang === 'ar' ? '📷 صورة' : '📷 Image') 
+      : (appLang === 'ar' ? '🎥 فيديو' : '🎥 Video')) 
+    : '');
+  
+  if (lastMsgPreview) {
+    bumpActiveChatToTop(formatMessagePreviewText(lastMsgPreview, true));
+  }
+  
   lastRenderedMessageSig = '';
-  await loadMessagesForContact(activeContact.id);
+  await loadMessagesForContact(targetContact.id);
   await loadInboxContacts();
   saveLocalChatState();
+  inp.focus();
 }
 function handleKey(e){
   if(e.key==='Enter'){
