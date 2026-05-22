@@ -373,6 +373,26 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
 .input-wrap input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:inherit;font-size:13px;direction:rtl;}
 .input-wrap input::placeholder{color:var(--muted);}
+.input-wrap.uploading-state {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.25) !important;
+  animation: pulse-border 1.5s infinite ease-in-out;
+}
+@keyframes pulse-border {
+  0% { opacity: 0.8; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.8; }
+}
+.media-bubble {
+  padding: 4px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.media-bubble img, .media-bubble video {
+  max-width: 100% !important;
+  border-radius: 8px;
+  display: block;
+}
 .emoji-btn,.attach-btn{color:var(--muted);font-size:16px;cursor:pointer;transition:color .15s;background:none;border:none;line-height:1;}
 .emoji-btn:hover{color:#f59e0b;}
 .attach-btn:hover{color:var(--accent);}
@@ -963,6 +983,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         <button class="emoji-btn" onclick="addEmoji()">😊</button>
         <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="handleTypingInput()">
         <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+        <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleFileSelected(event)">
     </div>
     <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
     <button class="send-btn" onclick="sendMessage()">➤</button>
@@ -3800,6 +3821,90 @@ function isSafeVoiceUrl(url){
   return /^https?:\/\//i.test(url);
 }
 
+async function handleFileSelected(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  
+  const sbClient = getSbClient();
+  const currentUser = getCurrentUser();
+  if(!sbClient || !currentUser || !activeContact) return;
+  
+  const isImage = file.type.startsWith('image/');
+  const isVideo = file.type.startsWith('video/');
+  if(!isImage && !isVideo){
+    alert(appLang === 'ar' ? '⚠️ يرجى اختيار صورة أو فيديو فقط!' : '⚠️ Please select an image or video only!');
+    return;
+  }
+  
+  // Show uploading state
+  const msgInput = document.getElementById('msgInput');
+  const attachBtn = document.querySelector('.attach-btn');
+  const emojiBtn = document.querySelector('.emoji-btn');
+  const sendBtn = document.querySelector('.send-btn');
+  const inputWrap = document.querySelector('.input-wrap');
+  
+  const oldPlaceholder = msgInput.placeholder;
+  const oldVal = msgInput.value;
+  
+  msgInput.disabled = true;
+  msgInput.placeholder = appLang === 'ar' ? 'جاري رفع الملف... ⏳' : 'Uploading file... ⏳';
+  msgInput.value = '';
+  if(attachBtn) attachBtn.style.opacity = '0.5';
+  if(emojiBtn) emojiBtn.style.opacity = '0.5';
+  if(sendBtn) sendBtn.style.opacity = '0.5';
+  if(inputWrap) inputWrap.classList.add('uploading-state');
+  
+  // Create unique filename
+  const extension = file.name.split('.').pop() || (isImage ? 'png' : 'mp4');
+  const fileName = `media_${Date.now()}.${extension}`;
+  
+  try {
+    const { data, error } = await sbClient.storage.from('voices').upload(fileName, file, {
+      contentType: file.type,
+      cacheControl: '3600'
+    });
+    
+    if(error){
+      alert((appLang === 'ar' ? 'فشل رفع الملف: ' : 'File upload failed: ') + error.message);
+      return;
+    }
+    
+    const { data: urlData } = sbClient.storage.from('voices').getPublicUrl(fileName);
+    const publicUrl = urlData.publicUrl;
+    
+    const payload = isImage ? `[image]${publicUrl}` : `[video]${publicUrl}`;
+    
+    const { error: insertError } = await sbClient.from('messages').insert({
+      sender_id: currentUser.id,
+      receiver_id: activeContact.id,
+      content: payload
+    });
+    
+    if(insertError){
+      alert((appLang === 'ar' ? 'فشل إرسال الملف: ' : 'File send failed: ') + insertError.message);
+      return;
+    }
+    
+    bumpActiveChatToTop(formatMessagePreviewText(payload, true));
+    lastRenderedMessageSig = '';
+    await loadMessagesForContact(activeContact.id);
+    await loadInboxContacts();
+  } catch(err) {
+    console.error('Upload error:', err);
+    alert(appLang === 'ar' ? 'حدث خطأ أثناء الرفع!' : 'An error occurred during upload!');
+  } finally {
+    msgInput.disabled = false;
+    msgInput.placeholder = oldPlaceholder;
+    msgInput.value = oldVal;
+    if(attachBtn) attachBtn.style.opacity = '1';
+    if(emojiBtn) emojiBtn.style.opacity = '1';
+    if(sendBtn) sendBtn.style.opacity = '1';
+    if(inputWrap) inputWrap.classList.remove('uploading-state');
+    event.target.value = ''; // clear selection
+  }
+}
+window.handleFileSelected = handleFileSelected;
+
 function formatVoiceDuration(seconds){
   const safe = Math.max(0, Math.floor(seconds || 0));
   const mins = Math.floor(safe / 60);
@@ -3826,9 +3931,31 @@ function formatVoicePreviewText(durationSeconds, isOutgoing = false){
   return `${prefix} • ${durationText}`;
 }
 
+function parseMediaMessage(raw){
+  const text = String(raw || '').trim();
+  const imgMatch = text.match(/^\[image\](.+)$/i);
+  if(imgMatch){
+    return { isImage: true, isVideo: false, url: imgMatch[1].trim() };
+  }
+  const vidMatch = text.match(/^\[video\](.+)$/i);
+  if(vidMatch){
+    return { isImage: false, isVideo: true, url: vidMatch[1].trim() };
+  }
+  return { isImage: false, isVideo: false, url: '' };
+}
+
 function formatMessagePreviewText(raw, isOutgoing = false){
   const voice = parseVoiceMessage(raw);
   if(voice.isVoice) return formatVoicePreviewText(voice.duration, isOutgoing);
+  
+  const media = parseMediaMessage(raw);
+  if(media.isImage){
+    return appLang === 'ar' ? '📷 صورة' : '📷 Image';
+  }
+  if(media.isVideo){
+    return appLang === 'ar' ? '🎥 فيديو' : '🎥 Video';
+  }
+  
   return String(raw || '').replace(/\r?\n|\r/g, ' ').trim();
 }
 
@@ -3942,6 +4069,8 @@ window.editMessageFromMenu = async function(){
   if(!msg || !msg.id || !msg.out) return;
   const voice = parseVoiceMessage(msg.text);
   if(voice.isVoice) return;
+  const media = parseMediaMessage(msg.text);
+  if(media.isImage || media.isVideo) return;
   const nextText = prompt(appLang === 'ar' ? 'عدّل الرسالة' : 'Edit message', msg.text || '');
   if(nextText === null) return;
   const trimmed = String(nextText).trim();
@@ -4128,6 +4257,7 @@ function createMessageRow(msg, isOut, showAvatar){
   bubble.className = 'bubble';
 
   const voice = parseVoiceMessage(msg.text);
+  const media = parseMediaMessage(msg.text);
   if(voice.isVoice){
     bubble.classList.add('voice-bubble');
     if(isSafeVoiceUrl(voice.url)){
@@ -4135,6 +4265,30 @@ function createMessageRow(msg, isOut, showAvatar){
     }else{
       bubble.textContent = '[voice]';
     }
+  }else if(media.isImage){
+    bubble.classList.add('media-bubble', 'image-bubble');
+    const img = document.createElement('img');
+    img.src = media.url;
+    img.alt = 'Shared image';
+    img.style.maxWidth = '250px';
+    img.style.maxHeight = '250px';
+    img.style.borderRadius = '12px';
+    img.style.cursor = 'pointer';
+    img.style.display = 'block';
+    img.addEventListener('click', () => {
+      window.open(media.url, '_blank');
+    });
+    bubble.appendChild(img);
+  }else if(media.isVideo){
+    bubble.classList.add('media-bubble', 'video-bubble');
+    const video = document.createElement('video');
+    video.src = media.url;
+    video.controls = true;
+    video.style.maxWidth = '250px';
+    video.style.maxHeight = '250px';
+    video.style.borderRadius = '12px';
+    video.style.display = 'block';
+    bubble.appendChild(video);
   }else{
     bubble.textContent = msg.text || '';
   }
