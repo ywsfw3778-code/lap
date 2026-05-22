@@ -929,16 +929,6 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
-
-  <!-- profile bar -->
-  <div class="profile-bar" onclick="openSettings()">
-    <div class="avatar" id="myAvatar2" style="width:32px;height:32px;cursor:pointer;background:var(--surface2);color:var(--accent);flex-shrink:0;"></div>
-    <div style="flex:1;min-width:0;">
-      <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="myName">—</div>
-      <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="myEmail">—</div>
-    </div>
-    <div style="width:7px;height:7px;border-radius:50%;background:var(--online);flex-shrink:0;"></div>
-  </div>
 </div>
 
 <!-- CHAT -->
@@ -1524,8 +1514,10 @@ function applyMyProfileUI(){
     avatar: myAvatarUrl || ''
   };
   setAvatarNode(document.getElementById('myAvatar'), init, myAvatarUrl);
-  document.getElementById('myName').textContent = myName;
-  document.getElementById('myEmail').textContent = myEmail;
+  const myNameEl = document.getElementById('myName');
+  if(myNameEl) myNameEl.textContent = myName;
+  const myEmailEl = document.getElementById('myEmail');
+  if(myEmailEl) myEmailEl.textContent = myEmail;
   // sync profile bar avatar too
   const myAvatar2 = document.getElementById('myAvatar2');
   if(myAvatar2) setAvatarNode(myAvatar2, init, myAvatarUrl);
@@ -1995,7 +1987,7 @@ function renderFriendActionButton(targetId, relation, isProfileView = false){
   if(!relation){
     btnHtml = `<button class="${btnClass}" data-friend-state="none" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); cursor:pointer; transition:all 0.2s; ${btnStyle}">إضافة صديق ➕</button>`;
   } else if(relation.status === 'accepted'){
-    btnHtml = `<button class="${btnClass}" data-friend-state="accepted" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); transition:all 0.2s; ${btnStyle}">أصدقاء ✅</button>`;
+    btnHtml = `<button class="${btnClass}" data-friend-state="accepted" onclick="window.unfriendUser('${safeTargetId}', this)" style="background:transparent; color:var(--online); border:1px solid var(--online); cursor:pointer; transition:all 0.2s; ${btnStyle}" onmouseover="this.style.color='#ff4444'; this.style.borderColor='#ff4444'; this.innerText='إلغاء الصداقة ❌';" onmouseout="this.style.color='var(--online)'; this.style.borderColor='var(--online)'; this.innerText='أصدقاء ✅';">أصدقاء ✅</button>`;
   } else if(relation.status === 'pending' && sentByMe){
     btnHtml = `<button class="${btnClass}" data-friend-state="sent" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); cursor:pointer; transition:all 0.2s; ${btnStyle}">إلغاء الطلب ⏳</button>`;
   } else {
@@ -2249,6 +2241,76 @@ window.sendFriendRequest = async function(targetId, btnElement) {
     btnElement.style.background = 'var(--accent-glow)';
     btnElement.style.color = 'var(--accent)';
     btnElement.style.borderColor = 'var(--accent)';
+  }
+};
+
+
+window.unfriendUser = async function(targetId, btnElement) {
+  if(!btnElement) return;
+  
+  if(!confirm('هل تريد إلغاء الصداقة مع هذا المستخدم؟')) {
+    return;
+  }
+  
+  try {
+    btnElement.disabled = true;
+    btnElement.textContent = 'جاري الإلغاء...';
+    
+    const currentUser = await getFreshCurrentUser();
+    if(!currentUser) throw new Error('الحساب الحالي غير متاح');
+    
+    const relation = await getFriendRelation(targetId);
+    if (!relation) throw new Error('لم يتم العثور على علاقة صداقة نشطة');
+    
+    let error = null;
+    const currentEmail = String(currentUser.email || '').trim();
+    
+    // 1. محاولة الحذف المباشر للصف من جدول friend_requests
+    const res = await window.sb
+      .from('friend_requests')
+      .delete()
+      .eq('id', relation.id);
+      
+    error = res.error;
+    
+    // 2. إذا فشل الحذف المباشر (بسبب قيود RLS)، نحاول استخدام الـ RPC
+    if (error) {
+      console.warn('Direct delete failed, trying cancel RPC...', error);
+      const cancelRpc = currentEmail
+        ? await callRpcSafe('cancel_friend_request_for_email', { current_email: currentEmail, target_user_id: targetId })
+        : await callRpcSafe('cancel_friend_request', { target_user_id: targetId });
+      error = cancelRpc.error;
+    }
+    
+    if (error) throw new Error(error.message || String(error));
+    
+    // تحديث الزر بعد النجاح
+    btnElement.textContent = 'تم إلغاء الصداقة';
+    btnElement.style.color = 'var(--muted)';
+    btnElement.style.borderColor = 'var(--border2)';
+    
+    // تحديث المحادثات وقائمة الأصدقاء
+    await loadInboxContacts();
+    window.refreshFriendRequestBadge?.();
+    
+    if (typeof window.loadPendingRequests === 'function') {
+      window.loadPendingRequests().catch(() => {});
+    }
+    if (document.getElementById('searchOverlay')?.classList.contains('open')) {
+      window.searchFriends().catch(() => {});
+    }
+    
+    const profileOverlay = document.getElementById('profileOverlay');
+    if (profileOverlay?.classList.contains('open') && profileOverlay?.dataset?.userId === targetId) {
+      window.openUserProfile(targetId).catch(() => {});
+    }
+  } catch(err) {
+    console.error("Unfriend Error:", err);
+    alert('فشل إلغاء الصداقة:\n' + (err?.message || String(err)));
+    btnElement.disabled = false;
+    btnElement.textContent = 'أصدقاء ✅';
+    btnElement.style.color = 'var(--online)';
+    btnElement.style.borderColor = 'var(--online)';
   }
 };
 
@@ -4325,6 +4387,9 @@ async function loadInboxContacts(){
       if(refreshedActive){
         activeContact = refreshedActive;
         window.activeContactRef = refreshedActive;
+      } else {
+        activeContact = contacts[0] || null;
+        window.activeContactRef = activeContact;
       }
     }else if(contacts.length && !(isMobileView() && mobileSidebarOpen)){
       activeContact = contacts[0];
