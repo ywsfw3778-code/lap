@@ -2149,6 +2149,26 @@ let presenceChannel = null;
 let friendRequestPollTimer = null;
 let friendRequestsChannel = null;
 const onlineUserIds = new Set();
+function isUserOnline(contactOrId){
+  if(!contactOrId) return false;
+  let id = '';
+  let contact = null;
+  if(typeof contactOrId === 'string'){
+    id = contactOrId;
+    contact = (typeof contacts !== 'undefined' ? contacts : []).find(c => c.id === id);
+  } else {
+    contact = contactOrId;
+    id = contact.id;
+  }
+  if(onlineUserIds.has(id)) return true;
+  if(contact && contact.lastSeenAt){
+    const diff = Date.now() - new Date(contact.lastSeenAt).getTime();
+    if(diff > 0 && diff < 20000) return true;
+  }
+  if(contact && contact.online) return true;
+  return false;
+}
+window.isUserOnline = isUserOnline;
 let lastRenderedChatId = null;
 let lastRenderedMessageSig = '';
 let mobileSidebarOpen = false;
@@ -2676,7 +2696,7 @@ async function fillProfileOverlay(data){
   const username = data?.username || '';
   const avatar = data?.avatar || '';
   const isSelf = !!data?.isSelf;
-  const isOnline = !!data?.online;
+  const isOnline = isUserOnline(id || data);
   const code = data?.memberCode || (window.getLabCode ? window.getLabCode(id) : '000');
   const lastSeenAt = data?.lastSeenAt || '';
 
@@ -2783,7 +2803,7 @@ window.openActiveProfile = function(){
     avatar: activeContact.avatar || '',
     memberCode: window.getLabCode ? window.getLabCode(activeContact.id) : '000',
     lastSeenAt: activeContact.lastSeenAt || '',
-    online: onlineUserIds.has(activeContact.id),
+    online: isUserOnline(activeContact.id),
     isSelf: false
   });
   window.openUserProfile(activeContact.id);
@@ -2809,7 +2829,7 @@ window.openUserProfile = async function(userId){
     avatar: existing.avatar || '',
     memberCode: window.getLabCode ? window.getLabCode(userId) : '000',
     lastSeenAt: existing.lastSeenAt || '',
-    online: onlineUserIds.has(userId),
+    online: isUserOnline(userId),
     isSelf: false
   });
 
@@ -2843,7 +2863,7 @@ window.openUserProfile = async function(userId){
     avatar: avatar,
     memberCode: window.getLabCode ? window.getLabCode(userId) : '000',
     lastSeenAt: profile.last_seen_at || existing.lastSeenAt || '',
-    online: onlineUserIds.has(userId),
+    online: isUserOnline(userId),
     isSelf: false
   });
 };
@@ -2980,7 +3000,7 @@ function updateHeaderPresence(){
     st.innerHTML = `<span class="status-pulse"></span> ${t('online')}`;
     return;
   }
-  const isOn = onlineUserIds.has(activeContact.id);
+  const isOn = isUserOnline(activeContact);
   st.classList.toggle('offline', !isOn);
   const label = isOn ? t('online') : window.formatLastSeenLabel(activeContact.lastSeenAt || '');
   st.innerHTML = `<span class="status-pulse ${isOn ? '' : 'offline'}"></span> ${label}`;
@@ -2988,7 +3008,7 @@ function updateHeaderPresence(){
 
 function applyPresenceToContacts(){
   contacts.forEach(c => {
-    const isOn = onlineUserIds.has(c.id);
+    const isOn = isUserOnline(c);
     c.online = isOn;
     if(isOn) c.lastSeenAt = new Date().toISOString();
   });
@@ -3669,6 +3689,12 @@ function startMessagePolling(){
     }
   }, 3000);
   window.messagePollTimer = messagePollTimer;
+
+  if(window.lastSeenUpdateTimer) clearInterval(window.lastSeenUpdateTimer);
+  window.lastSeenUpdateTimer = setInterval(() => {
+    updateMyLastSeen();
+  }, 10000);
+  updateMyLastSeen();
 }
 
 function colorFromId(id){
@@ -3930,9 +3956,10 @@ function renderContacts(list=contacts){
     const safePreview = escapeHtml(c.preview || '');
     const safeTime = escapeHtml(c.time || '');
     const safeUnread = Number(c.unread || 0);
+    const userIsOnline = isUserOnline(c);
     return `
     <div class="contact ${activeContact&&c.id===activeContact.id?'active':''}" onclick="selectContact('${safeId}')">
-      <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(c.init, c.avatar, c.online?'dot-online':'dot-offline')}</div>
+      <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(c.init, c.avatar, userIsOnline?'dot-online':'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${safeName}<span class="member-code">#${safeCode}</span></div><div class="contact-preview">${safePreview}</div></div>
       <div class="contact-meta"><div class="contact-time">${safeTime}</div>${safeUnread?`<div class="badge">${safeUnread}</div>`:''}</div>
     </div>`;
@@ -4053,9 +4080,10 @@ function renderSidebarSearchResults(results){
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
     const safePreview = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    const userIsOnline = isUserOnline(u);
     return `
     <div class="contact" onclick="startChatFromSidebar('${safeId}')">
-      <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar, 'dot-offline')}</div>
+      <div class="avatar" style="background:${safeColor};color:${safeText};" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar, userIsOnline?'dot-online':'dot-offline')}</div>
       <div class="contact-info"><div class="contact-name">${safeName}<span class="member-code">#${safeCode}</span></div><div class="contact-preview">${safePreview}</div></div>
       <div class="contact-meta"><div class="badge">+</div></div>
     </div>`;
@@ -4526,15 +4554,34 @@ window.onAuthReady = async function(){
   window.startFriendRequestsRealtime?.();
   window.startMessagesRealtime?.();
 
-  await loadInboxContacts();
-  if(restoredId && typeof window.openChatById === 'function'){
-    window.openChatById(restoredId);
-  }else if(!activeContact && contacts.length){
-    const topContact = contacts[0];
-    if(topContact) window.openChatById?.(topContact.id);
+  try {
+    await loadInboxContacts();
+  } catch(e) {
+    console.warn('Boot loadInboxContacts failed:', e);
   }
-  initPresence();
-  startMessagePolling();
+
+  try {
+    if(restoredId && typeof window.openChatById === 'function'){
+      window.openChatById(restoredId);
+    }else if(!activeContact && contacts.length){
+      const topContact = contacts[0];
+      if(topContact) window.openChatById?.(topContact.id);
+    }
+  } catch(e) {
+    console.warn('Boot openChatById failed:', e);
+  }
+
+  try {
+    initPresence();
+  } catch(e) {
+    console.warn('Boot initPresence failed:', e);
+  }
+
+  try {
+    startMessagePolling();
+  } catch(e) {
+    console.warn('Boot startMessagePolling failed:', e);
+  }
 
   if(typeof window.refreshProfilesDirectory === 'function'){
     window.refreshProfilesDirectory().catch(() => {});
@@ -4841,20 +4888,24 @@ window.startMessagesRealtime = function() {
     messagesRealtimeChannel = sbClient
       .channel(`realtime-messages-${currentUser.id}`)
       .on('postgres_changes', {
-        event: 'INSERT',
+        event: '*',
         schema: 'public',
         table: 'messages'
       }, (payload) => {
-        if(payload.new) {
-          const senderId = payload.new.sender_id;
-          const receiverId = payload.new.receiver_id;
-          const activeContactRef = window.activeContactRef || activeContact;
-          
+        const row = payload.new || payload.old;
+        const activeContactRef = window.activeContactRef || activeContact;
+        if(row) {
+          const senderId = row.sender_id;
+          const receiverId = row.receiver_id;
           if(activeContactRef && (senderId === activeContactRef.id || receiverId === activeContactRef.id)) {
             loadMessagesForContact(activeContactRef.id);
           }
-          loadInboxContacts();
+        } else {
+          if(activeContactRef) {
+            loadMessagesForContact(activeContactRef.id);
+          }
         }
+        loadInboxContacts();
       })
       .subscribe((status, err) => {
         if(err) console.warn('Messages realtime channel subscription error:', err);
