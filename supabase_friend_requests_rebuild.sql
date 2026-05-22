@@ -603,11 +603,15 @@ for delete
 to authenticated
 using (
   auth.uid() = sender_id
+  or auth.uid() = receiver_id
   or exists (
     select 1
     from public.user_identities ui_my
     where ui_my.user_id = auth.uid()
-      and lower(ui_my.email) = lower(friend_requests.sender_email)
+      and (
+        lower(ui_my.email) = lower(friend_requests.sender_email)
+        or lower(ui_my.email) = lower(friend_requests.receiver_email)
+      )
   )
 );
 

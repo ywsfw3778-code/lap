@@ -2437,21 +2437,12 @@ const onlineUserIds = new Set();
 function isUserOnline(contactOrId){
   if(!contactOrId) return false;
   let id = '';
-  let contact = null;
   if(typeof contactOrId === 'string'){
     id = contactOrId;
-    contact = (typeof contacts !== 'undefined' ? contacts : []).find(c => c.id === id);
   } else {
-    contact = contactOrId;
-    id = contact.id;
+    id = contactOrId.id;
   }
-  if(onlineUserIds.has(id)) return true;
-  if(contact && contact.lastSeenAt){
-    const diff = Date.now() - new Date(contact.lastSeenAt).getTime();
-    if(Math.abs(diff) < 35000) return true;
-  }
-  if(contact && contact.online) return true;
-  return false;
+  return onlineUserIds.has(String(id || ''));
 }
 window.isUserOnline = isUserOnline;
 let lastRenderedChatId = null;
@@ -3567,17 +3558,16 @@ function updateHeaderPresence(){
     st.innerHTML = `<span class="status-pulse"></span> ${t('online')}`;
     return;
   }
-  const isOn = isUserOnline(activeContact);
+  const freshContact = (typeof contacts !== 'undefined' ? contacts : []).find(c => c.id === activeContact.id) || activeContact;
+  const isOn = isUserOnline(freshContact);
   st.classList.toggle('offline', !isOn);
-  const label = isOn ? t('online') : window.formatLastSeenLabel(activeContact.lastSeenAt || '');
+  const label = isOn ? t('online') : window.formatLastSeenLabel(freshContact.lastSeenAt || '');
   st.innerHTML = `<span class="status-pulse ${isOn ? '' : 'offline'}"></span> ${label}`;
 }
 
 function applyPresenceToContacts(){
   contacts.forEach(c => {
-    const isOn = isUserOnline(c);
-    c.online = isOn;
-    if(isOn) c.lastSeenAt = new Date().toISOString();
+    c.online = isUserOnline(c);
   });
   updateHeaderPresence();
   renderContacts();
@@ -3697,10 +3687,16 @@ function initPresence(){
     .on('presence', { event: 'leave' }, ({ leftPresences }) => {
       (leftPresences || []).forEach(p => {
         const uid = p.key;
-        if(uid){ onlineUserIds.delete(uid); }
+        if(uid){
+          onlineUserIds.delete(uid);
+          const contact = (typeof contacts !== 'undefined' ? contacts : []).find(c => c.id === uid);
+          if(contact){
+            contact.online = false;
+            contact.lastSeenAt = new Date().toISOString();
+          }
+        }
       });
-      updateHeaderPresence();
-      renderContacts();
+      applyPresenceToContacts();
     })
     .subscribe(async (status) => {
       if(status === 'SUBSCRIBED'){
