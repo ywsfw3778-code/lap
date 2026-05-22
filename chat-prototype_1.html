@@ -927,64 +927,158 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 </div><!-- #app -->
 
 <!-- SETTINGS OVERLAY -->
+<!-- SETTINGS OVERLAY -->
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
-  <div class="panel">
-    <div class="panel-top">
+  <div class="panel" style="width: 480px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; padding: 24px;">
+    <div class="panel-top" style="flex-shrink: 0; margin-bottom: 4px;">
       <div class="panel-title" id="settingsTitle">⚙️ الإعدادات</div>
       <div class="panel-close" onclick="closeSettings()">×</div>
     </div>
-    <div class="panel-sub" id="settingsSub">خصص شكل التطبيق</div>
-    <div class="section-title" id="settingsThemeTitle">// THEME</div>
-    <div class="theme-grid">
-      <div class="theme-card selected" id="tc-amloud" onclick="setTheme('amloud')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amloud 🌑</div><div class="theme-desc">أسود + كحلي</div>
-      </div>
-      <div class="theme-card" id="tc-steins" onclick="setTheme('steins')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Steins;Gate 📟</div><div class="theme-desc">أخضر نيون</div>
-      </div>
-      <div class="theme-card" id="tc-crimson" onclick="setTheme('crimson')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Crimson 🔴</div><div class="theme-desc">أحمر داكن</div>
-      </div>
-      <div class="theme-card" id="tc-amber" onclick="setTheme('amber')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Amber 🟡</div><div class="theme-desc">ذهبي دافئ</div>
-      </div>
-      <div class="theme-card" id="tc-cyan" onclick="setTheme('cyan')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Cyan 🔵</div><div class="theme-desc">سماوي تيك</div>
-      </div>
-      <div class="theme-card" id="tc-white" onclick="setTheme('white')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">White ⚪</div><div class="theme-desc">فاتح ونظيف</div>
-      </div>
-      <div class="theme-card" id="tc-black" onclick="setTheme('black')">
-        <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
-        <div class="theme-name">Black ⚫</div><div class="theme-desc">أسود أحادي</div>
-      </div>
+    <div class="panel-sub" id="settingsSub" style="flex-shrink: 0; margin-bottom: 14px;">خصص حسابك ومظهر التطبيق</div>
+    
+    <!-- Settings Tabs -->
+    <div class="settings-tabs">
+      <button class="settings-tab-btn active" id="btnSettingsTabProfile" onclick="switchSettingsTab('profile')">
+        <span>👤</span> <span id="tabLabelProfile">الملف الشخصي</span>
+      </button>
+      <button class="settings-tab-btn" id="btnSettingsTabAppearance" onclick="switchSettingsTab('appearance')">
+        <span>🎨</span> <span id="tabLabelAppearance">المظهر</span>
+      </button>
+      <button class="settings-tab-btn" id="btnSettingsTabOptions" onclick="switchSettingsTab('options')">
+        <span>⚙️</span> <span id="tabLabelOptions">الخيارات</span>
+      </button>
     </div>
-    <div class="divider"></div>
-        <div class="section-title" id="settingsOptionsTitle">// OPTIONS</div>
-    <div class="toggle-row">
-      <div><div class="toggle-label" id="lblCrt">CRT Scanlines</div><div class="toggle-desc" id="descCrt">Classic screen effect</div></div>
-      <div class="toggle" id="crtToggle" onclick="toggleCRT()"></div>
-    </div>
-    <div class="toggle-row">
-      <div><div class="toggle-label" id="lblNotify">Notifications</div><div class="toggle-desc" id="descNotify">Sound on new message</div></div>
-      <div class="toggle" id="notifyToggle" onclick="toggleNotifications()"></div>
-    </div>
-    <div class="toggle-row">
-      <div><div class="toggle-label" id="lblEnterSend">Enter to send</div><div class="toggle-desc" id="descEnterSend">Press Enter instead of send button</div></div>
-      <div class="toggle on" onclick="this.classList.toggle('on')"></div>
-    </div>
-    <div class="toggle-row">
-      <div><div class="toggle-label" id="langLabel">Language</div><div class="toggle-desc" id="langDesc">Change app language</div></div>
-      <div class="lang-opt">
-        <button class="lang-opt-btn" id="lang-ar-opt" onclick="setAppLang('ar')">AR</button>
-        <button class="lang-opt-btn" id="lang-en-opt" onclick="setAppLang('en')">EN</button>
+
+    <!-- Scrollable content area -->
+    <div class="settings-content-wrapper" style="flex: 1; overflow-y: auto; padding-right: 4px; padding-left: 4px; display: flex; flex-direction: column;">
+      
+      <!-- Profile Tab -->
+      <div class="settings-tab-pane active" id="pane-profile">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; position: relative;">
+          <!-- Avatar container with a premium overlay -->
+          <div style="position: relative; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 4px 15px var(--accent-glow); overflow: visible; display: flex; align-items: center; justify-content: center; background: var(--surface2);">
+            <div id="settingsProfileAv" style="width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600;">?</div>
+            <button type="button" onclick="document.getElementById('settingsAvatarInput').click()" style="position: absolute; bottom: -2px; right: -2px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); border: 2px solid var(--sidebar); color: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; padding: 0;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">📷</button>
+          </div>
+          <input id="settingsAvatarInput" type="file" accept="image/*" style="display:none" onchange="handleSettingsAvatarPick(event)" />
+          <div id="settingsAvatarNote" style="font-size: 11px; color: var(--muted); text-align: center; min-height: 14px;"></div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="settings-input-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 12px; color: var(--muted); font-weight: 600;" id="lblSettingsName">الاسم المعروض</label>
+            <input class="profile-input" id="settingsEditName" type="text" placeholder="الاسم الكامل" style="width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'" />
+          </div>
+
+          <div class="settings-input-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 12px; color: var(--muted); font-weight: 600;" id="lblSettingsUsername">اسم المستخدم</label>
+            <input class="profile-input" id="settingsEditUsername" type="text" placeholder="username" style="width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'" />
+            <div style="font-size: 11px; color: var(--muted);" id="settingsUsernameHint">من 3 لـ 20 حرف أو أرقام أو _</div>
+          </div>
+
+          <div style="display: flex; gap: 10px; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid var(--border);">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; color: var(--muted);" id="lblSettingsEmail">البريد الإلكتروني</span>
+              <span style="font-size: 13px; font-weight: 600; color: var(--text); word-break: break-all;" id="settingsEmailValue">—</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end; justify-content: center; border-inline-start: 1px solid var(--border); padding-inline-start: 12px;">
+              <span style="font-size: 11px; color: var(--muted);" id="lblSettingsCode">كود العضو</span>
+              <span style="font-size: 13px; font-weight: 700; color: var(--accent);" id="settingsCodeValue">#001</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 10px; flex-shrink: 0;">
+          <button class="pbtn" id="settingsSaveProfileBtn" onclick="saveSettingsProfile()" style="flex: 1; padding: 11px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; height: auto;">حفظ التغييرات</button>
+          <button class="pbtn danger" onclick="window.handleLogout()" style="padding: 11px 16px; border-radius: 10px; font-size: 13px; font-weight: 700; height: auto; display: flex; align-items: center; justify-content: center; gap: 4px;">تسجيل الخروج</button>
+        </div>
       </div>
+
+      <!-- Appearance Tab -->
+      <div class="settings-tab-pane" id="pane-appearance" style="display: none;">
+        <div class="section-title" id="settingsThemeTitleTab" style="font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">// الثيمات الأساسية</div>
+        <div class="theme-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px;">
+          <div class="theme-card selected" id="tc-amloud" onclick="setTheme('amloud')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">Amloud 🌑</div><div class="theme-desc">أسود + كحلي</div>
+          </div>
+          <div class="theme-card" id="tc-steins" onclick="setTheme('steins')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">Steins;Gate 📟</div><div class="theme-desc">أخضر نيون</div>
+          </div>
+          <div class="theme-card" id="tc-crimson" onclick="setTheme('crimson')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">Crimson 🔴</div><div class="theme-desc">أحمر داكن</div>
+          </div>
+          <div class="theme-card" id="tc-amber" onclick="setTheme('amber')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">Amber 🟡</div><div class="theme-desc">ذهبي دافئ</div>
+          </div>
+          <div class="theme-card" id="tc-cyan" onclick="setTheme('cyan')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">Cyan 🔵</div><div class="theme-desc">سماوي تيك</div>
+          </div>
+          <div class="theme-card" id="tc-white" onclick="setTheme('white')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">White ⚪</div><div class="theme-desc">فاتح ونظيف</div>
+          </div>
+          <div class="theme-card" id="tc-black" onclick="setTheme('black')">
+            <div class="tp"><div class="tp-s"></div><div class="tp-m"></div><div class="tp-b"></div></div>
+            <div class="theme-name">Black ⚫</div><div class="theme-desc">أسود أحادي</div>
+          </div>
+        </div>
+
+        <div class="divider" style="height: 1px; background: var(--border); margin: 6px 0;"></div>
+        
+        <!-- Premium customized chat backgrounds -->
+        <div class="section-title" style="font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">// تخصيص الخلفية والمظهر</div>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="settings-input-group" style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 12px; color: var(--muted); font-weight: 600;" id="lblCustomBg">رابط خلفية الشات المخصصة (URL)</label>
+            <div style="display: flex; gap: 8px;">
+              <input id="txtCustomBg" type="text" placeholder="https://example.com/image.jpg" style="flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; padding: 10px 12px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; direction: ltr;" />
+              <button onclick="applyCustomChatBg()" class="pbtn" style="padding: 10px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; height: auto;">تطبيق</button>
+            </div>
+            <div style="font-size: 11px; color: var(--muted);">أدخل رابط صورة (يمكنك أيضاً إبقاؤها فارغة لاستخدام خلفية الثيم الافتراضية)</div>
+          </div>
+
+          <div class="settings-input-group" style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label style="font-size: 12px; color: var(--muted); font-weight: 600;" id="lblGlassOpacity">تعتيم وشفافية الزجاج (Glass opacity)</label>
+              <span id="valGlassOpacity" style="font-size: 12px; color: var(--accent); font-weight: 600;">60%</span>
+            </div>
+            <input type="range" id="rngGlassOpacity" min="5" max="100" value="60" oninput="changeGlassOpacity(this.value)" style="width: 100%; accent-color: var(--accent); cursor: pointer;" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Options Tab -->
+      <div class="settings-tab-pane" id="pane-options" style="display: none;">
+        <div class="section-title" id="settingsOptionsTitleTab" style="font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px;">// خيارات عامة</div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="toggle-row">
+            <div><div class="toggle-label" id="lblCrt">CRT Scanlines</div><div class="toggle-desc" id="descCrt">Classic screen effect</div></div>
+            <div class="toggle" id="crtToggle" onclick="toggleCRT()"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label" id="lblNotify">Notifications</div><div class="toggle-desc" id="descNotify">Sound on new message</div></div>
+            <div class="toggle" id="notifyToggle" onclick="toggleNotifications()"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label" id="lblEnterSend">Enter to send</div><div class="toggle-desc" id="descEnterSend">Press Enter instead of send button</div></div>
+            <div class="toggle on" id="settingsEnterSendToggle" onclick="toggleSettingsEnterSend(this)"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label" id="langLabel">Language</div><div class="toggle-desc" id="langDesc">Change app language</div></div>
+            <div class="lang-opt">
+              <button class="lang-opt-btn" id="lang-ar-opt" onclick="setAppLang('ar')">AR</button>
+              <button class="lang-opt-btn" id="lang-en-opt" onclick="setAppLang('en')">EN</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -2540,6 +2634,7 @@ function setTheme(t){
   else{crtOn=false;document.getElementById('crtToggle').classList.remove('on');}
   applyCRT();
   localStorage.setItem('lm-theme',t);
+  if(typeof window.applyCustomAppearance === 'function') window.applyCustomAppearance();
 }
 function toggleCRT(){crtOn=!crtOn;document.getElementById('crtToggle').classList.toggle('on',crtOn);applyCRT();}
 function applyCRT(){document.getElementById('appBody').style.setProperty('--crt',crtOn?'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px)':'none');}
@@ -2656,8 +2751,294 @@ function applyLanguage(){
 }
 
 // PANELS
-window.openSettings = function(){document.getElementById('settingsOverlay').classList.add('open');};
-window.closeSettings = function(){document.getElementById('settingsOverlay').classList.remove('open');};
+// --- PREMIUM TABBED SETTINGS PANEL SYSTEM ---
+window.switchSettingsTab = function(tabName) {
+  const tabs = ['profile', 'appearance', 'options'];
+  tabs.forEach(t => {
+    const pane = document.getElementById('pane-' + t);
+    const btn = document.getElementById('btnSettingsTab' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (pane) {
+      if (t === tabName) pane.classList.add('active');
+      else pane.classList.remove('active');
+    }
+    if (btn) {
+      if (t === tabName) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  });
+};
+
+window.openSettings = function() {
+  const overlay = document.getElementById('settingsOverlay');
+  if(!overlay) return;
+  
+  // Fill profile tab fields
+  const editName = document.getElementById('settingsEditName');
+  const editUsername = document.getElementById('settingsEditUsername');
+  const emailValue = document.getElementById('settingsEmailValue');
+  const codeValue = document.getElementById('settingsCodeValue');
+  const settingsAv = document.getElementById('settingsProfileAv');
+  
+  if (editName) editName.value = myName || '';
+  if (editUsername) editUsername.value = myUsername || '';
+  if (emailValue) emailValue.textContent = myEmail || me.email || '—';
+  if (codeValue) codeValue.textContent = '#' + window.getLabCode(me.id);
+  
+  if (settingsAv) {
+    settingsAv.innerHTML = '';
+    window.setAvatarNode(settingsAv, myName || myEmail, myAvatarUrl || '');
+  }
+  
+  // Fill appearance tab fields
+  const customBgInput = document.getElementById('txtCustomBg');
+  if (customBgInput) {
+    customBgInput.value = localStorage.getItem('lm-custom-chat-bg') || '';
+  }
+  
+  const glassOpacity = localStorage.getItem('lm-glass-opacity') || '60';
+  const rngOpacity = document.getElementById('rngGlassOpacity');
+  const valOpacity = document.getElementById('valGlassOpacity');
+  if (rngOpacity) rngOpacity.value = glassOpacity;
+  if (valOpacity) valOpacity.textContent = glassOpacity + '%';
+  
+  // Fill options tab fields
+  if (typeof crtOn !== 'undefined') {
+    document.getElementById('crtToggle')?.classList.toggle('on', !!crtOn);
+  }
+  if (typeof notificationsEnabled !== 'undefined') {
+    document.getElementById('notifyToggle')?.classList.toggle('on', !!notificationsEnabled);
+  }
+  
+  const enterSend = localStorage.getItem('lm-enter-send') !== 'off';
+  document.getElementById('settingsEnterSendToggle')?.classList.toggle('on', enterSend);
+  
+  // Open overlay and switch to profile tab by default
+  overlay.classList.add('open');
+  window.switchSettingsTab('profile');
+  
+  // Clear any file input/note states
+  const note = document.getElementById('settingsAvatarNote');
+  if(note) note.textContent = '';
+  const fileInput = document.getElementById('settingsAvatarInput');
+  if(fileInput) fileInput.value = '';
+};
+
+window.closeSettings = function() {
+  document.getElementById('settingsOverlay')?.classList.remove('open');
+};
+
+window.handleSettingsAvatarPick = async function(event) {
+  const file = event?.target?.files?.[0];
+  if(!file) return;
+  const note = document.getElementById('settingsAvatarNote');
+  try {
+    if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ الرفع...';
+    toast(document.documentElement.lang === 'en' ? 'Uploading avatar...' : 'جارِ رفع الصورة الشخصية...');
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `avatar_${me.id}_${Date.now()}.${fileExt}`;
+    const sbClient = window.sb;
+    
+    const { data, error } = await sbClient.storage.from('avatars').upload(fileName, file, { upsert: true });
+    if(error) {
+       toast('فشل الرفع: ' + error.message, 'error');
+       if(note) note.textContent = 'فشل الرفع';
+       return;
+    }
+
+    const { data: urlData } = sbClient.storage.from('avatars').getPublicUrl(fileName);
+    myAvatarUrl = urlData.publicUrl;
+
+    if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploaded successfully!' : 'تم الرفع بنجاح!';
+    
+    saveLocalAvatar(myAvatarUrl);
+    applyMyProfileUI();
+    
+    const settingsAv = document.getElementById('settingsProfileAv');
+    if (settingsAv) {
+      settingsAv.innerHTML = '';
+      window.setAvatarNode(settingsAv, myName, myAvatarUrl);
+    }
+    
+    await sbClient.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
+    await upsertMyProfileOnServer({ avatar_url: myAvatarUrl || null });
+    
+    if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
+    if(typeof window.renderContacts === 'function') window.renderContacts();
+    if(typeof window.renderMessages === 'function') window.renderMessages();
+    if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
+    
+    toast(document.documentElement.lang === 'en' ? 'Avatar updated!' : '✅ تم تحديث الصورة الشخصية بنجاح!');
+  } catch(_e) {
+    console.error(_e);
+    toast('حدث خطأ أثناء الرفع', 'error');
+    if(note) note.textContent = 'حدث خطأ';
+  }
+};
+
+window.saveSettingsProfile = async function() {
+  const btn = document.getElementById('settingsSaveProfileBtn');
+  const nameInput = document.getElementById('settingsEditName');
+  const usernameInput = document.getElementById('settingsEditUsername');
+  if(!nameInput || !usernameInput) return;
+  
+  const name = nameInput.value.trim();
+  const username = normalizeUsername(usernameInput.value);
+  
+  if(!name){ toast(tr('saveNameReq'), 'error'); return; }
+  if(!/^[a-z0-9_]{3,20}$/.test(username)){
+    toast(tr('saveUserRule'), 'error');
+    return;
+  }
+
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = tr('saveBtnBusy');
+
+  try {
+    const { data: taken, error: takenErr } = await sb
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .neq('id', me.id)
+      .limit(1);
+
+    if(taken && taken.length){
+      btn.disabled = false;
+      btn.textContent = originalText;
+      toast(tr('saveUserTaken'), 'error');
+      return;
+    }
+
+    const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: myAvatarUrl || null } });
+    if(authErr){
+      btn.disabled = false;
+      btn.textContent = originalText;
+      toast('? '+authErr.message, 'error');
+      return;
+    }
+
+    myName = name;
+    myUsername = username;
+    saveLocalAvatar(myAvatarUrl);
+    applyMyProfileUI();
+    if(typeof window.applyLanguage === 'function') window.applyLanguage();
+
+    await upsertMyProfileOnServer({
+      username,
+      full_name: name,
+      avatar_url: myAvatarUrl || null
+    });
+    
+    try {
+      if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
+    } catch(_e){}
+
+    btn.disabled = false;
+    btn.textContent = originalText;
+    toast(tr('saveDone'));
+  } catch(e) {
+    console.error(e);
+    btn.disabled = false;
+    btn.textContent = originalText;
+    toast('حدث خطأ أثناء الحفظ', 'error');
+  }
+};
+
+window.applyCustomChatBg = function() {
+  const bgInput = document.getElementById('txtCustomBg');
+  if(!bgInput) return;
+  const url = bgInput.value.trim();
+  localStorage.setItem('lm-custom-chat-bg', url);
+  window.applyCustomAppearance();
+  toast(document.documentElement.lang === 'en' ? 'Background applied!' : '✅ تم تطبيق خلفية المحادثة المخصصة!');
+};
+
+window.changeGlassOpacity = function(val) {
+  localStorage.setItem('lm-glass-opacity', val);
+  const valLabel = document.getElementById('valGlassOpacity');
+  if(valLabel) valLabel.textContent = val + '%';
+  window.applyCustomAppearance();
+};
+
+window.applyCustomAppearance = function() {
+  const opacityVal = parseFloat(localStorage.getItem('lm-glass-opacity') || '60') / 100;
+  const customBg = localStorage.getItem('lm-custom-chat-bg') || '';
+  
+  let styleEl = document.getElementById('custom-appearance-styles');
+  if(!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'custom-appearance-styles';
+    document.head.appendChild(styleEl);
+  }
+  
+  const blurVal = Math.round(5 + (opacityVal * 20));
+  const activeTheme = localStorage.getItem('lm-theme') || 'amloud';
+  
+  let glassBgColor = 'rgba(255, 255, 255, ' + (opacityVal * 0.12) + ')';
+  if(activeTheme === 'steins') {
+    glassBgColor = 'rgba(0, 255, 65, ' + (opacityVal * 0.12) + ')';
+  } else if(activeTheme === 'crimson') {
+    glassBgColor = 'rgba(255, 23, 53, ' + (opacityVal * 0.12) + ')';
+  } else if(activeTheme === 'amber') {
+    glassBgColor = 'rgba(255, 179, 0, ' + (opacityVal * 0.12) + ')';
+  } else if(activeTheme === 'cyan') {
+    glassBgColor = 'rgba(0, 212, 255, ' + (opacityVal * 0.12) + ')';
+  } else if(activeTheme === 'white') {
+    glassBgColor = 'rgba(255, 255, 255, ' + (opacityVal * 0.8) + ')';
+  } else if(activeTheme === 'black') {
+    glassBgColor = 'rgba(255, 255, 255, ' + (opacityVal * 0.08) + ')';
+  }
+  
+  let cssRules = `
+    .sidebar, .chat-area, .panel, .chat-menu, .message-menu, .msg-inline-menu, .friend-panel-shell {
+      background: ${glassBgColor} !important;
+      backdrop-filter: blur(${blurVal}px) saturate(1.35) !important;
+      -webkit-backdrop-filter: blur(${blurVal}px) saturate(1.35) !important;
+    }
+  `;
+  
+  if(customBg) {
+    let blendColor = 'rgba(10, 10, 31, 0.76)';
+    if(activeTheme === 'steins') blendColor = 'rgba(2, 12, 2, 0.82)';
+    else if(activeTheme === 'crimson') blendColor = 'rgba(15, 6, 8, 0.82)';
+    else if(activeTheme === 'amber') blendColor = 'rgba(13, 9, 0, 0.82)';
+    else if(activeTheme === 'cyan') blendColor = 'rgba(0, 8, 15, 0.82)';
+    else if(activeTheme === 'white') blendColor = 'rgba(245, 247, 251, 0.72)';
+    else if(activeTheme === 'black') blendColor = 'rgba(5, 5, 5, 0.86)';
+    
+    cssRules += `
+      .messages {
+        background-image: linear-gradient(${blendColor}, ${blendColor}), url("${customBg}") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-attachment: scroll !important;
+      }
+    `;
+  } else {
+    cssRules += `
+      .messages {
+        background-image: none !important;
+      }
+    `;
+  }
+  
+  styleEl.innerHTML = cssRules;
+};
+
+window.toggleSettingsEnterSend = function(el) {
+  const isCurrentlyOn = el.classList.contains('on');
+  if (isCurrentlyOn) {
+    el.classList.remove('on');
+    localStorage.setItem('lm-enter-send', 'off');
+  } else {
+    el.classList.add('on');
+    localStorage.setItem('lm-enter-send', 'on');
+  }
+};
+
+// Auto-run custom appearance at load
+window.applyCustomAppearance();
 window.closeProfile = function(){
   document.getElementById('profileOverlay').classList.remove('open');
   document.body.classList.remove('profile-overlay-open');
@@ -3053,8 +3434,25 @@ function showTypingBubble(userId){
   let bubble = msgs.querySelector('.typing-bubble-wrapper');
   if(!bubble){
     bubble = document.createElement('div');
-    bubble.className = 'typing-bubble-wrapper in';
-    bubble.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+    bubble.className = 'msg-group in typing-bubble-wrapper';
+    bubble.innerHTML = `
+      <div class="msg-row">
+        <div class="msg-avatar"></div>
+        <div class="msg-content">
+          <div class="bubble typing">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </div>
+    `;
+    const avatar = bubble.querySelector('.msg-avatar');
+    if(avatar && activeContact){
+      avatar.style.background = activeContact.color || 'var(--surface2)';
+      avatar.style.color = activeContact.text || 'var(--accent)';
+      window.setAvatarNode(avatar, activeContact.init || activeContact.name, activeContact.avatar || '');
+    }
     msgs.appendChild(bubble);
   }
   msgs.scrollTop = msgs.scrollHeight;
@@ -4427,7 +4825,15 @@ async function sendMessage(){
   await loadInboxContacts();
   saveLocalChatState();
 }
-function handleKey(e){if(e.key==='Enter')sendMessage();}
+function handleKey(e){
+  if(e.key==='Enter'){
+    const enterSend = localStorage.getItem('lm-enter-send') !== 'off';
+    if(enterSend) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+}
 function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
 
 // VOICE RECORDING
@@ -5419,6 +5825,98 @@ window.respondRequest = async function(requestId, newStatus) {
   .friend-empty-mark{width:40px!important;height:40px!important;border-radius:12px!important;background:rgba(var(--accent-rgb),.1)!important;font-size:14px!important;}
   .friend-empty strong{font-size:13px!important;}
   .friend-empty span,.friend-empty small{font-size:10px!important;}
+
+  /* SETTINGS PANEL CUSTOM TAB STYLING & ANIMATIONS */
+  .settings-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border2);
+    padding-bottom: 10px;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+  .settings-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .settings-tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+  }
+  .settings-tab-btn:hover {
+    background: var(--glass-hover);
+    color: var(--text);
+  }
+  .settings-tab-btn.active {
+    background: var(--glass-bg);
+    border-color: var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .settings-tab-pane {
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    animation: tabFadeIn 0.25s ease;
+  }
+  .settings-tab-pane.active {
+    display: flex;
+  }
+  @keyframes tabFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* PREMIUM TYPING INDICATOR ALIGNMENT & GLASS BLUR */
+  .bubble.typing {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding: 10px 14px !important;
+    width: fit-content !important;
+    min-width: unset !important;
+    max-width: unset !important;
+    background: rgba(var(--msg-in-rgb), .6) !important;
+    border-color: var(--glass-border) !important;
+    backdrop-filter: blur(12px) saturate(1.2) !important;
+    -webkit-backdrop-filter: blur(12px) saturate(1.2) !important;
+    animation: slideIn .2s ease;
+  }
+  .bubble.typing span {
+    width: 5px;
+    height: 5px;
+    background: var(--accent) !important;
+    border-radius: 50%;
+    animation: typingAnim 1.2s infinite;
+  }
+  .bubble.typing span:nth-child(2) {
+    animation-delay: .2s;
+  }
+  .bubble.typing span:nth-child(3) {
+    animation-delay: .4s;
+  }
+  
+  .settings-content-wrapper::-webkit-scrollbar {
+    width: 4px;
+  }
+  .settings-content-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border2);
+    border-radius: 99px;
+  }
 </style>
 </body>
 </html>
