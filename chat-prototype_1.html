@@ -3584,8 +3584,9 @@ function createMessageRow(msg, isOut, showAvatar){
       const tick = document.createElement('span');
       tick.className = `tick ${msg.read ? 'read' : 'unread'}`;
       tick.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" style="display: inline-block; fill: currentColor; transition: fill 0.25s ease;">
-          <path d="M12.22 17.58L8.11 13.47L9.52 12.06L12.22 14.76L18.48 8.5L19.89 9.91L12.22 17.58ZM6.89 13.47L2.78 9.36L4.19 7.95L6.89 10.65L8.3 9.24L9.71 10.65L6.89 13.47Z"/>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;">
+          <path d="M3 12l4 4L16 5" />
+          <path d="M8 12l4 4L21 5" />
         </svg>
       `;
       meta.append(document.createTextNode(' '));
