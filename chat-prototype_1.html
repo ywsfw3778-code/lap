@@ -473,7 +473,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .profile-row:last-of-type{border-bottom:none;}
 .picon{font-size:15px;width:22px;text-align:center;}
 .profile-acts{display:flex;gap:8px;margin-top:16px;}
-#profileFriendAction{display:flex;gap:8px;flex-wrap:wrap;}
+#profileFriendAction{display:flex;gap:8px;flex-wrap:wrap;flex:1;}
 
 .pbtn{flex:1;padding:10px;border-radius:10px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;transition:all .2s;border:1px solid var(--border2);color:var(--muted);background:var(--surface);}
 .pbtn:hover{border-color:var(--accent);color:var(--accent);}
@@ -863,7 +863,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   <div class="contacts" id="contacts"></div>
 
   <!-- profile bar -->
-  <div class="profile-bar" onclick="openProfile()">
+  <div class="profile-bar" onclick="openSettings()">
     <div class="avatar" id="myAvatar2" style="width:32px;height:32px;cursor:pointer;background:var(--surface2);color:var(--accent);flex-shrink:0;"></div>
     <div style="flex:1;min-width:0;">
       <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" id="myName">—</div>
@@ -1886,7 +1886,7 @@ async function getFriendRelationsForUsers(userIds){
   }
 }
 
-function renderFriendActionButton(targetId, relation){
+function renderFriendActionButton(targetId, relation, isProfileView = false){
   if(!targetId || !window.me || targetId === window.me.id) return '';
   const meEmail = String(window.me?.email || '').trim().toLowerCase();
   const sentByMe = !!relation && (
@@ -1894,20 +1894,48 @@ function renderFriendActionButton(targetId, relation){
     String(relation.sender_email || '').trim().toLowerCase() === meEmail
   );
   const safeTargetId = escapeAttr(targetId);
+
+  const btnClass = isProfileView ? 'pbtn add-friend-btn' : 'add-btn';
+  const btnStyle = isProfileView 
+    ? 'padding:10px; flex:1; border-radius:10px; font-size:12px; font-weight:600;' 
+    : 'padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600;';
+
+  let btnHtml = '';
   if(!relation){
-    return `<button class="add-btn" data-friend-state="none" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إضافة صديق ➕</button>`;
+    btnHtml = `<button class="${btnClass}" data-friend-state="none" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:var(--accent-glow); color:var(--accent); border:1px solid var(--accent); cursor:pointer; transition:all 0.2s; ${btnStyle}">إضافة صديق ➕</button>`;
+  } else if(relation.status === 'accepted'){
+    btnHtml = `<button class="${btnClass}" data-friend-state="accepted" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); transition:all 0.2s; ${btnStyle}">أصدقاء ✅</button>`;
+  } else if(relation.status === 'pending' && sentByMe){
+    btnHtml = `<button class="${btnClass}" data-friend-state="sent" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); cursor:pointer; transition:all 0.2s; ${btnStyle}">إلغاء الطلب ⏳</button>`;
+  } else {
+    btnHtml = `<button class="${btnClass}" data-friend-state="incoming" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--accent); border:1px solid var(--accent); cursor:pointer; transition:all 0.2s; ${btnStyle}">قبول الطلب ✔</button>`;
   }
-  if(relation.status === 'accepted'){
-    return `<button class="add-btn" data-friend-state="accepted" disabled style="background:transparent; color:var(--online); border:1px solid var(--online); padding:6px 12px; border-radius:8px; font-size:12px;">أصدقاء ✅</button>`;
+
+  const isAdminUser = typeof isAdmin === 'function' ? isAdmin(window.me) : false;
+  if (isAdminUser) {
+    const dmClass = isProfileView ? 'pbtn direct-msg-btn' : 'direct-msg-btn';
+    const dmStyle = isProfileView 
+      ? 'background:var(--glass-bg); color:var(--text); border:1px solid var(--glass-border); padding:10px; flex:1; border-radius:10px; cursor:pointer; font-size:12px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.2s; font-family:inherit;'
+      : 'background:var(--glass-bg); color:var(--text); border:1px solid var(--glass-border); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; gap:4px; transition:all 0.2s; font-family:inherit;';
+      
+    const dmBtnHtml = `<button class="${dmClass}" onclick="window.directMessageUser('${safeTargetId}')" style="${dmStyle}" onmouseover="this.style.background='var(--accent-glow)'; this.style.borderColor='var(--accent)'; this.style.color='var(--accent)';" onmouseout="this.style.background='var(--glass-bg)'; this.style.borderColor='var(--glass-border)'; this.style.color='var(--text)';">مراسلة 💬</button>`;
+    return btnHtml + dmBtnHtml;
   }
-  if(relation.status === 'pending' && sentByMe){
-    return `<button class="add-btn" data-friend-state="sent" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--muted); border:1px solid var(--border2); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">إلغاء الطلب ⏳</button>`;
-  }
-  return `<button class="add-btn" data-friend-state="incoming" onclick="window.sendFriendRequest('${safeTargetId}', this)" style="background:transparent; color:var(--accent); border:1px solid var(--accent); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px;">قبول الطلب ✔</button>`;
+  
+  return btnHtml;
 }
 window.getFriendRelation = getFriendRelation;
 window.getFriendRelationsForUsers = getFriendRelationsForUsers;
 window.renderFriendActionButton = renderFriendActionButton;
+
+window.directMessageUser = async function(userId) {
+  if(!userId) return;
+  if(typeof window.closeSearchPanel === 'function') window.closeSearchPanel();
+  if(typeof window.closeProfile === 'function') window.closeProfile();
+  if(typeof window.selectContact === 'function') {
+    await window.selectContact(userId, { bypassFriendGate: true });
+  }
+};
 
 window.searchFriends = async function() {
   const q = document.getElementById('friendInput').value.trim();
@@ -2772,6 +2800,8 @@ window.openSettings = function() {
   const overlay = document.getElementById('settingsOverlay');
   if(!overlay) return;
   
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || {};
+  
   // Fill profile tab fields
   const editName = document.getElementById('settingsEditName');
   const editUsername = document.getElementById('settingsEditUsername');
@@ -2782,7 +2812,7 @@ window.openSettings = function() {
   if (editName) editName.value = myName || '';
   if (editUsername) editUsername.value = myUsername || '';
   if (emailValue) emailValue.textContent = myEmail || me.email || '—';
-  if (codeValue) codeValue.textContent = '#' + window.getLabCode(me.id);
+  if (codeValue) codeValue.textContent = '#' + (window.getLabCode && me.id ? window.getLabCode(me.id) : '001');
   
   if (settingsAv) {
     settingsAv.innerHTML = '';
@@ -2830,13 +2860,14 @@ window.closeSettings = function() {
 window.handleSettingsAvatarPick = async function(event) {
   const file = event?.target?.files?.[0];
   if(!file) return;
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || {};
   const note = document.getElementById('settingsAvatarNote');
   try {
     if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ الرفع...';
     toast(document.documentElement.lang === 'en' ? 'Uploading avatar...' : 'جارِ رفع الصورة الشخصية...');
     
     const fileExt = file.name.split('.').pop();
-    const fileName = `avatar_${me.id}_${Date.now()}.${fileExt}`;
+    const fileName = `avatar_${me.id || 'unknown'}_${Date.now()}.${fileExt}`;
     const sbClient = window.sb;
     
     const { data, error } = await sbClient.storage.from('avatars').upload(fileName, file, { upsert: true });
@@ -2882,6 +2913,7 @@ window.saveSettingsProfile = async function() {
   const usernameInput = document.getElementById('settingsEditUsername');
   if(!nameInput || !usernameInput) return;
   
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || {};
   const name = nameInput.value.trim();
   const username = normalizeUsername(usernameInput.value);
   
@@ -2900,7 +2932,7 @@ window.saveSettingsProfile = async function() {
       .from('profiles')
       .select('id')
       .eq('username', username)
-      .neq('id', me.id)
+      .neq('id', me.id || '')
       .limit(1);
 
     if(taken && taken.length){
@@ -3147,21 +3179,19 @@ async function fillProfileOverlay(data){
   }
 
   // --- زرار طلب الصداقة في البروفايل ---
-  // --- زرار طلب الصداقة في البروفايل ---
   const actsDiv = overlay.querySelector('.profile-acts');
   const friendSlot = document.getElementById('profileFriendAction');
   if (actsDiv && friendSlot) {
     friendSlot.innerHTML = '';
     if (!isSelf && id) {
       const safeProfileId = escapeAttr(id);
-      friendSlot.innerHTML = `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
       let request = null;
       try{
         request = typeof window.getFriendRelation === 'function' ? await window.getFriendRelation(id) : null;
       }catch(_e){
         request = null;
       }
-      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request) : '')?.replace('class="add-btn"', 'class="pbtn add-friend-btn"') || `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)">إضافة صديق ➕</button>`;
+      const friendBtnHtml = (typeof window.renderFriendActionButton === 'function' ? window.renderFriendActionButton(id, request, true) : '') || `<button class="pbtn add-friend-btn" onclick="window.sendFriendRequest('${safeProfileId}', this)" style="padding:10px; flex:1; border-radius:10px; font-size:12px; font-weight:600;">إضافة صديق ➕</button>`;
       friendSlot.innerHTML = friendBtnHtml;
     }
   }
@@ -3174,19 +3204,7 @@ function openProfileOverlayWithData(data){
 }
 
 window.openProfile = function(){
-  const me = getCurrentUser();
-  if(!me) return;
-  const mine = window.myProfileState || {};
-  openProfileOverlayWithData({
-    id: me.id,
-    name: mine.name || (me.email ? me.email.split('@')[0] : 'You'),
-    email: mine.email || me.email || '—',
-    username: mine.username || '',
-    avatar: mine.avatar || '',
-    memberCode: window.getLabCode ? window.getLabCode(me.id) : '001',
-    online: true,
-    isSelf: true
-  });
+  if(typeof window.openSettings === 'function') window.openSettings();
 };
 
 window.openActiveProfile = function(){
