@@ -20,7 +20,10 @@
     if (inError) return;
     inError = true;
     try {
-      if (document.getElementById('global-error-banner')) return;
+      if (document.getElementById('global-error-banner')) {
+        inError = false;
+        return;
+      }
       const container = document.createElement('div');
       container.id = 'global-error-banner';
       container.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;width:90%;max-width:600px;background:rgba(26,8,11,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid #ff1735;border-radius:12px;padding:16px;box-shadow:0 8px 32px rgba(255,23,53,0.2),0 0 0 1px rgba(255,255,255,0.05) inset;color:#ffd6da;font-family:\'Outfit\',\'IBM Plex Sans Arabic\',sans-serif;display:flex;flex-direction:column;gap:8px;animation:slideDownError 0.4s cubic-bezier(0.16,1,0.3,1) forwards;';
@@ -82,10 +85,9 @@
       } else if (document.documentElement) {
         document.documentElement.appendChild(container);
       }
+      inError = false;
     } catch (err) {
       console.error('Error showing system banner:', err);
-    } finally {
-      inError = false;
     }
   }
 
@@ -2134,18 +2136,7 @@ let sidebarSearchResults=[];
 const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
 async function getFreshCurrentUser(){
-  const cached = getCurrentUser();
-  if(cached) return cached;
-  const sbClient = getSbClient();
-  if(!sbClient) return null;
-  try{
-    const { data, error } = await sbClient.auth.getUser();
-    if(!error && data?.user){
-      window.me = data.user;
-      return data.user;
-    }
-  }catch(_e){}
-  return null;
+  return window.me || null;
 }
 async function callRpcSafe(name, params = {}){
   const sbClient = getSbClient();
@@ -3734,7 +3725,6 @@ function startMessagePolling(){
   if(messagePollTimer) clearInterval(messagePollTimer);
   messagePollTimer = setInterval(() => {
     loadInboxContacts();
-    if(activeContact) loadMessagesForContact(activeContact.id);
   }, 2500);
   window.messagePollTimer = messagePollTimer;
 }
@@ -4024,6 +4014,7 @@ async function selectContact(id, options = {}){
   }
 
   // امسح مؤشر الكتابة عند الانتقال لمحادثة أخرى
+  if(typeof window.stopTypingSignal === 'function') window.stopTypingSignal();
   typingUsers.forEach((handle) => clearTimeout(handle));
   typingUsers.clear();
   const existingBubble = document.getElementById('messages')?.querySelector('.typing-bubble-wrapper');
@@ -4589,6 +4580,7 @@ window.onAuthReady = async function(){
   window.refreshFriendRequestBadge?.();
   window.startFriendRequestsPolling?.();
   window.startFriendRequestsRealtime?.();
+  window.startMessagesRealtime?.();
 
   await loadInboxContacts();
   if(restoredId && typeof window.openChatById === 'function'){
@@ -4692,8 +4684,18 @@ window.addEventListener('resize', () => {
   closeMessageMenu();
   closeChatHeaderMenu();
 });
-window.addEventListener('resize', () => setMobileChatMode(!!activeContact));
-setMobileChatMode(!!activeContact);
+window.addEventListener('resize', () => {
+  if (isMobileView()) {
+    setMobileChatMode(!mobileSidebarOpen && !!activeContact);
+  } else {
+    document.body.classList.remove('mobile-chat-active');
+  }
+});
+if (isMobileView()) {
+  setMobileChatMode(!mobileSidebarOpen && !!activeContact);
+} else {
+  document.body.classList.remove('mobile-chat-active');
+}
 // --- البرمجة الهيكلية لإدارة لوحة طلبات الصداقة (Structured Friend Requests Control) ---
 
 // 1. دالة نمطية لتحديث بيانات البريد المعروضة في اللوحة
@@ -4867,6 +4869,43 @@ window.startFriendRequestsRealtime = function() {
       .subscribe();
 
     window.friendRequestsChannel = friendRequestsChannel;
+  }).catch(() => {});
+};
+
+let messagesRealtimeChannel = null;
+window.startMessagesRealtime = function() {
+  const sbClient = getSbClient();
+  if(!sbClient) return;
+
+  getFreshCurrentUser().then((currentUser) => {
+    if(!currentUser) return;
+    if(messagesRealtimeChannel){
+      try { sbClient.removeChannel(messagesRealtimeChannel); } catch(_e){}
+      messagesRealtimeChannel = null;
+      window.messagesRealtimeChannel = null;
+    }
+
+    messagesRealtimeChannel = sbClient
+      .channel(`realtime-messages-${currentUser.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      }, (payload) => {
+        if(payload.new) {
+          const senderId = payload.new.sender_id;
+          const receiverId = payload.new.receiver_id;
+          const activeContactRef = window.activeContactRef || activeContact;
+          
+          if(activeContactRef && (senderId === activeContactRef.id || receiverId === activeContactRef.id)) {
+            loadMessagesForContact(activeContactRef.id);
+          }
+          loadInboxContacts();
+        }
+      })
+      .subscribe();
+
+    window.messagesRealtimeChannel = messagesRealtimeChannel;
   }).catch(() => {});
 };
 
