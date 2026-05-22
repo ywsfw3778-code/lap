@@ -609,14 +609,38 @@ create policy "messages_update_sender"
 on public.messages
 for update
 to authenticated
-using (auth.uid() = sender_id)
-with check (auth.uid() = sender_id);
+using (
+  auth.uid() = sender_id
+  or exists (
+    select 1
+    from public.user_identities ui
+    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
+      and ui.user_id = messages.sender_id
+  )
+)
+with check (
+  auth.uid() = sender_id
+  or exists (
+    select 1
+    from public.user_identities ui
+    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
+      and ui.user_id = messages.sender_id
+  )
+);
 
 create policy "messages_delete_sender"
 on public.messages
 for delete
 to authenticated
-using (auth.uid() = sender_id);
+using (
+  auth.uid() = sender_id
+  or exists (
+    select 1
+    from public.user_identities ui
+    where lower(ui.email) = lower(coalesce(auth.jwt()->>'email', ''))
+      and ui.user_id = messages.sender_id
+  )
+);
 
 create policy "admin_message_blocks_select_related"
 on public.admin_message_blocks
@@ -716,6 +740,42 @@ as $$
 $$;
 
 grant execute on function public.get_profiles_by_ids(uuid[]) to authenticated;
+
+-- Configure Supabase Realtime Publication for real-time messages and notifications
+do $$
+begin
+  -- Ensure the supabase_realtime publication exists
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+
+  -- Add tables to the publication if they are not already members
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'friend_requests'
+  ) then
+    alter publication supabase_realtime add table public.friend_requests;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'profiles'
+  ) then
+    alter publication supabase_realtime add table public.profiles;
+  end if;
+
+exception
+  when others then
+    raise notice 'Could not configure supabase_realtime publication: %', sqlerrm;
+end;
+$$;
 
 notify pgrst, 'reload schema';
 notify pgrst, 'reload config';

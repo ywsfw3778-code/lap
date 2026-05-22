@@ -3061,7 +3061,7 @@ function hideTypingBubble(userId){
 }
 
 function showTypingInHeader(name){
-  const st = document.getElementById('chatUserStatus');
+  const st = document.getElementById('chatUserStatus') || document.querySelector('.chat-user-status');
   if(!st) return;
   st.classList.remove('offline');
   st.innerHTML = `<span class="status-pulse typing-pulse"></span> <em>${name || 'يكتب الآن...'}</em>`;
@@ -3137,12 +3137,17 @@ function initPresence(){
   }
   typingChannel = sbClient.channel('typing-indicators');
   typingChannel
-    .on('broadcast', { event: 'typing' }, ({ payload }) => {
-      const senderId = payload?.userId;
+    .on('broadcast', { event: 'typing' }, async ({ payload }) => {
+      const senderId = String(payload?.userId || '').trim();
       const isTypingFlag = payload?.isTyping;
-      if(!senderId || !activeContact || senderId !== activeContact.id) return;
+      if(!senderId || !activeContact) return;
       const me2 = getCurrentUser();
-      if(!me2 || senderId === me2.id) return;
+      if(!me2 || senderId === String(me2.id).trim()) return;
+
+      const currentActive = activeContact;
+      const activeIds = await getIdentityIdsForEmail(currentActive.email || '', currentActive.id || '');
+      if(activeContact !== currentActive || !activeIds.includes(senderId)) return;
+
       if(isTypingFlag){
         showTypingBubble(senderId);
         showTypingInHeader(appLang === 'ar' ? 'يكتب الآن...' : 'typing...');
@@ -4937,19 +4942,23 @@ window.startMessagesRealtime = function() {
         event: '*',
         schema: 'public',
         table: 'messages'
-      }, (payload) => {
+      }, async (payload) => {
         const row = payload.new || payload.old;
         const activeContactRef = window.activeContactRef || activeContact;
-        if(row) {
-          const senderId = row.sender_id;
-          const receiverId = row.receiver_id;
-          if(activeContactRef && (senderId === activeContactRef.id || receiverId === activeContactRef.id)) {
+        if(row && activeContactRef) {
+          const senderId = String(row.sender_id || '').trim();
+          const receiverId = String(row.receiver_id || '').trim();
+          if(!senderId && !receiverId) {
+            // Probably a DELETE event where payload only has primary key 'id'
             loadMessagesForContact(activeContactRef.id);
+          } else {
+            const partnerIds = await getIdentityIdsForEmail(activeContactRef.email || '', activeContactRef.id || '');
+            if(partnerIds.includes(senderId) || partnerIds.includes(receiverId)) {
+              loadMessagesForContact(activeContactRef.id);
+            }
           }
-        } else {
-          if(activeContactRef) {
-            loadMessagesForContact(activeContactRef.id);
-          }
+        } else if(!row && activeContactRef) {
+          loadMessagesForContact(activeContactRef.id);
         }
         loadInboxContacts();
       })
