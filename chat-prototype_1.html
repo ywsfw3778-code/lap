@@ -3068,12 +3068,13 @@ function showTypingInHeader(name){
 }
 
 window.handleTypingInput = function(){
-  if(!activeContact || !typingChannel) return;
+  if(!activeContact || !typingChannel) { console.log('[Typing] No activeContact or typingChannel'); return; }
   const me = getCurrentUser();
   if(!me) return;
   if(!isTypingNow){
     isTypingNow = true;
-    try{ typingChannel.send({ type:'broadcast', event:'typing', payload:{ userId: me.id, isTyping: true } }); }catch(_e){}
+    console.log('[Typing] Sending typing=true, userId:', me.id);
+    try{ typingChannel.send({ type:'broadcast', event:'typing', payload:{ userId: me.id, isTyping: true } }); }catch(_e){ console.warn('[Typing] Send error:', _e); }
   }
   clearTimeout(myTypingTimer);
   myTypingTimer = setTimeout(() => {
@@ -3140,13 +3141,15 @@ function initPresence(){
     .on('broadcast', { event: 'typing' }, async ({ payload }) => {
       const senderId = String(payload?.userId || '').trim();
       const isTypingFlag = payload?.isTyping;
-      if(!senderId || !activeContact) return;
+      console.log(`[Typing] Received broadcast: senderId=${senderId}, isTyping=${isTypingFlag}`);
+      if(!senderId || !activeContact) { console.log('[Typing] Skipped: no senderId or no activeContact'); return; }
       const me2 = getCurrentUser();
-      if(!me2 || senderId === String(me2.id).trim()) return;
+      if(!me2 || senderId === String(me2.id).trim()) { console.log('[Typing] Skipped: is self'); return; }
 
       const currentActive = activeContact;
       const activeIds = await getIdentityIdsForEmail(currentActive.email || '', currentActive.id || '');
-      if(activeContact !== currentActive || !activeIds.includes(senderId)) return;
+      console.log(`[Typing] activeIds for ${currentActive.email}:`, activeIds, 'senderId:', senderId);
+      if(activeContact !== currentActive || !activeIds.includes(senderId)) { console.log('[Typing] Skipped: senderId not in activeIds'); return; }
 
       if(isTypingFlag){
         showTypingBubble(senderId);
@@ -3690,8 +3693,35 @@ async function loadMessagesForContact(contactId){
   saveLocalChatState();
   renderContacts();
   if(activeContact && activeContact.id === contactId) renderMessages();
+
+  // Mark incoming messages as read when chat is open
+  if(activeContact && activeContact.id === contactId){
+    markMessagesAsRead(contactId).catch(() => {});
+  }
 }
 window.loadMessagesForContact = loadMessagesForContact;
+
+// --- Read Receipts (Seen) System ---
+let _markReadInProgress = {};
+async function markMessagesAsRead(contactId){
+  if(_markReadInProgress[contactId]) return;
+  _markReadInProgress[contactId] = true;
+  try {
+    const sbClient = getSbClient();
+    const currentUser = getCurrentUser();
+    if(!sbClient || !currentUser) return;
+    const currentEmail = String(currentUser.email || '').trim();
+    if(!currentEmail) return;
+    await callRpcSafe('mark_messages_as_read', {
+      current_email: currentEmail,
+      partner_user_id: contactId
+    });
+  } catch(_e){
+  } finally {
+    _markReadInProgress[contactId] = false;
+  }
+}
+window.markMessagesAsRead = markMessagesAsRead;
 
 function startMessagePolling(){
   if(messagePollTimer) clearInterval(messagePollTimer);

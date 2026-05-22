@@ -45,6 +45,18 @@ left join public.profiles p on p.id = u.id
 where u.id = fr.receiver_id
   and fr.receiver_email is null;
 
+-- Ensure messages table has read_at column for read receipts
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'messages' and column_name = 'read_at'
+  ) then
+    alter table public.messages add column read_at timestamptz default null;
+  end if;
+end;
+$$;
+
 drop function if exists public.get_friend_relation_for_email(text, uuid);
 drop function if exists public.get_friend_relations_for_email(text, uuid[]);
 drop function if exists public.send_friend_request_for_email(text, uuid);
@@ -54,6 +66,7 @@ drop function if exists public.get_pending_friend_requests_for_email(text);
 drop function if exists public.get_inbox_contacts_for_email(text);
 drop function if exists public.get_chat_messages_for_email(text, uuid, integer);
 drop function if exists public.get_profiles_by_ids(uuid[]);
+drop function if exists public.mark_messages_as_read(text, uuid);
 
 create or replace function public.friend_assert_current_email(current_email text)
 returns text
@@ -440,7 +453,8 @@ returns table(
   sender_id uuid,
   receiver_id uuid,
   content text,
-  created_at timestamptz
+  created_at timestamptz,
+  read_at timestamptz
 )
 language sql
 security definer
@@ -453,7 +467,8 @@ as $$
     m.sender_id,
     m.receiver_id,
     m.content,
-    m.created_at
+    m.created_at,
+    m.read_at
   from public.messages m
   where
     (m.sender_id in (select user_id from my_ids) and m.receiver_id = partner_user_id)
@@ -461,6 +476,31 @@ as $$
     (m.sender_id = partner_user_id and m.receiver_id in (select user_id from my_ids))
   order by m.created_at asc
   limit greatest(1, least(coalesce(result_limit, 200), 500))
+$$;
+
+-- Mark incoming messages as read when the receiver opens the chat
+create or replace function public.mark_messages_as_read(
+  current_email text,
+  partner_user_id uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  updated_count integer;
+begin
+  with me as (select public.friend_assert_current_email(current_email) as email),
+  my_ids as (select user_id from public.friend_current_ids((select email from me)))
+  update public.messages
+  set read_at = now()
+  where sender_id = partner_user_id
+    and receiver_id in (select user_id from my_ids)
+    and read_at is null;
+  get diagnostics updated_count = row_count;
+  return updated_count;
+end;
 $$;
 
 alter table public.friend_requests enable row level security;
@@ -699,6 +739,7 @@ grant execute on function public.respond_friend_request_for_email(text, uuid, te
 grant execute on function public.get_pending_friend_requests_for_email(text) to authenticated;
 grant execute on function public.get_inbox_contacts_for_email(text) to authenticated;
 grant execute on function public.get_chat_messages_for_email(text, uuid, integer) to authenticated;
+grant execute on function public.mark_messages_as_read(text, uuid) to authenticated;
 
 -- profiles RLS Setup
 alter table public.profiles enable row level security;
