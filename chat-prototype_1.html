@@ -921,6 +921,199 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   .messages{padding-bottom:70px!important;}
 }
 @media(min-width:981px){.mobile-back{display:none!important;}}
+
+/* Video Bubble pre-allocation */
+.video-bubble.media-bubble {
+  width: 320px;
+  max-width: 100%;
+  padding: 0 !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  aspect-ratio: 16 / 9;
+}
+
+/* Custom Video Player Container */
+.custom-video-player {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.custom-video-player video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  border-radius: 0 !important;
+}
+
+/* Center Big Play Button */
+.video-overlay-play {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+}
+.video-overlay-play svg {
+  width: 54px;
+  height: 54px;
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  padding: 10px;
+  border: 2px solid var(--accent);
+  transition: all 0.2s ease;
+}
+.video-overlay-play:hover svg {
+  transform: scale(1.15);
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: 0 0 15px var(--accent);
+}
+.custom-video-player.playing .video-overlay-play {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Loading Spinner */
+.video-loading-spinner {
+  position: absolute;
+  z-index: 12;
+}
+.video-loading-spinner .spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: videoSpin 0.8s linear infinite;
+  filter: drop-shadow(0 0 5px var(--accent));
+}
+@keyframes videoSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Bottom Controls Bar */
+.video-controls-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  transform: translateY(100%);
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 15;
+}
+.custom-video-player:hover .video-controls-bar,
+.custom-video-player.controls-active .video-controls-bar,
+.custom-video-player:not(.playing) .video-controls-bar {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Control Buttons */
+.video-controls-bar button {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.video-controls-bar button:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+.video-controls-bar button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Time Display */
+.video-time-display {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text);
+  opacity: 0.85;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+/* Custom Progress Bar Container */
+.video-progress-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  height: 12px;
+}
+.video-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  position: relative;
+  transition: height 0.15s ease;
+}
+.video-progress-container:hover .video-progress-bar {
+  height: 6px;
+}
+.video-progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0%;
+  box-shadow: 0 0 5px var(--accent-glow);
+}
+.video-progress-thumb {
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%) scale(0);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 8px var(--accent);
+  transition: transform 0.15s ease;
+}
+.video-progress-container:hover .video-progress-thumb {
+  transform: translateY(-50%) scale(1);
+}
 </style>
 </head>
 <body id="appBody">
@@ -4112,6 +4305,249 @@ window.deleteMessageAllFromMenu = async function(){
   await loadInboxContacts();
 };
 
+function createCustomVideoPlayer(videoUrl) {
+  const container = document.createElement('div');
+  container.className = 'custom-video-player';
+
+  const video = document.createElement('video');
+  video.className = 'custom-video-element';
+  video.src = videoUrl;
+  video.preload = 'metadata';
+  video.playsInline = true;
+  container.appendChild(video);
+
+  // Big Play Button Overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'video-overlay-play';
+  overlay.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>`;
+  container.appendChild(overlay);
+
+  // Loading spinner
+  const spinner = document.createElement('div');
+  spinner.className = 'video-loading-spinner';
+  spinner.style.display = 'none';
+  spinner.innerHTML = `<div class="spinner"></div>`;
+  container.appendChild(spinner);
+
+  // Controls bar
+  const controlsBar = document.createElement('div');
+  controlsBar.className = 'video-controls-bar';
+
+  // Play button
+  const playBtn = document.createElement('button');
+  playBtn.className = 'video-play-btn';
+  playBtn.type = 'button';
+  playBtn.innerHTML = `
+    <svg class="icon-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+    <svg class="icon-pause" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+  `;
+  controlsBar.appendChild(playBtn);
+
+  // Progress container
+  const progressContainer = document.createElement('div');
+  progressContainer.className = 'video-progress-container';
+  const progressBar = document.createElement('div');
+  progressBar.className = 'video-progress-bar';
+  const progressFill = document.createElement('div');
+  progressFill.className = 'video-progress-fill';
+  const progressThumb = document.createElement('div');
+  progressThumb.className = 'video-progress-thumb';
+  
+  progressFill.appendChild(progressThumb);
+  progressBar.appendChild(progressFill);
+  progressContainer.appendChild(progressBar);
+  controlsBar.appendChild(progressContainer);
+
+  // Time display
+  const timeDisplay = document.createElement('div');
+  timeDisplay.className = 'video-time-display';
+  timeDisplay.textContent = '00:00 / 00:00';
+  controlsBar.appendChild(timeDisplay);
+
+  // Volume button
+  const volumeBtn = document.createElement('button');
+  volumeBtn.className = 'video-volume-btn';
+  volumeBtn.type = 'button';
+  volumeBtn.innerHTML = `
+    <svg class="icon-volume-up" viewBox="0 0 24 24"><path fill="currentColor" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.25-2.5-4.01v8.02c1.48-.76 2.5-2.24 2.5-4.01zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+    <svg class="icon-volume-off" viewBox="0 0 24 24" style="display:none;"><path fill="currentColor" d="M16.5 12c0-1.77-1.02-3.25-2.5-4.01v3.38l3.12 3.12c.76-.79 1.38-1.74 1.38-2.49zM19 12c0 1.2-.2 2.3-.5 3.4l1.5 1.5C20.6 15.3 21 13.7 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+  `;
+  controlsBar.appendChild(volumeBtn);
+
+  // Fullscreen button
+  const fullscreenBtn = document.createElement('button');
+  fullscreenBtn.className = 'video-fullscreen-btn';
+  fullscreenBtn.type = 'button';
+  fullscreenBtn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`;
+  controlsBar.appendChild(fullscreenBtn);
+
+  container.appendChild(controlsBar);
+
+  function formatTime(sec) {
+    if (isNaN(sec) || sec === Infinity) return '00:00';
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function stopAllOtherMedia() {
+    document.querySelectorAll('.custom-video-element').forEach(v => {
+      if (v !== video) v.pause();
+    });
+    document.querySelectorAll('.voice-audio').forEach(a => {
+      a.pause();
+    });
+    document.querySelectorAll('.voice-player.playing').forEach(p => {
+      p.classList.remove('playing');
+    });
+    document.querySelectorAll('.voice-play').forEach(b => {
+      b.textContent = '▶';
+    });
+  }
+
+  function updatePlayState() {
+    const iconPlay = playBtn.querySelector('.icon-play');
+    const iconPause = playBtn.querySelector('.icon-pause');
+    if (video.paused) {
+      container.classList.remove('playing');
+      iconPlay.style.display = '';
+      iconPause.style.display = 'none';
+    } else {
+      container.classList.add('playing');
+      iconPlay.style.display = 'none';
+      iconPause.style.display = '';
+    }
+  }
+
+  const togglePlay = () => {
+    if (video.paused) {
+      stopAllOtherMedia();
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  };
+
+  playBtn.addEventListener('click', togglePlay);
+  overlay.addEventListener('click', togglePlay);
+  video.addEventListener('click', togglePlay);
+
+  video.addEventListener('play', updatePlayState);
+  video.addEventListener('pause', updatePlayState);
+  video.addEventListener('ended', () => {
+    container.classList.remove('playing');
+    updatePlayState();
+    progressFill.style.width = '0%';
+  });
+
+  const updateDuration = () => {
+    timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+  };
+  video.addEventListener('loadedmetadata', updateDuration);
+  video.addEventListener('durationchange', updateDuration);
+
+  video.addEventListener('timeupdate', () => {
+    if (!video.duration) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    progressFill.style.width = `${pct}%`;
+    timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+  });
+
+  video.addEventListener('waiting', () => {
+    spinner.style.display = '';
+  });
+  video.addEventListener('playing', () => {
+    spinner.style.display = 'none';
+  });
+  video.addEventListener('seeked', () => {
+    spinner.style.display = 'none';
+  });
+
+  const scrub = (e) => {
+    const rect = progressBar.getBoundingClientRect();
+    let offset = (e.clientX - rect.left) / rect.width;
+    offset = Math.max(0, Math.min(1, offset));
+    video.currentTime = offset * video.duration;
+  };
+
+  let isScrubbing = false;
+  progressContainer.addEventListener('mousedown', (e) => {
+    isScrubbing = true;
+    scrub(e);
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (isScrubbing) scrub(e);
+  });
+  window.addEventListener('mouseup', () => {
+    isScrubbing = false;
+  });
+
+  const touchScrub = (e) => {
+    const rect = progressBar.getBoundingClientRect();
+    const touch = e.touches[0];
+    let offset = (touch.clientX - rect.left) / rect.width;
+    offset = Math.max(0, Math.min(1, offset));
+    video.currentTime = offset * video.duration;
+  };
+  progressContainer.addEventListener('touchstart', (e) => {
+    isScrubbing = true;
+    touchScrub(e);
+  }, { passive: true });
+  progressContainer.addEventListener('touchmove', (e) => {
+    if (isScrubbing) touchScrub(e);
+  }, { passive: true });
+  progressContainer.addEventListener('touchend', () => {
+    isScrubbing = false;
+  });
+
+  let lastVolume = 1;
+  const toggleMute = () => {
+    const volUp = volumeBtn.querySelector('.icon-volume-up');
+    const volOff = volumeBtn.querySelector('.icon-volume-off');
+    if (video.muted || video.volume === 0) {
+      video.muted = false;
+      video.volume = lastVolume || 1;
+      volUp.style.display = '';
+      volOff.style.display = 'none';
+    } else {
+      lastVolume = video.volume;
+      video.muted = true;
+      volUp.style.display = 'none';
+      volOff.style.display = '';
+    }
+  };
+  volumeBtn.addEventListener('click', toggleMute);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().catch(() => {
+        if (video.requestFullscreen) video.requestFullscreen();
+      });
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  };
+  fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+  let controlsTimeout = null;
+  const hideControls = () => {
+    container.classList.remove('controls-active');
+  };
+  const resetControlsTimer = () => {
+    container.classList.add('controls-active');
+    clearTimeout(controlsTimeout);
+    if (!video.paused) {
+      controlsTimeout = setTimeout(hideControls, 2500);
+    }
+  };
+
+  container.addEventListener('mousemove', resetControlsTimer);
+  container.addEventListener('touchstart', resetControlsTimer, { passive: true });
+  video.addEventListener('play', resetControlsTimer);
+
+  return container;
+}
+
 function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
   const waveHeights = [10, 14, 18, 12, 20, 9, 16, 11, 17, 13, 19, 10, 15, 8, 18, 12, 16, 11];
   const wrap = document.createElement('div');
@@ -4169,6 +4605,9 @@ function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
   });
 
   button.addEventListener('click', () => {
+    document.querySelectorAll('.custom-video-element').forEach(v => {
+      v.pause();
+    });
     document.querySelectorAll('.voice-audio').forEach(other => {
       if(other !== audio) other.pause();
     });
@@ -4281,14 +4720,8 @@ function createMessageRow(msg, isOut, showAvatar){
     bubble.appendChild(img);
   }else if(media.isVideo){
     bubble.classList.add('media-bubble', 'video-bubble');
-    const video = document.createElement('video');
-    video.src = media.url;
-    video.controls = true;
-    video.style.maxWidth = '250px';
-    video.style.maxHeight = '250px';
-    video.style.borderRadius = '12px';
-    video.style.display = 'block';
-    bubble.appendChild(video);
+    const player = createCustomVideoPlayer(media.url);
+    bubble.appendChild(player);
   }else{
     bubble.textContent = msg.text || '';
   }
@@ -5096,33 +5529,128 @@ function renderMessages(forceScrollToBottom = false){
   const previousScrollTop = el.scrollTop;
   const previousScrollHeight = el.scrollHeight;
 
-  const fragment = document.createDocumentFragment();
-  let i = 0;
-  let lastDayKey = null;
+  // Smart Incremental Update:
+  let isIncremental = false;
+  if(lastRenderedChatId === activeContact.id && el.children.length > 0){
+    const displayedRows = Array.from(el.querySelectorAll('.msg-row'));
+    if(displayedRows.length > 0 && displayedRows.length <= msgs.length){
+      let match = true;
+      for(let k = 0; k < displayedRows.length; k++){
+        const msg = msgs[k];
+        const row = displayedRows[k];
+        if(String(msg.id) !== String(row.dataset.id)){
+          match = false;
+          break;
+        }
+      }
+      if(match){
+        // Perfect match on previously rendered message IDs. Update read status dynamically.
+        for(let k = 0; k < displayedRows.length; k++){
+          const msg = msgs[k];
+          const row = displayedRows[k];
+          const tick = row.querySelector('.tick');
+          if(tick){
+            const isRead = tick.classList.contains('read');
+            if(msg.read !== isRead){
+              if(msg.read){
+                tick.classList.remove('unread');
+                tick.classList.add('read');
+              } else {
+                tick.classList.remove('read');
+                tick.classList.add('unread');
+              }
+            }
+          }
+        }
 
-  while(i < msgs.length){
-    if(msgs[i].dayKey !== lastDayKey){
-      const divider = document.createElement('div');
-      divider.className = 'date-divider';
-      divider.innerHTML = `<div class="date-line"></div><span>${msgs[i].dayLabel || t('today')}</span><div class="date-line"></div>`;
-      fragment.appendChild(divider);
-      lastDayKey = msgs[i].dayKey;
+        isIncremental = true;
+        const appendMsgs = msgs.slice(displayedRows.length);
+        if(appendMsgs.length > 0){
+          let lastGroup = el.lastElementChild;
+          while(lastGroup && !lastGroup.classList.contains('msg-group')){
+            lastGroup = lastGroup.previousElementSibling;
+          }
+
+          let lastDayKey = msgs[displayedRows.length - 1]?.dayKey;
+          let i = 0;
+          while(i < appendMsgs.length){
+            const currentMsg = appendMsgs[i];
+            
+            // Check day divider
+            if(currentMsg.dayKey !== lastDayKey){
+              const divider = document.createElement('div');
+              divider.className = 'date-divider';
+              divider.innerHTML = `<div class="date-line"></div><span>${currentMsg.dayLabel || t('today')}</span><div class="date-line"></div>`;
+              el.appendChild(divider);
+              lastDayKey = currentMsg.dayKey;
+              lastGroup = null; // force new group on day change
+            }
+
+            const isOut = currentMsg.out;
+
+            // Check if we can append to the last group
+            if(lastGroup && lastGroup.classList.contains(isOut ? 'out' : 'in')){
+              // Hide previous metadata if any to follow standard chat layout
+              const prevLastRow = lastGroup.lastElementChild;
+              if(prevLastRow){
+                const meta = prevLastRow.querySelector('.bubble-meta');
+                if(meta) meta.remove();
+              }
+              const row = createMessageRow({ ...currentMsg, showMeta: true }, isOut, false);
+              lastGroup.appendChild(row);
+              i++;
+            } else {
+              // Create new message group
+              const g = document.createElement('div');
+              g.className = `msg-group ${isOut ? 'out' : 'in'}`;
+              let j = i;
+              while(j < appendMsgs.length && appendMsgs[j].out === isOut && appendMsgs[j].dayKey === lastDayKey){
+                const last = j === appendMsgs.length - 1 || appendMsgs[j+1]?.out !== isOut || appendMsgs[j+1]?.dayKey !== lastDayKey;
+                const row = createMessageRow({ ...appendMsgs[j], showMeta: last }, isOut, j === i);
+                g.appendChild(row);
+                j++;
+              }
+              el.appendChild(g);
+              lastGroup = g;
+              i = j;
+            }
+          }
+        }
+      }
     }
-    const isOut = msgs[i].out;
-    const g = document.createElement('div');
-    g.className = `msg-group ${isOut ? 'out' : 'in'}`;
-    let j = i;
-    while(j < msgs.length && msgs[j].out === isOut){
-      const last = j === msgs.length - 1 || msgs[j+1]?.out !== isOut;
-      const row = createMessageRow({ ...msgs[j], showMeta: last }, isOut, j === i);
-      g.appendChild(row);
-      j++;
-    }
-    fragment.appendChild(g);
-    i = j;
   }
 
-  el.replaceChildren(fragment);
+  if(!isIncremental){
+    // Fallback to full re-render
+    const fragment = document.createDocumentFragment();
+    let i = 0;
+    let lastDayKey = null;
+
+    while(i < msgs.length){
+      if(msgs[i].dayKey !== lastDayKey){
+        const divider = document.createElement('div');
+        divider.className = 'date-divider';
+        divider.innerHTML = `<div class="date-line"></div><span>${msgs[i].dayLabel || t('today')}</span><div class="date-line"></div>`;
+        fragment.appendChild(divider);
+        lastDayKey = msgs[i].dayKey;
+      }
+      const isOut = msgs[i].out;
+      const g = document.createElement('div');
+      g.className = `msg-group ${isOut ? 'out' : 'in'}`;
+      let j = i;
+      while(j < msgs.length && msgs[j].out === isOut){
+        const last = j === msgs.length - 1 || msgs[j+1]?.out !== isOut;
+        const row = createMessageRow({ ...msgs[j], showMeta: last }, isOut, j === i);
+        g.appendChild(row);
+        j++;
+      }
+      fragment.appendChild(g);
+      i = j;
+    }
+
+    el.replaceChildren(fragment);
+  }
+
   lastRenderedChatId = activeContact.id;
   lastRenderedMessageSig = nextSig;
 
