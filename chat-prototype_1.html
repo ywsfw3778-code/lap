@@ -4507,7 +4507,7 @@ function showIncomingNotification(message, profile){
   };
 }
 
-function closeMessageMenu(){
+function closeMessageMenu(event){
   const menu = document.getElementById('messageMenu');
   if(menu){
     menu.classList.remove('open');
@@ -4516,9 +4516,11 @@ function closeMessageMenu(){
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
   
-  // Close emoji picker popover if open
-  const picker = document.getElementById('emojiPickerPopover');
-  if(picker) picker.style.display = 'none';
+  // Close emoji picker popover unless this is a scroll event
+  if (!event || event.type !== 'scroll') {
+    const picker = document.getElementById('emojiPickerPopover');
+    if(picker) picker.style.display = 'none';
+  }
 }
 
 function prepareMessageMenuState(msg){
