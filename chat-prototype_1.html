@@ -2948,6 +2948,7 @@ let lastRenderedMessageSig = '';
 let mobileSidebarOpen = false;
 let profilesDirectory = window.profilesDirectory || [];
 let pendingRestoredContactId = null;
+window.hasInitiallySelected = false;
 let notificationsEnabled = false;
 let inboxNotificationsPrimed = false;
 const seenInboxMessageIds = new Set();
@@ -3057,6 +3058,7 @@ window.openSidebarMobile = function(){
   mobileSidebarOpen = true;
   activeContact = null;
   window.activeContactRef = null;
+  pendingRestoredContactId = null;
   localStorage.removeItem('lm-persistent-active-chat-id');
   setMobileChatMode(false);
   saveLocalChatState();
@@ -5347,6 +5349,7 @@ async function loadInboxContacts(){
       if (restored) {
         activeContact = restored;
         window.activeContactRef = restored;
+        window.hasInitiallySelected = true;
         if (pendingRestoredContactId === persistentActiveId) {
           pendingRestoredContactId = null;
         }
@@ -5355,26 +5358,29 @@ async function loadInboxContacts(){
         if (refreshedActive) {
           activeContact = refreshedActive;
           window.activeContactRef = refreshedActive;
+          window.hasInitiallySelected = true;
         } else {
-          activeContact = contacts[0] || null;
-          window.activeContactRef = activeContact;
+          activeContact = null;
+          window.activeContactRef = null;
         }
       } else {
-        activeContact = contacts[0] || null;
-        window.activeContactRef = activeContact;
+        activeContact = null;
+        window.activeContactRef = null;
       }
     } else if (activeContact) {
       const refreshedActive = contacts.find((x) => x.id === activeContact.id);
       if (refreshedActive) {
         activeContact = refreshedActive;
         window.activeContactRef = refreshedActive;
+        window.hasInitiallySelected = true;
       } else {
-        activeContact = contacts[0] || null;
-        window.activeContactRef = activeContact;
+        activeContact = null;
+        window.activeContactRef = null;
       }
-    } else if (contacts.length && !(isMobileView() && mobileSidebarOpen)) {
+    } else if (contacts.length && !isMobileView() && !window.hasInitiallySelected) {
       activeContact = contacts[0];
       window.activeContactRef = activeContact;
+      window.hasInitiallySelected = true;
     }
 
     if (isMobileView()) {
@@ -5652,6 +5658,7 @@ function renderContacts(list=contacts){
 }
 async function selectContact(id, options = {}){
   localStorage.setItem('lm-persistent-active-chat-id', id);
+  window.hasInitiallySelected = true;
   const messagesEl = document.getElementById('messages');
   if(messagesEl) messagesEl.classList.add('switching-chat');
   if(typeof window.clearPendingAttachments === 'function') window.clearPendingAttachments();
