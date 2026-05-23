@@ -2203,7 +2203,12 @@ window.handleAvatarPick = async (event) => {
     saveLocalAvatar(myAvatarUrl);
     applyMyProfileUI();
     
-    await sbClient.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
+    try {
+      const { error: authErr } = await sbClient.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
+      if(authErr) console.warn('auth.updateUser returned error (Google OAuth user), bypassing:', authErr.message);
+    } catch(authErr) {
+      console.warn('auth.updateUser exception (Google OAuth user), bypassing:', authErr?.message || authErr);
+    }
     await upsertMyProfileOnServer({ avatar_url: myAvatarUrl || null });
     
     if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
@@ -2260,12 +2265,11 @@ window.saveProfile = async () => {
     return;
   }
 
-  const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: myAvatarUrl || null } });
-  if(authErr){
-    btn.disabled = false;
-    btn.textContent = tr('profileSave');
-    toast('? '+authErr.message, 'error');
-    return;
+  try {
+    const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: myAvatarUrl || null } });
+    if(authErr) console.warn('auth.updateUser returned error (Google OAuth user), bypassing:', authErr.message);
+  } catch(authErr) {
+    console.warn('auth.updateUser exception (Google OAuth user), bypassing:', authErr?.message || authErr);
   }
 
   myName = name;
@@ -3680,9 +3684,10 @@ window.handleSettingsAvatarPick = async function(event) {
     }
     
     try {
-      await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
+      const { error: authErr } = await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
+      if(authErr) console.warn('auth.updateUser returned error (Google OAuth user), bypassing:', authErr.message);
     } catch(authErr) {
-      console.warn('auth.updateUser skipped or failed (common for Google OAuth users):', authErr?.message || authErr);
+      console.warn('auth.updateUser exception (Google OAuth user), bypassing:', authErr?.message || authErr);
     }
     await upsertMyProfileOnServer({ avatar_url: window.myAvatarUrl || null });
     
