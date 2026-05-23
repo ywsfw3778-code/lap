@@ -863,9 +863,6 @@ notify pgrst, 'reload config';
 -- Storage Buckets & RLS Setup (For Profile Avatars and Chat Media Attachments)
 -- =========================================================================
 
--- Enable storage extension and schema (usually enabled, but safe to guarantee)
-create schema if not exists storage;
-
 -- Create the public 'avatars' bucket if it doesn't exist
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
@@ -893,9 +890,6 @@ on conflict (id) do update set
   public = true,
   file_size_limit = 20971520,
   allowed_mime_types = array['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-m4a'];
-
--- Enable RLS on storage.objects (if not already enabled)
-alter table storage.objects enable row level security;
 
 -- Drop existing storage policies to prevent duplicates/conflicts
 drop policy if exists "Public Access for avatars" on storage.objects;
@@ -934,7 +928,4 @@ create policy "Authenticated Update for voices" on storage.objects
 create policy "Authenticated Delete for voices" on storage.objects
   for delete to authenticated using (bucket_id = 'voices');
 
--- Grant all permissions on storage schema tables to authenticated users
-grant select, insert, update, delete on storage.objects to authenticated;
-grant select, insert, update, delete on storage.buckets to authenticated;
 
