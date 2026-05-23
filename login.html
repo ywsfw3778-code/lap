@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -374,6 +374,19 @@
     <button class="submit-btn" onclick="handleRegister()">إنشاء حساب</button>
   </div>
 
+  <!-- recovery form (new password) -->
+  <div id="recoveryForm" style="display:none;">
+    <div class="input-group">
+      <label class="input-label" id="lblNewPass">الباسورد الجديد</label>
+      <input class="input-field" type="password" placeholder="8 أحرف على الأقل" id="recoveryPass">
+    </div>
+    <div class="input-group">
+      <label class="input-label" id="lblNewPassConfirm">تأكيد الباسورد الجديد</label>
+      <input class="input-field" type="password" placeholder="أعد كتابة الباسورد" id="recoveryPassConfirm">
+    </div>
+    <button class="submit-btn" onclick="handleUpdatePassword()" id="btnSaveNewPass">حفظ الباسورد الجديد</button>
+  </div>
+
   <div class="terms">
     بالدخول، أنت موافق على <a>شروط الاستخدام</a> و<a>سياسة الخصوصية</a>
   </div>
@@ -556,10 +569,35 @@ window.setLang = function(lang){
 };
 
 window.switchTab = function(tab){
-  document.getElementById('tab-login').classList.toggle('active',tab==='login');
-  document.getElementById('tab-register').classList.toggle('active',tab==='register');
-  document.getElementById('loginForm').style.display=tab==='login'?'block':'none';
-  document.getElementById('registerForm').style.display=tab==='register'?'block':'none';
+  const isRecovery = tab === 'recovery';
+  
+  // Hide or show tabs header
+  const tabsContainer = document.querySelector('.tabs');
+  if (tabsContainer) tabsContainer.style.display = isRecovery ? 'none' : 'flex';
+  
+  const googleBtn = document.getElementById('googleBtn');
+  if (googleBtn) googleBtn.style.display = isRecovery ? 'none' : 'flex';
+  
+  const divider = document.querySelector('.divider');
+  if (divider) divider.style.display = isRecovery ? 'none' : 'flex';
+  
+  const welcomeTitle = document.querySelector('.welcome-title');
+  const welcomeSub = document.querySelector('.welcome-sub');
+  
+  if (isRecovery) {
+    if (welcomeTitle) welcomeTitle.textContent = currentLang === 'en' ? 'Reset Password 🔒' : 'تعيين الباسورد الجديد 🔒';
+    if (welcomeSub) welcomeSub.textContent = currentLang === 'en' ? 'Enter your new password below' : 'اكتب الباسورد الجديد لحسابك بالأسفل';
+  } else {
+    if (welcomeTitle) welcomeTitle.textContent = tr('welcomeTitle');
+    if (welcomeSub) welcomeSub.textContent = tr('welcomeSub');
+  }
+
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('recoveryForm').style.display = tab === 'recovery' ? 'block' : 'none';
 };
 
 window.handleLogin = async function(){
@@ -592,10 +630,14 @@ window.handleRegister = async function(){
   const btn = document.querySelector('#registerForm .submit-btn');
   setLoading(btn, true);
 
+  const redirectUrl = window.location.href.split('?')[0].split('#')[0].split('login.html')[0] + 'login.html';
   const { data, error } = await sb.auth.signUp({
     email,
     password: pass,
-    options: { data: { full_name: name } }
+    options: { 
+      data: { full_name: name },
+      emailRedirectTo: redirectUrl
+    }
   });
 
   setLoading(btn, false);
@@ -619,7 +661,10 @@ window.handleReset = async function(){
   let sb;
   try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
 
-  const { error } = await sb.auth.resetPasswordForEmail(email);
+  const redirectUrl = window.location.href.split('?')[0].split('#')[0].split('login.html')[0] + 'login.html?type=recovery';
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectUrl
+  });
   if(error){ showToast('❌ '+error.message,'error'); return; }
   showToast(tr('okReset'));
 };
@@ -628,11 +673,49 @@ window.handleGoogle = async function(){
   let sb;
   try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
 
+  const redirectUrl = window.location.href.split('?')[0].split('#')[0].split('login.html')[0] + 'chat-prototype_1.html';
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + '/chat-prototype_1.html' }
+    options: { redirectTo: redirectUrl }
   });
   if(error){ showToast('❌ '+error.message,'error'); }
+};
+
+window.handleUpdatePassword = async function() {
+  const pass = document.getElementById('recoveryPass').value;
+  const passConfirm = document.getElementById('recoveryPassConfirm').value;
+  
+  if (!pass || !passConfirm) {
+    showToast(tr('errAllFields'), 'error');
+    return;
+  }
+  if (pass.length < 8) {
+    showToast(tr('errPassLen'), 'error');
+    return;
+  }
+  if (pass !== passConfirm) {
+    showToast(currentLang === 'en' ? 'Passwords do not match' : 'الباسورد غير متطابق', 'error');
+    return;
+  }
+  
+  let sb;
+  try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'), 'error'); return; }
+  
+  const btn = document.getElementById('btnSaveNewPass');
+  setLoading(btn, true);
+  
+  const { error } = await sb.auth.updateUser({ password: pass });
+  setLoading(btn, false);
+  
+  if (error) {
+    showToast('❌ ' + error.message, 'error');
+    return;
+  }
+  
+  showToast(currentLang === 'en' ? '✅ Password updated successfully! Redirecting...' : '✅ تم تحديث الباسورد بنجاح وجاري تحويلك...');
+  setTimeout(() => {
+    window.location.href = 'chat-prototype_1.html';
+  }, 1500);
 };
 
 (async function init(){
@@ -644,6 +727,12 @@ window.handleGoogle = async function(){
     const sb = getSupabase();
     const params = new URLSearchParams(window.location.search);
     const logoutReturn = params.has('logout');
+    let isRecovering = params.get('type') === 'recovery' || window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery');
+    
+    if (isRecovering) {
+      window.switchTab('recovery');
+    }
+    
     if(logoutReturn){
       try{
         await sb.auth.signOut({ scope: 'local' });
@@ -658,13 +747,18 @@ window.handleGoogle = async function(){
     if(!authRedirectArmed){
       authRedirectArmed = true;
       sb.auth.onAuthStateChange((event, session) => {
-        if((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user){
-          window.location.href = 'chat-prototype_1.html';
+        if (event === 'PASSWORD_RECOVERY') {
+          isRecovering = true;
+          window.switchTab('recovery');
+        } else if((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user){
+          if (!isRecovering) {
+            window.location.href = 'chat-prototype_1.html';
+          }
         }
       });
     }
     const { data: { session } } = await sb.auth.getSession();
-    if(session && !logoutReturn) window.location.href = 'chat-prototype_1.html';
+    if(session && !logoutReturn && !isRecovering) window.location.href = 'chat-prototype_1.html';
   } catch(e){
     console.warn('init auth skipped:', e?.message || e);
   }
