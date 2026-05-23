@@ -1043,6 +1043,12 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   .mobile-back{display:flex!important;}
   .input-area{position:fixed!important;bottom:0;left:0;right:0;z-index:100;border-radius:0;}
   .messages{padding-bottom:70px!important;}
+  .emoji-picker-popover {
+    width: calc(100% - 24px) !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 85px !important;
+  }
 }
 @media(min-width:981px){.mobile-back{display:none!important;}}
 
@@ -3042,6 +3048,7 @@ window.openSidebarMobile = function(){
   mobileSidebarOpen = true;
   activeContact = null;
   window.activeContactRef = null;
+  localStorage.removeItem('lm-persistent-active-chat-id');
   setMobileChatMode(false);
   saveLocalChatState();
   renderContacts();
@@ -4515,12 +4522,6 @@ function closeMessageMenu(event){
   }
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
-  
-  // Close emoji picker popover unless this is a scroll event
-  if (!event || event.type !== 'scroll') {
-    const picker = document.getElementById('emojiPickerPopover');
-    if(picker) picker.style.display = 'none';
-  }
 }
 
 function prepareMessageMenuState(msg){
@@ -5295,36 +5296,74 @@ async function loadInboxContacts(){
   if(!sbClient || !currentUser) return;
 
   const applyRebuiltContacts = (rebuiltContacts) => {
+    const persistentActiveId = localStorage.getItem('lm-persistent-active-chat-id') || pendingRestoredContactId;
+
+    if (persistentActiveId) {
+      const hasIt = rebuiltContacts.some(x => x.id === persistentActiveId);
+      if (!hasIt) {
+        const inMemory = contacts.find(x => x.id === persistentActiveId);
+        if (inMemory) {
+          rebuiltContacts.unshift(inMemory);
+        } else if (activeContact && activeContact.id === persistentActiveId) {
+          rebuiltContacts.unshift(activeContact);
+        }
+      }
+    }
+
     contacts.splice(0, contacts.length, ...rebuiltContacts);
 
-    if(pendingRestoredContactId){
-      const restored = contacts.find(x => x.id === pendingRestoredContactId);
-      if(restored){
+    if (persistentActiveId) {
+      const restored = contacts.find(x => x.id === persistentActiveId);
+      if (restored) {
         activeContact = restored;
         window.activeContactRef = restored;
-        pendingRestoredContactId = null;
+        if (pendingRestoredContactId === persistentActiveId) {
+          pendingRestoredContactId = null;
+        }
+      } else if (activeContact) {
+        const refreshedActive = contacts.find((x) => x.id === activeContact.id);
+        if (refreshedActive) {
+          activeContact = refreshedActive;
+          window.activeContactRef = refreshedActive;
+        } else {
+          activeContact = contacts[0] || null;
+          window.activeContactRef = activeContact;
+        }
+      } else {
+        activeContact = contacts[0] || null;
+        window.activeContactRef = activeContact;
       }
-    }else if(activeContact){
+    } else if (activeContact) {
       const refreshedActive = contacts.find((x) => x.id === activeContact.id);
-      if(refreshedActive){
+      if (refreshedActive) {
         activeContact = refreshedActive;
         window.activeContactRef = refreshedActive;
       } else {
         activeContact = contacts[0] || null;
         window.activeContactRef = activeContact;
       }
-    }else if(contacts.length && !(isMobileView() && mobileSidebarOpen)){
+    } else if (contacts.length && !(isMobileView() && mobileSidebarOpen)) {
       activeContact = contacts[0];
       window.activeContactRef = activeContact;
     }
 
+    if (isMobileView()) {
+      if (activeContact) {
+        mobileSidebarOpen = false;
+        setMobileChatMode(true);
+      } else {
+        mobileSidebarOpen = true;
+        setMobileChatMode(false);
+      }
+    }
+
     saveLocalChatState();
     renderContacts();
-    if(activeContact){
+    if (activeContact) {
       syncActiveHeader();
       lastRenderedMessageSig = '';
       renderMessages();
-    }else{
+    } else {
       syncActiveHeader();
       renderMessages();
     }
@@ -5583,6 +5622,9 @@ function renderContacts(list=contacts){
   }).join(''):`<div style="text-align:center;padding:30px;color:var(--muted);font-size:12px;">${t('emptyContacts')}</div>`;
 }
 async function selectContact(id, options = {}){
+  localStorage.setItem('lm-persistent-active-chat-id', id);
+  const messagesEl = document.getElementById('messages');
+  if(messagesEl) messagesEl.classList.add('switching-chat');
   if(typeof window.clearPendingAttachments === 'function') window.clearPendingAttachments();
   let found = contacts.find(c => c.id === id);
   const hasExistingConversation = Array.isArray(conversations[id]) && conversations[id].length > 0;
@@ -5650,6 +5692,11 @@ async function selectContact(id, options = {}){
   setMobileChatMode(true);
   saveLocalChatState();
   loadMessagesForContact(id);
+
+  setTimeout(() => {
+    const messagesEl = document.getElementById('messages');
+    if(messagesEl) messagesEl.classList.remove('switching-chat');
+  }, 220);
 }
 
 window.openChatById = function(id){
@@ -7399,6 +7446,13 @@ window.respondRequest = async function(requestId, newStatus) {
   .settings-content-wrapper::-webkit-scrollbar-thumb {
     background: var(--border2);
     border-radius: 99px;
+  }
+  #messages {
+    transition: opacity 0.22s ease-out, transform 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  }
+  #messages.switching-chat {
+    opacity: 0 !important;
+    transform: translateY(16px) scale(0.99) !important;
   }
 </style>
 </body>
