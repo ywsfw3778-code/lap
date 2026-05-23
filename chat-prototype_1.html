@@ -4093,10 +4093,11 @@ function applyPresenceToContacts(){
   renderContacts();
 }
 
-async function updateMyLastSeen(){
+async function updateMyLastSeen(force = false){
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if(!sbClient || !currentUser) return;
+  if(document.hidden && !force) return;
   try{
     await sbClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
   }catch(_e){}
@@ -5248,8 +5249,8 @@ async function loadMessagesForContact(contactId){
   renderContacts();
   if(activeContact && activeContact.id === contactId) renderMessages();
 
-  // Mark incoming messages as read when chat is open
-  if(activeContact && activeContact.id === contactId){
+  // Mark incoming messages as read when chat is open and app is active/visible
+  if(activeContact && activeContact.id === contactId && !document.hidden){
     markMessagesAsRead(contactId).catch(() => {});
   }
 }
@@ -6697,9 +6698,16 @@ window.addEventListener('beforeunload', async () => {
 document.addEventListener('visibilitychange', () => {
   if(document.visibilityState === 'hidden'){
     saveLocalChatState();
-    updateMyLastSeen();
+    updateMyLastSeen(true); // Force last seen update on exit
+    if (presenceChannel) {
+      presenceChannel.untrack().catch(() => {});
+    }
   }
   if(document.visibilityState === 'visible'){
+    if (presenceChannel) {
+      presenceChannel.track({ online_at: new Date().toISOString() }).catch(() => {});
+      updateMyLastSeen();
+    }
     window.refreshFriendRequestBadge?.();
     if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
       window.loadPendingRequests?.().catch?.(() => {});
