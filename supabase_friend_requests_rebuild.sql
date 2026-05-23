@@ -705,18 +705,20 @@ for delete
 to authenticated
 using (
   auth.uid() = sender_id
+  or auth.uid() = receiver_id
   or exists (
     select 1
     from public.user_identities ui_my
     where ui_my.user_id = auth.uid()
       and exists (
         select 1
-        from public.user_identities ui_sender
-        where ui_sender.user_id = messages.sender_id
-          and lower(ui_sender.email) = lower(ui_my.email)
+        from public.user_identities ui_msg
+        where (ui_msg.user_id = messages.sender_id or ui_msg.user_id = messages.receiver_id)
+          and lower(ui_msg.email) = lower(ui_my.email)
       )
   )
 );
+
 
 create policy "admin_message_blocks_select_related"
 on public.admin_message_blocks

@@ -585,13 +585,15 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .empty-search-hint{font-size:12px;color:var(--muted);text-align:center;padding:12px 4px;}
 
 /* OVERLAYS */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px);}
-.overlay.open{display:flex;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(0px);opacity:0;pointer-events:none;transition:opacity 0.32s cubic-bezier(0.25, 1, 0.5, 1), backdrop-filter 0.32s ease;}
+.overlay.open{opacity:1;pointer-events:auto;backdrop-filter:blur(8px);}
 .profile-overlay-open .profile-bar{visibility:hidden;}
-.panel{position:relative;background:var(--sidebar);border:1px solid var(--border2);border-radius:20px;width:440px;max-width:95vw;padding:28px;box-shadow:0 0 40px var(--accent-glow),0 20px 60px rgba(0,0,0,.8);animation:panelIn .25s ease;direction:rtl;max-height:90vh;overflow-y:auto;}
+.panel{position:relative;background:var(--sidebar);border:1px solid var(--border2);border-radius:20px;width:440px;max-width:95vw;padding:28px;box-shadow:0 0 40px var(--accent-glow),0 20px 60px rgba(0,0,0,.8);transform:scale(0.93) translateY(12px);opacity:0;transition:transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;direction:rtl;max-height:90vh;overflow-y:auto;}
+.overlay.open .panel{transform:scale(1) translateY(0);opacity:1;}
+.image-viewer{max-width:min(92vw,760px);max-height:88vh;display:flex;flex-direction:column;gap:12px;align-items:center;transform:scale(0.93) translateY(12px);opacity:0;transition:transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;}
+.overlay.open .image-viewer{transform:scale(1) translateY(0);opacity:1;}
 .panel::-webkit-scrollbar{width:3px;}
 .panel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
-@keyframes panelIn{from{opacity:0;transform:scale(.93) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .panel-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
 .panel-title{font-size:17px;font-weight:600;color:var(--text);}
 .panel-close{width:28px;height:28px;border:1px solid var(--border2);background:var(--surface);border-radius:8px;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s;}
@@ -1039,15 +1041,65 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 .friend-empty-mark{border-radius:12px!important;background:rgba(var(--accent-rgb),.1)!important;color:var(--accent)!important;}
 
 @media(max-width:980px){
-  body{padding:0;}
-  #app{gap:0;}
-  .sidebar{position:fixed;inset:0;width:100%!important;height:100dvh!important;z-index:50;border-radius:0!important;transform:translateX(0);transition:transform .28s cubic-bezier(.4,0,.2,1);}
-  body.mobile-chat-active .sidebar{display:flex!important;transform:translateX(100%);}
-  .chat-area{display:none!important;border-radius:0!important;height:100dvh!important;}
-  body.mobile-chat-active .chat-area{display:flex!important;width:100%!important;}
-  .mobile-back{display:flex!important;}
-  .input-area{position:fixed!important;bottom:0;left:0;right:0;z-index:100;border-radius:0;}
-  .messages{padding-bottom:70px!important;}
+  body{
+    padding:0;
+    overflow: hidden;
+  }
+  #app{
+    position: relative;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    gap:0;
+  }
+  .sidebar{
+    position: absolute !important;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 10;
+    border-radius: 0 !important;
+    transform: translateX(0);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+  }
+  body.mobile-chat-active .sidebar{
+    transform: translateX(100%);
+    pointer-events: none;
+  }
+  .chat-area{
+    position: absolute !important;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 5;
+    border-radius: 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+  }
+  body.mobile-chat-active .chat-area{
+    transform: translateX(0);
+    z-index: 20;
+  }
+  .mobile-back{
+    display: flex !important;
+  }
+  .input-area{
+    position: absolute !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    border-radius: 0;
+  }
+  .messages{
+    padding: 16px 22px 75px !important;
+    gap: 16px !important;
+  }
+  .msg-content{
+    max-width: 72% !important;
+  }
   .emoji-picker-popover {
     width: calc(100% - 24px) !important;
     left: 12px !important;
@@ -1369,8 +1421,11 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
-  <div class="icon-btn" id="openSettingsBtn">
-    <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/gear.webp" alt="settings" class="ui-3d-icon" />
+  <div class="icon-btn" id="openSettingsBtn" title="الإعدادات">
+    <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
   </div>
 </div>
   </div>
@@ -1400,10 +1455,15 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     </div>
     <div class="chat-actions">
       <div class="icon-btn" onclick="alert(appLang === 'ar' ? 'جاري بدء مكالمة صوتية... 📞' : 'Starting audio call... 📞')" title="مكالمة صوتية">
-        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/telephone.webp" alt="phone" class="ui-3d-icon" />
+        <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+        </svg>
       </div>
       <div class="icon-btn" onclick="alert(appLang === 'ar' ? 'جاري بدء مكالمة فيديو... 📹' : 'Starting video call... 📹')" title="مكالمة فيديو">
-        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/video-camera.webp" alt="video" class="ui-3d-icon" />
+        <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;">
+          <path d="M23 7l-7 5 7 5V7z"></path>
+          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+        </svg>
       </div>
       <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
     </div>
@@ -1447,8 +1507,11 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" type="button">
             <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/studio-microphone.webp" alt="voice" class="ui-3d-icon" />
         </button>
-        <button class="send-btn" onclick="sendMessage()" type="button">
-            <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/rocket.webp" alt="send" class="ui-3d-icon" style="transform: rotate(45deg);" />
+        <button class="send-btn" onclick="sendMessage()" type="button" title="إرسال" style="padding: 0; display: flex; align-items: center; justify-content: center;">
+            <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; transform: rotate(-15deg); margin-inline-start: 2px;">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
         </button>
     </div>
 
@@ -3413,7 +3476,7 @@ function applyLanguage(){
   if(qs('.section-label')) qs('.section-label').textContent = t('members');
   syncActiveHeader();
   if(byId('msgInput')) byId('msgInput').placeholder = t('msgPh');
-  if(byId('settingsTitle')) byId('settingsTitle').innerHTML = '<img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/gear.webp" alt="settings" class="ui-3d-icon" style="display:inline-block; vertical-align:middle; margin-inline-end:8px; width:22px; height:22px;" />' + t('settingsTitle');
+  if(byId('settingsTitle')) byId('settingsTitle').innerHTML = '<svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-inline-end:8px; width:20px; height:20px;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>' + t('settingsTitle');
   if(byId('settingsSub')) byId('settingsSub').textContent = t('settingsSub');
   if(byId('settingsThemeTitle')) byId('settingsThemeTitle').textContent = t('themeTitle');
   if(byId('settingsOptionsTitle')) byId('settingsOptionsTitle').textContent = t('optionsTitle');
@@ -3916,32 +3979,20 @@ window.confirmDeleteChat = async function() {
   const currentUser = getCurrentUser();
   if (!sbClient || !currentUser) return;
   
-  // 1. Save local storage hidden timestamp
   const deletedTime = new Date().toISOString();
-  localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
   
-  // Remove contact from the array immediately
-  const idx = contacts.findIndex(x => x.id === contactId);
-  if (idx !== -1) contacts.splice(idx, 1);
-  
+  // Clear conversation cache
   conversations[contactId] = [];
   
-  if (activeContact && activeContact.id === contactId) {
-    activeContact = null;
-    window.activeContactRef = null;
-    localStorage.removeItem('lm-persistent-active-chat-id');
-    pendingRestoredContactId = null;
+  // Clear preview and time in contacts locally
+  const c = contacts.find(x => x.id === contactId);
+  if (c) {
+    c.preview = '';
+    c.time = '';
+    c._lastInboxAt = '';
   }
   
-  // Update UI immediately
-  if (isMobileView()) {
-    mobileSidebarOpen = true;
-    setMobileChatMode(false);
-  }
-  renderContacts();
-  renderMessages();
-  
-  // 2. Database deletions if Delete for Everyone is checked
+  // 1. Database deletions if Delete for Everyone is checked
   if (deleteForEveryone) {
     try {
       await sbClient.from('messages').delete().eq('sender_id', currentUser.id).eq('receiver_id', contactId);
@@ -3953,8 +4004,19 @@ window.confirmDeleteChat = async function() {
     } catch(e) {
       console.warn('Delete received messages failed:', e);
     }
+    // Remove local storage deleted timestamp so the chat stays in the list
+    localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId);
+  } else {
+    // 2. Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
+    localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
   }
   
+  // Keep active chat active but render it empty
+  if (activeContact && activeContact.id === contactId) {
+    renderMessages();
+  }
+  
+  renderContacts();
   saveLocalChatState();
   await loadInboxContacts();
   renderContacts();
@@ -5527,18 +5589,15 @@ async function loadInboxContacts(){
   const applyRebuiltContacts = (rebuiltContacts) => {
     const persistentActiveId = localStorage.getItem('lm-persistent-active-chat-id') || pendingRestoredContactId;
 
-    // Filter out locally deleted chats
-    rebuiltContacts = rebuiltContacts.filter(c => {
+    // Auto-clear deletion timestamp if a new message has arrived after deletion
+    rebuiltContacts.forEach(c => {
       const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
-      if (!deletedAt) return true;
-      // Check if any new messages arrived AFTER the deletion timestamp
-      const lastRaw = c._lastInboxAt || c.lastInboxAt;
-      if (lastRaw && new Date(lastRaw).getTime() > new Date(deletedAt).getTime()) {
-        // New message arrived after deletion - auto-clear the deletion so chat reappears
-        localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
-        return true;
+      if (deletedAt) {
+        const lastRaw = c._lastInboxAt || c.lastInboxAt;
+        if (lastRaw && new Date(lastRaw).getTime() > new Date(deletedAt).getTime()) {
+          localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
+        }
       }
-      return false;
     });
 
     if (persistentActiveId) {
@@ -5657,6 +5716,17 @@ async function loadInboxContacts(){
         }
       }
 
+      const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id);
+      let previewText = row.last_content || '';
+      let timeText = formatChatTime(row.last_created_at || new Date());
+      let finalUnreadCount = unreadCount;
+      
+      if (deletedAt && row.last_created_at && new Date(row.last_created_at).getTime() <= new Date(deletedAt).getTime()) {
+        previewText = '';
+        timeText = '';
+        finalUnreadCount = 0;
+      }
+
       return {
         id: row.partner_id,
         name: row.name || row.username || (row.email ? String(row.email).split('@')[0] : 'User'),
@@ -5669,9 +5739,9 @@ async function loadInboxContacts(){
         memberCode: Number.isFinite(Number(row.member_code)) ? String(Number(row.member_code)).padStart(3, '0') : (existing?.memberCode || ''),
         lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '',
         online: isUserOnline({ id: row.partner_id, lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '', online: !!existing?.online }),
-        preview: formatMessagePreviewText(row.last_content || ''),
-        time: formatChatTime(row.last_created_at || new Date()),
-        unread: unreadCount,
+        preview: formatMessagePreviewText(previewText),
+        time: timeText,
+        unread: finalUnreadCount,
         _lastInboxAt: newStamp
       };
     });
@@ -5770,6 +5840,17 @@ async function loadInboxContacts(){
     const last = latestByPartner.get(id);
     const existing = existingById.get(id);
     const clr = existing ? { bg: existing.color, t: existing.text } : colorFromId(id);
+    const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + id);
+    let previewText = (last?.content || last?.body || last?.text || last?.message || '');
+    let timeText = formatChatTime(last?.created_at || last?.createdAt || new Date());
+    let unreadCount = existingUnread.get(id) || 0;
+    
+    if (deletedAt && last?.created_at && new Date(last.created_at).getTime() <= new Date(deletedAt).getTime()) {
+      previewText = '';
+      timeText = '';
+      unreadCount = 0;
+    }
+
     const c = {
       id,
       name: existing?.name || 'User',
@@ -5782,9 +5863,9 @@ async function loadInboxContacts(){
       memberCode: existing?.memberCode || '',
       lastSeenAt: existing?.lastSeenAt || '',
       online: isUserOnline({ id, lastSeenAt: existing?.lastSeenAt || '', online: !!existing?.online }),
-      preview: formatMessagePreviewText((last?.content || last?.body || last?.text || last?.message || ''), last?.sender_id === currentUser.id),
-      time: formatChatTime(last?.created_at || last?.createdAt || new Date()),
-      unread: existingUnread.get(id) || 0,
+      preview: formatMessagePreviewText(previewText, last?.sender_id === currentUser.id),
+      time: timeText,
+      unread: unreadCount,
       _lastInboxAt: ''
     };
 
@@ -7851,6 +7932,30 @@ window.respondRequest = async function(requestId, newStatus) {
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
   }
+  
+  /* Handdrawn Sketchy Icons Styling */
+  .handdrawn-svg {
+    filter: url(#handdrawn-filter);
+    transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.2s ease;
+  }
+  .icon-btn:hover .handdrawn-svg {
+    transform: scale(1.15) rotate(6deg);
+    stroke: var(--accent) !important;
+  }
+  .send-btn:hover .handdrawn-svg {
+    transform: scale(1.15) rotate(-15deg);
+  }
 </style>
+
+<!-- Custom Handdrawn/Sketchy Organic Displacement Filter -->
+<svg style="position: absolute; width: 0; height: 0;" overflow="hidden">
+  <defs>
+    <filter id="handdrawn-filter" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.6" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+</svg>
+
 </body>
 </html>
