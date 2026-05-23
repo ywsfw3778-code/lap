@@ -858,3 +858,83 @@ $$;
 
 notify pgrst, 'reload schema';
 notify pgrst, 'reload config';
+
+-- =========================================================================
+-- Storage Buckets & RLS Setup (For Profile Avatars and Chat Media Attachments)
+-- =========================================================================
+
+-- Enable storage extension and schema (usually enabled, but safe to guarantee)
+create schema if not exists storage;
+
+-- Create the public 'avatars' bucket if it doesn't exist
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'avatars', 
+  'avatars', 
+  true, 
+  5242880, -- 5MB limit
+  array['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp']
+)
+on conflict (id) do update set 
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = array['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+
+-- Create the public 'voices' bucket (reused for chat media files) if it doesn't exist
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'voices', 
+  'voices', 
+  true, 
+  20971520, -- 20MB limit
+  array['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-m4a']
+)
+on conflict (id) do update set 
+  public = true,
+  file_size_limit = 20971520,
+  allowed_mime_types = array['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-m4a'];
+
+-- Enable RLS on storage.objects (if not already enabled)
+alter table storage.objects enable row level security;
+
+-- Drop existing storage policies to prevent duplicates/conflicts
+drop policy if exists "Public Access for avatars" on storage.objects;
+drop policy if exists "Authenticated Upload for avatars" on storage.objects;
+drop policy if exists "Authenticated Update for avatars" on storage.objects;
+drop policy if exists "Authenticated Delete for avatars" on storage.objects;
+
+drop policy if exists "Public Access for voices" on storage.objects;
+drop policy if exists "Authenticated Upload for voices" on storage.objects;
+drop policy if exists "Authenticated Update for voices" on storage.objects;
+drop policy if exists "Authenticated Delete for voices" on storage.objects;
+
+-- Create policies for 'avatars' bucket
+create policy "Public Access for avatars" on storage.objects
+  for select using (bucket_id = 'avatars');
+
+create policy "Authenticated Upload for avatars" on storage.objects
+  for insert to authenticated with check (bucket_id = 'avatars');
+
+create policy "Authenticated Update for avatars" on storage.objects
+  for update to authenticated using (bucket_id = 'avatars') with check (bucket_id = 'avatars');
+
+create policy "Authenticated Delete for avatars" on storage.objects
+  for delete to authenticated using (bucket_id = 'avatars');
+
+-- Create policies for 'voices' bucket (reused for chat media)
+create policy "Public Access for voices" on storage.objects
+  for select using (bucket_id = 'voices');
+
+create policy "Authenticated Upload for voices" on storage.objects
+  for insert to authenticated with check (bucket_id = 'voices');
+
+create policy "Authenticated Update for voices" on storage.objects
+  for update to authenticated using (bucket_id = 'voices') with check (bucket_id = 'voices');
+
+create policy "Authenticated Delete for voices" on storage.objects
+  for delete to authenticated using (bucket_id = 'voices');
+
+-- Grant all permissions on storage schema tables to authenticated users
+grant select, insert, update, delete on storage.objects to authenticated;
+grant select, insert, update, delete on storage.buckets to authenticated;
+
