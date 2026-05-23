@@ -1348,20 +1348,24 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   <div class="sidebar-header">
     <span class="logo">Lab Members</span>
     <div class="header-actions">
-  <div class="icon-btn" id="openSearchBtn" title="ابحث عن صديق">🔎</div>
+  <div class="icon-btn" id="openSearchBtn" title="ابحث عن صديق">
+    <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/magnifying-glass-tilted-right.webp" alt="search" class="ui-3d-icon" />
+  </div>
 
   
   <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" title="طلبات الصداقة" aria-label="طلبات الصداقة">
-    <span>👥</span>
+    <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/busts-in-silhouette.webp" alt="requests" class="ui-3d-icon" />
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
-  <div class="icon-btn" id="openSettingsBtn">⚙️</div>
+  <div class="icon-btn" id="openSettingsBtn">
+    <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/gear.webp" alt="settings" class="ui-3d-icon" />
+  </div>
 </div>
   </div>
   <div class="search-box">
     <input type="text" placeholder="ابحث..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
-    <span class="search-icon">🔍</span>
+    <span class="search-icon"><img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/magnifying-glass-tilted-left.webp" alt="search" style="width:16px; height:16px; object-fit:contain;" /></span>
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
@@ -1393,8 +1397,14 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
     </div>
     <div class="chat-menu" id="chatHeaderMenu">
-      <button type="button" onclick="openActiveProfileFromMenu()"><span id="chatMenuProfileText">إظهار البروفايل</span><span>👤</span></button>
-      <button type="button" onclick="openActiveAvatarFromMenu()"><span id="chatMenuImageText">عرض الصورة</span><span>🖼️</span></button>
+      <button type="button" onclick="openActiveProfileFromMenu()">
+        <span id="chatMenuProfileText">إظهار البروفايل</span>
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/bust-in-silhouette.webp" alt="profile" style="width:16px; height:16px; object-fit:contain;" />
+      </button>
+      <button type="button" onclick="openActiveAvatarFromMenu()">
+        <span id="chatMenuImageText">عرض الصورة</span>
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/framed-picture.webp" alt="image" style="width:16px; height:16px; object-fit:contain;" />
+      </button>
     </div>
   </div>
   <div class="messages" id="messages"></div>
@@ -1453,7 +1463,10 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 <div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
   <div class="panel" style="width: 480px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; padding: 24px;">
     <div class="panel-top" style="flex-shrink: 0; margin-bottom: 4px;">
-      <div class="panel-title" id="settingsTitle">⚙️ الإعدادات</div>
+      <div class="panel-title" id="settingsTitle">
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/gear.webp" alt="settings" class="ui-3d-icon" style="display:inline-block; vertical-align:middle; margin-inline-end:8px; width:22px; height:22px;" />
+        الإعدادات
+      </div>
       <div class="panel-close" onclick="closeSettings()">×</div>
     </div>
     <div class="panel-sub" id="settingsSub" style="flex-shrink: 0; margin-bottom: 14px;">خصص حسابك ومظهر التطبيق</div>
@@ -1461,13 +1474,16 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <!-- Settings Tabs -->
     <div class="settings-tabs">
       <button class="settings-tab-btn active" id="btnSettingsTabProfile" onclick="switchSettingsTab('profile')">
-        <span>👤</span> <span id="tabLabelProfile">الملف الشخصي</span>
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/bust-in-silhouette.webp" alt="profile" style="width:16px; height:16px; object-fit:contain; display:inline-block; vertical-align:middle; margin-inline-end:6px;" />
+        <span id="tabLabelProfile">الملف الشخصي</span>
       </button>
       <button class="settings-tab-btn" id="btnSettingsTabAppearance" onclick="switchSettingsTab('appearance')">
-        <span>🎨</span> <span id="tabLabelAppearance">المظهر</span>
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/artist-palette.webp" alt="appearance" style="width:16px; height:16px; object-fit:contain; display:inline-block; vertical-align:middle; margin-inline-end:6px;" />
+        <span id="tabLabelAppearance">المظهر</span>
       </button>
       <button class="settings-tab-btn" id="btnSettingsTabOptions" onclick="switchSettingsTab('options')">
-        <span>⚙️</span> <span id="tabLabelOptions">الخيارات</span>
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/gear.webp" alt="options" style="width:16px; height:16px; object-fit:contain; display:inline-block; vertical-align:middle; margin-inline-end:6px;" />
+        <span id="tabLabelOptions">الخيارات</span>
       </button>
     </div>
 
@@ -1480,7 +1496,9 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
           <!-- Avatar container with a premium overlay -->
           <div style="position: relative; width: 90px; height: 90px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 4px 15px var(--accent-glow); overflow: visible; display: flex; align-items: center; justify-content: center; background: var(--surface2);">
             <div id="settingsProfileAv" style="width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 600;">?</div>
-            <button type="button" onclick="document.getElementById('settingsAvatarInput').click()" style="position: absolute; bottom: -2px; right: -2px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); border: 2px solid var(--sidebar); color: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; padding: 0;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">📷</button>
+            <button type="button" onclick="document.getElementById('settingsAvatarInput').click()" style="position: absolute; bottom: -2px; right: -2px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); border: 2px solid var(--sidebar); color: var(--bg); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.2s; padding: 0;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+              <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/camera.webp" alt="camera" style="width: 16px; height: 16px; object-fit: contain;" />
+            </button>
           </div>
           <input id="settingsAvatarInput" type="file" accept="image/*" style="display:none" onchange="handleSettingsAvatarPick(event)" />
           <div id="settingsAvatarNote" style="font-size: 11px; color: var(--muted); text-align: center; min-height: 14px;"></div>
@@ -3280,12 +3298,12 @@ setTheme(saved);
 const langPack = {
   ar: {
     searchPh:'ابحث...', members:'// الأعضاء', headerDefault:'اختر محادثة', online:'متصل الآن', offline:'غير متصل',
-    msgPh:'اكتب رسالة...', settingsTitle:'⚙️ الإعدادات', settingsSub:'خصص شكل التطبيق',
+    msgPh:'اكتب رسالة...', settingsTitle:'الإعدادات', settingsSub:'خصص شكل التطبيق',
     themeTitle:'// الثيمات', optionsTitle:'// الخيارات', lblCrt:'CRT Scanlines', descCrt:'تأثير الشاشة القديمة',
     lblNotify:'الإشعارات', descNotify:'صوت عند وصول رسالة', lblEnterSend:'الإرسال بـ Enter',
     descEnterSend:'اضغط Enter بدل زر الإرسال', langLabel:'اللغة', langDesc:'تغيير لغة التطبيق',
     profileEdit:'تعديل الملف الشخصي', profileSave:'حفظ التغييرات', profileClose:'إغلاق', profileLogout:'خروج',
-    searchPanelTitle:'🔎 ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
+    searchPanelTitle:'ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
     searchStart:'ابدأ البحث 👆', searchLoading:'جارِ البحث...', searchEmpty:'لا يوجد مستخدمون', mainSearchTitle:'ابحث عن شخص لبدء المحادثة', mainSearchPlaceholder:'اكتب الاسم أو الإيميل', mainSearchBtn:'بحث', mainSearchHint:'اكتب الاسم في الحقل بالأعلى',
     chatBtn:'محادثة', startChatPreview:'ابدأ المحادثة...', emptyContacts:'ابحث عن أشخاص بالأعلى',
     emptyNoUser:'لا يوجد مستخدم', chooseConv:'اكتب اسمًا في بحث القائمة الجانبية', today:'اليوم', now:'الآن',
@@ -3295,12 +3313,12 @@ const langPack = {
   },
   en: {
     searchPh:'Search...', members:'// MEMBERS', headerDefault:'Select a chat', online:'Online', offline:'Offline',
-    msgPh:'Type a message...', settingsTitle:'⚙️ Settings', settingsSub:'Customize app appearance',
+    msgPh:'Type a message...', settingsTitle:'Settings', settingsSub:'Customize app appearance',
     themeTitle:'// THEME', optionsTitle:'// OPTIONS', lblCrt:'CRT Scanlines', descCrt:'Classic screen effect',
     lblNotify:'Notifications', descNotify:'Sound on new message', lblEnterSend:'Enter to send',
     descEnterSend:'Press Enter instead of send button', langLabel:'Language', langDesc:'Change app language',
     profileEdit:'Edit profile', profileSave:'Save Changes', profileClose:'Close', profileLogout:'Logout',
-    searchPanelTitle:'🔎 Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
+    searchPanelTitle:'Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
     searchStart:'Start searching 👆', searchLoading:'Searching...', searchEmpty:'No users found', mainSearchTitle:'Find someone to start chatting', mainSearchPlaceholder:'Type name or email', mainSearchBtn:'Search', mainSearchHint:'Type a name in the field above',
     chatBtn:'Chat', startChatPreview:'Start chatting...', emptyContacts:'Search for people above',
     emptyNoUser:'No users found', chooseConv:'Type a name in the sidebar search', today:'Today', now:'Now',
@@ -3335,7 +3353,7 @@ function applyLanguage(){
   if(qs('.section-label')) qs('.section-label').textContent = t('members');
   syncActiveHeader();
   if(byId('msgInput')) byId('msgInput').placeholder = t('msgPh');
-  if(byId('settingsTitle')) byId('settingsTitle').textContent = t('settingsTitle');
+  if(byId('settingsTitle')) byId('settingsTitle').innerHTML = '<img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/gear.webp" alt="settings" class="ui-3d-icon" style="display:inline-block; vertical-align:middle; margin-inline-end:8px; width:22px; height:22px;" />' + t('settingsTitle');
   if(byId('settingsSub')) byId('settingsSub').textContent = t('settingsSub');
   if(byId('settingsThemeTitle')) byId('settingsThemeTitle').textContent = t('themeTitle');
   if(byId('settingsOptionsTitle')) byId('settingsOptionsTitle').textContent = t('optionsTitle');
@@ -3355,7 +3373,8 @@ function applyLanguage(){
   if(closeBtn) closeBtn.textContent = t('profileClose');
   const logoutBtn = qs('#profileOverlay .profile-acts .pbtn.danger');
   if(logoutBtn) logoutBtn.textContent = t('profileLogout');
-  const searchTitle = qs('#searchOverlay .panel-title'); if(searchTitle) searchTitle.textContent = t('searchPanelTitle');
+  const searchTitle = qs('#searchOverlay .panel-title');
+  if(searchTitle) searchTitle.innerHTML = '<img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/magnifying-glass-tilted-right.webp" alt="search" class="ui-3d-icon" style="display:inline-block; vertical-align:middle; margin-inline-end:8px; width:22px; height:22px;" />' + t('searchPanelTitle');
   const searchSub = qs('#searchOverlay .panel-sub'); if(searchSub) searchSub.textContent = t('searchPanelSub');
   const searchGo = qs('#searchOverlay .search-go'); if(searchGo) searchGo.textContent = t('searchBtn');
   const searchStart = qs('#searchResults .s-empty'); if(searchStart) searchStart.textContent = t('searchStart');
@@ -6183,19 +6202,47 @@ window.replaceEmojisWith3D = function(text) {
   return escaped;
 };
 
+let lastEmojiToggleTime = 0;
 window.toggleEmojiPicker = function(event) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
   }
+  
+  // Prevent double triggers (mobile touchstart + click)
+  const now = Date.now();
+  if (now - lastEmojiToggleTime < 250) {
+    return;
+  }
+  lastEmojiToggleTime = now;
+
   const picker = document.getElementById('emojiPickerPopover');
-  if(!picker) return;
+  const btn = document.getElementById('emojiBtn');
+  if(!picker || !btn) return;
   const isVisible = picker.style.display === 'flex';
   if(isVisible) {
     picker.style.display = 'none';
   } else {
     initEmojiPicker();
     picker.style.display = 'flex';
+
+    // Premium dynamic positioning centered over the emoji button
+    const btnRect = btn.getBoundingClientRect();
+    const area = document.querySelector('.input-area');
+    const areaRect = area.getBoundingClientRect();
+    
+    // Position centered relative to the input-area container
+    const btnCenterInArea = (btnRect.left + btnRect.width / 2) - areaRect.left;
+    let leftPos = btnCenterInArea - 160; // Center picker over emoji button (320px width)
+    
+    // Bounds check to prevent screen overflow
+    const padding = 12;
+    const maxLeft = areaRect.width - 320 - padding;
+    if (leftPos < padding) leftPos = padding;
+    if (leftPos > maxLeft) leftPos = maxLeft;
+    
+    picker.style.left = `${leftPos}px`;
+    picker.style.right = 'auto';
   }
 };
 
@@ -6260,9 +6307,11 @@ window.insertEmoji = function(emojiText) {
 
 document.addEventListener('click', (event) => {
   const picker = document.getElementById('emojiPickerPopover');
-  const emojiBtn = document.getElementById('emojiBtn');
   if (picker && picker.style.display === 'flex') {
-    if (!picker.contains(event.target) && !emojiBtn.contains(event.target)) {
+    // Robust selector checks using .closest to prevent mobile closing errors
+    const isClickInsidePicker = picker.contains(event.target);
+    const isClickOnBtn = event.target.closest('#emojiBtn');
+    if (!isClickInsidePicker && !isClickOnBtn) {
       picker.style.display = 'none';
     }
   }
