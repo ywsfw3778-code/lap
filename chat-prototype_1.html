@@ -1412,12 +1412,20 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <span class="logo">Lab Members</span>
     <div class="header-actions">
   <div class="icon-btn" id="openSearchBtn" title="ابحث عن صديق">
-    <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/magnifying-glass-tilted-right.webp" alt="search" class="ui-3d-icon" />
+    <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
   </div>
 
   
   <div class="icon-btn friend-requests-btn" id="friendRequestsBtn" title="طلبات الصداقة" aria-label="طلبات الصداقة">
-    <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/busts-in-silhouette.webp" alt="requests" class="ui-3d-icon" />
+    <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
@@ -1431,7 +1439,12 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
   <div class="search-box">
     <input type="text" placeholder="ابحث..." id="sidebarSearchInput" oninput="filterContacts(this.value)">
-    <span class="search-icon"><img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/magnifying-glass-tilted-left.webp" alt="search" style="width:16px; height:16px; object-fit:contain;" /></span>
+    <span class="search-icon">
+      <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; color: var(--muted);">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </span>
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
@@ -1495,17 +1508,29 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <div class="attachment-preview-tray" id="attachmentPreviewTray" style="display:none;"></div>
     <div class="input-main-row">
         <div class="input-wrap">
-            <button class="emoji-btn" id="emojiBtn" onclick="toggleEmojiPicker(event)" type="button">
-                <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/smiling-face-with-smiling-eyes.webp" alt="emoji" class="ui-3d-icon" />
+            <button class="emoji-btn" id="emojiBtn" onclick="toggleEmojiPicker(event)" type="button" title="رموز تعبيرية">
+                <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                  <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                  <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
             </button>
             <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="handleTypingInput()">
-            <button class="attach-btn" onclick="document.getElementById('fileInput').click()" type="button">
-                <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/paperclip.webp" alt="attach" class="ui-3d-icon" />
+            <button class="attach-btn" onclick="document.getElementById('fileInput').click()" type="button" title="إرفاق ملف">
+                <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
             </button>
             <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleFileSelected(event)" multiple>
         </div>
-        <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" type="button">
-            <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/studio-microphone.webp" alt="voice" class="ui-3d-icon" />
+        <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" type="button" title="رسالة صوتية">
+            <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
         </button>
         <button class="send-btn" onclick="sendMessage()" type="button" title="إرسال" style="padding: 0; display: flex; align-items: center; justify-content: center;">
             <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; transform: rotate(-15deg); margin-inline-start: 2px;">
