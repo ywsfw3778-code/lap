@@ -3917,12 +3917,9 @@ window.confirmDeleteChat = async function() {
   const deletedTime = new Date().toISOString();
   localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
   
-  const c = contacts.find(x => x.id === contactId);
-  if (c) {
-    c.preview = '';
-    c.time = '';
-    c.unread = 0;
-  }
+  // Remove contact from the array immediately
+  const idx = contacts.findIndex(x => x.id === contactId);
+  if (idx !== -1) contacts.splice(idx, 1);
   
   conversations[contactId] = [];
   
@@ -3930,15 +3927,16 @@ window.confirmDeleteChat = async function() {
     activeContact = null;
     window.activeContactRef = null;
     localStorage.removeItem('lm-persistent-active-chat-id');
-    if (typeof window.openSidebarMobile === 'function') {
-      window.openSidebarMobile();
-    } else {
-      setMobileChatMode(false);
-      saveLocalChatState();
-      renderContacts();
-      renderMessages();
-    }
+    pendingRestoredContactId = null;
   }
+  
+  // Update UI immediately
+  if (isMobileView()) {
+    mobileSidebarOpen = true;
+    setMobileChatMode(false);
+  }
+  renderContacts();
+  renderMessages();
   
   // 2. Database deletions if Delete for Everyone is checked
   if (deleteForEveryone) {
@@ -5529,15 +5527,15 @@ async function loadInboxContacts(){
     // Filter out locally deleted chats
     rebuiltContacts = rebuiltContacts.filter(c => {
       const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
-      if (deletedAt) {
-        const lastMsgTime = c._lastInboxAt || c.time;
-        if (lastMsgTime && new Date(lastMsgTime).getTime() <= new Date(deletedAt).getTime()) {
-          // If the persistent active chat is this one, we keep it so it doesn't disappear while looking at it
-          if (c.id === persistentActiveId) return true;
-          return false;
-        }
+      if (!deletedAt) return true;
+      // Check if any new messages arrived AFTER the deletion timestamp
+      const lastRaw = c._lastInboxAt || c.lastInboxAt;
+      if (lastRaw && new Date(lastRaw).getTime() > new Date(deletedAt).getTime()) {
+        // New message arrived after deletion - auto-clear the deletion so chat reappears
+        localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
+        return true;
       }
-      return true;
+      return false;
     });
 
     if (persistentActiveId) {
@@ -7816,21 +7814,13 @@ window.respondRequest = async function(requestId, newStatus) {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    left: 0;
+    inset-inline-start: 0;
     height: 20px;
     width: 20px;
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border2);
     border-radius: 6px;
     transition: all 0.2s ease;
-  }
-  html[dir="rtl"] .checkmark {
-    left: auto;
-    right: 0;
-  }
-  html[dir="rtl"] .checkbox-container {
-    padding-inline-start: 0;
-    padding-inline-end: 32px;
   }
   .checkbox-container:hover input ~ .checkmark {
     background-color: rgba(255, 255, 255, 0.1);
