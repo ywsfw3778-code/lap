@@ -5361,7 +5361,6 @@ async function loadInboxContacts(){
     renderContacts();
     if (activeContact) {
       syncActiveHeader();
-      lastRenderedMessageSig = '';
       renderMessages();
     } else {
       syncActiveHeader();
