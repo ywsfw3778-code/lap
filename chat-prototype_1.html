@@ -368,7 +368,7 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
 .tick{display:inline-flex;align-items:center;margin-inline-start:4px;flex-shrink:0;}
 .tick.read{color:#34b7f1 !important;}
 .tick.unread{color:rgba(255, 255, 255, 0.4) !important;}
-.input-area{padding:12px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;}
+.input-area{padding:12px 20px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;gap:9px;position:relative;}
 .input-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:13px;display:flex;align-items:center;padding:6px 11px;gap:7px;transition:border-color .2s,box-shadow .2s;}
 .input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
 .input-wrap input{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:inherit;font-size:13px;direction:rtl;}
@@ -393,13 +393,137 @@ html[dir="ltr"] .message-menu{right:0;left:auto;}
   border-radius: 8px;
   display: block;
 }
-.emoji-btn,.attach-btn{color:var(--muted);font-size:16px;cursor:pointer;transition:color .15s;background:none;border:none;line-height:1;}
+.emoji-btn,.attach-btn{color:var(--muted);font-size:16px;cursor:pointer;transition:color .15s;background:none;border:none;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;}
 .emoji-btn:hover{color:#f59e0b;}
 .attach-btn:hover{color:var(--accent);}
+
+/* Premium 3D UI Icons & Inline Emojis */
+.ui-3d-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s;
+  display: block;
+}
+.emoji-btn:hover .ui-3d-icon, .attach-btn:hover .ui-3d-icon, .voice-btn:hover .ui-3d-icon, .send-btn:hover .ui-3d-icon {
+  transform: scale(1.22) rotate(6deg);
+  filter: drop-shadow(0 0 6px var(--accent-glow));
+}
+.send-btn:hover .ui-3d-icon {
+  transform: scale(1.22) rotate(51deg) translate(2px, -2px);
+}
+.inline-3d-emoji {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin: 0 4px;
+  display: inline-block;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+}
+.inline-3d-emoji:hover {
+  transform: scale(1.35) rotate(10deg);
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* Glassmorphic Emoji Picker Popover */
+.emoji-picker-popover {
+  position: absolute;
+  bottom: 85px;
+  right: 20px;
+  width: 320px;
+  height: 380px;
+  background: var(--sidebar);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-glow);
+  display: none;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  animation: scaleInEmoji 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  direction: rtl;
+}
+@keyframes scaleInEmoji {
+  from { opacity: 0; transform: scale(0.9) translateY(15px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.emoji-picker-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid var(--border2);
+  padding: 4px;
+  gap: 4px;
+}
+.emoji-tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 8px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  text-align: center;
+}
+.emoji-tab-btn.active {
+  background: var(--glass-hover);
+  color: var(--accent);
+  font-weight: bold;
+  box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.05);
+}
+.emoji-picker-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  justify-items: center;
+  align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.emoji-picker-content::-webkit-scrollbar {
+  width: 4px;
+}
+.emoji-picker-content::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 99px;
+}
+.emoji-picker-item {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.emoji-picker-item:hover {
+  background: var(--glass-hover);
+  border-color: var(--accent);
+  transform: scale(1.18) rotate(5deg);
+  box-shadow: 0 5px 15px rgba(var(--accent-rgb), 0.15);
+}
+.emoji-picker-item img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
 .send-btn{width:40px;height:40px;background:var(--accent-glow);border:1px solid var(--accent);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--accent);transition:all .2s;box-shadow:0 0 10px var(--accent-glow);flex-shrink:0;}
 .send-btn:hover{transform:scale(1.05);background:var(--accent);color:var(--bg);}
 .send-btn:active{transform:scale(.96);} 
-.voice-btn{width:40px;height:40px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .2s;flex-shrink:0;}
+.voice-btn{width:40px;height:40px;background:var(--surface2);border:1px solid var(--border2);border-radius:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .2s;flex-shrink:0;padding:0;}
 .voice-btn:hover{border-color:#ef4444;color:#ef4444;}
 .voice-btn.recording{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);animation:recPulse 1s infinite;}
 @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 var(--accent-glow);}50%{box-shadow:0 0 0 6px transparent;}}
@@ -1260,8 +1384,12 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       </div>
     </div>
     <div class="chat-actions">
-      <div class="icon-btn">📞</div>
-      <div class="icon-btn">📹</div>
+      <div class="icon-btn" onclick="alert(appLang === 'ar' ? 'جاري بدء مكالمة صوتية... 📞' : 'Starting audio call... 📞')" title="مكالمة صوتية">
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/telephone.webp" alt="phone" class="ui-3d-icon" />
+      </div>
+      <div class="icon-btn" onclick="alert(appLang === 'ar' ? 'جاري بدء مكالمة فيديو... 📹' : 'Starting video call... 📹')" title="مكالمة فيديو">
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/video-camera.webp" alt="video" class="ui-3d-icon" />
+      </div>
       <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
     </div>
     <div class="chat-menu" id="chatHeaderMenu">
@@ -1271,16 +1399,36 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
   <div class="messages" id="messages"></div>
  <div class="input-area">
+    <!-- Glassmorphic Emoji Picker Popover -->
+    <div class="emoji-picker-popover" id="emojiPickerPopover">
+      <div class="emoji-picker-tabs">
+        <button type="button" class="emoji-tab-btn active" onclick="switchEmojiTab(event, 'faces')">الوجوه 😊</button>
+        <button type="button" class="emoji-tab-btn" onclick="switchEmojiTab(event, 'gestures')">حركات 👍</button>
+        <button type="button" class="emoji-tab-btn" onclick="switchEmojiTab(event, 'extras')">أخرى 🔥</button>
+      </div>
+      <div class="emoji-picker-content" id="emojiTab-faces"></div>
+      <div class="emoji-picker-content" id="emojiTab-gestures" style="display:none;"></div>
+      <div class="emoji-picker-content" id="emojiTab-extras" style="display:none;"></div>
+    </div>
+
     <div class="attachment-preview-tray" id="attachmentPreviewTray" style="display:none;"></div>
     <div class="input-main-row">
         <div class="input-wrap">
-            <button class="emoji-btn" onclick="addEmoji()">😊</button>
+            <button class="emoji-btn" id="emojiBtn" onclick="toggleEmojiPicker(event)" type="button">
+                <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/smiling-face-with-smiling-eyes.webp" alt="emoji" class="ui-3d-icon" />
+            </button>
             <input type="text" id="msgInput" placeholder="اكتب رسالة..." onkeydown="handleKey(event)" oninput="handleTypingInput()">
-            <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📎</button>
+            <button class="attach-btn" onclick="document.getElementById('fileInput').click()" type="button">
+                <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/paperclip.webp" alt="attach" class="ui-3d-icon" />
+            </button>
             <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;" onchange="handleFileSelected(event)" multiple>
         </div>
-        <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()">🎤</button>
-        <button class="send-btn" onclick="sendMessage()">➤</button>
+        <button class="voice-btn" id="voiceBtn" onclick="toggleRecording()" type="button">
+            <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/studio-microphone.webp" alt="voice" class="ui-3d-icon" />
+        </button>
+        <button class="send-btn" onclick="sendMessage()" type="button">
+            <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/rocket.webp" alt="send" class="ui-3d-icon" style="transform: rotate(45deg);" />
+        </button>
     </div>
 
     <div id="voiceRecPanel">
@@ -4348,6 +4496,10 @@ function closeMessageMenu(){
   }
   document.querySelectorAll('.msg-tools.active').forEach((el) => el.classList.remove('active'));
   messageMenuState = null;
+  
+  // Close emoji picker popover if open
+  const picker = document.getElementById('emojiPickerPopover');
+  if(picker) picker.style.display = 'none';
 }
 
 function prepareMessageMenuState(msg){
@@ -4884,7 +5036,12 @@ function createMessageRow(msg, isOut, showAvatar){
     const player = createCustomVideoPlayer(media.url);
     bubble.appendChild(player);
   }else{
-    bubble.textContent = msg.text || '';
+    const textContent = msg.text || '';
+    if(typeof window.replaceEmojisWith3D === 'function'){
+      bubble.innerHTML = window.replaceEmojisWith3D(textContent);
+    }else{
+      bubble.textContent = textContent;
+    }
   }
   bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
 
@@ -5964,7 +6121,152 @@ function handleKey(e){
     }
   }
 }
-function addEmoji(){const e=["😊","❤️","👍","🔥","😂","🙏","💀","🫡"];document.getElementById("msgInput").value+=e[Math.floor(Math.random()*e.length)];document.getElementById("msgInput").focus();}
+// 3D Emojis & Emoji Picker Logic
+const emojiCategories = {
+  faces: [
+    { text: '😊', name: 'smiling-face-with-smiling-eyes' },
+    { text: '😂', name: 'face-with-tears-of-joy' },
+    { text: '😍', name: 'smiling-face-with-heart-eyes' },
+    { text: '😎', name: 'smiling-face-with-sunglasses' },
+    { text: '🤔', name: 'thinking-face' },
+    { text: '😮', name: 'face-with-open-mouth' },
+    { text: '😢', name: 'crying-face' },
+    { text: '🥳', name: 'partying-face' },
+    { text: '😜', name: 'winking-face-with-tongue' },
+    { text: '🤪', name: 'zany-face' }
+  ],
+  gestures: [
+    { text: '👍', name: 'thumbs-up' },
+    { text: '🙏', name: 'folded-hands' },
+    { text: '👏', name: 'clapping-hands' },
+    { text: '❤️', name: 'red-heart' },
+    { text: '💔', name: 'broken-heart' },
+    { text: '💛', name: 'yellow-heart' },
+    { text: '💩', name: 'pile-of-poo' },
+    { text: '💪', name: 'flexed-biceps' },
+    { text: '👀', name: 'eyes' }
+  ],
+  extras: [
+    { text: '🔥', name: 'fire' },
+    { text: '💀', name: 'skull' },
+    { text: '✨', name: 'sparkles' },
+    { text: '🚀', name: 'rocket' },
+    { text: '💯', name: 'hundred-points' },
+    { text: '👑', name: 'crown' },
+    { text: '🌟', name: 'glowing-star' }
+  ]
+};
+
+window.escapeHTML = function(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+window.replaceEmojisWith3D = function(text) {
+  let escaped = window.escapeHTML(text);
+  const emojiMap = {};
+  Object.values(emojiCategories).forEach(cat => {
+    cat.forEach(item => {
+      emojiMap[item.text] = item.name;
+    });
+  });
+
+  for (const [char, name] of Object.entries(emojiMap)) {
+    const escapedChar = char.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escapedChar, 'g');
+    escaped = escaped.replace(regex, `<img class="inline-3d-emoji" src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/${name}.webp" alt="${char}" title="${char}" />`);
+  }
+  return escaped;
+};
+
+window.toggleEmojiPicker = function(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const picker = document.getElementById('emojiPickerPopover');
+  if(!picker) return;
+  const isVisible = picker.style.display === 'flex';
+  if(isVisible) {
+    picker.style.display = 'none';
+  } else {
+    initEmojiPicker();
+    picker.style.display = 'flex';
+  }
+};
+
+window.switchEmojiTab = function(event, tabName) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const tabs = document.querySelectorAll('.emoji-tab-btn');
+  tabs.forEach(btn => btn.classList.remove('active'));
+  if (event && event.currentTarget) {
+    event.currentTarget.classList.add('active');
+  }
+  const contents = document.querySelectorAll('.emoji-picker-content');
+  contents.forEach(div => div.style.display = 'none');
+  const activeDiv = document.getElementById(`emojiTab-${tabName}`);
+  if(activeDiv) {
+    activeDiv.style.display = 'grid';
+  }
+};
+
+function initEmojiPicker() {
+  const facesTab = document.getElementById('emojiTab-faces');
+  if(facesTab && facesTab.children.length > 0) return;
+
+  Object.entries(emojiCategories).forEach(([category, emojis]) => {
+    const container = document.getElementById(`emojiTab-${category}`);
+    if(!container) return;
+    container.innerHTML = '';
+
+    emojis.forEach(emoji => {
+      const itemBtn = document.createElement('div');
+      itemBtn.className = 'emoji-picker-item';
+      itemBtn.title = emoji.text;
+      
+      const img = document.createElement('img');
+      img.src = `https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/${emoji.name}.webp`;
+      img.alt = emoji.text;
+      img.loading = 'lazy';
+      
+      itemBtn.appendChild(img);
+      itemBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.insertEmoji(emoji.text);
+      });
+      container.appendChild(itemBtn);
+    });
+  });
+}
+
+window.insertEmoji = function(emojiText) {
+  const input = document.getElementById('msgInput');
+  if(!input) return;
+  const start = input.selectionStart || 0;
+  const end = input.selectionEnd || 0;
+  const text = input.value;
+  input.value = text.substring(0, start) + emojiText + text.substring(end);
+  input.selectionStart = input.selectionEnd = start + emojiText.length;
+  input.focus();
+};
+
+document.addEventListener('click', (event) => {
+  const picker = document.getElementById('emojiPickerPopover');
+  const emojiBtn = document.getElementById('emojiBtn');
+  if (picker && picker.style.display === 'flex') {
+    if (!picker.contains(event.target) && !emojiBtn.contains(event.target)) {
+      picker.style.display = 'none';
+    }
+  }
+});
 
 // VOICE RECORDING
 let mediaRecorder = null;
@@ -6068,7 +6370,7 @@ function clearRecordingState(){
   const btn = document.getElementById('voiceBtn');
   if(btn){
     btn.classList.remove('recording');
-    btn.textContent = '🎤';
+    btn.innerHTML = '<img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/studio-microphone.webp" alt="voice" class="ui-3d-icon" />';
   }
 }
 
@@ -6098,7 +6400,7 @@ async function toggleRecording(){
     setRecordingMode(true);
     startRecordingVisualizer(stream);
     btn.classList.add('recording');
-    btn.textContent = '⏹️';
+    btn.innerHTML = '<img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/stop-button.webp" alt="stop" class="ui-3d-icon" />';
     recordingSeconds = 0;
     const timer = document.getElementById('recordTime');
     if(timer) timer.textContent = '0:00';
