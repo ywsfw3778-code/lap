@@ -5082,7 +5082,7 @@ function createMessageRow(msg, isOut, showAvatar){
     img.style.cursor = 'pointer';
     img.style.display = 'block';
     img.addEventListener('click', () => {
-      window.open(media.url, '_blank');
+      window.openImageViewer(media.url, appLang === 'ar' ? 'صورة مشتركة' : 'Shared image');
     });
     bubble.appendChild(img);
   }else if(media.isVideo){
