@@ -3679,7 +3679,11 @@ window.handleSettingsAvatarPick = async function(event) {
       window.setAvatarNode(settingsAv, window.myName, window.myAvatarUrl);
     }
     
-    await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
+    try {
+      await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
+    } catch(authErr) {
+      console.warn('auth.updateUser skipped or failed (common for Google OAuth users):', authErr?.message || authErr);
+    }
     await upsertMyProfileOnServer({ avatar_url: window.myAvatarUrl || null });
     
     if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
@@ -3730,12 +3734,11 @@ window.saveSettingsProfile = async function() {
       return;
     }
 
-    const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: window.myAvatarUrl || null } });
-    if(authErr){
-      btn.disabled = false;
-      btn.textContent = originalText;
-      toast('? '+authErr.message, 'error');
-      return;
+    try {
+      const { error: authErr } = await sb.auth.updateUser({ data: { full_name: name, username, avatar_url: window.myAvatarUrl || null } });
+      if(authErr) console.warn('auth.updateUser returned error (Google OAuth user), bypassing:', authErr.message);
+    } catch(authErr) {
+      console.warn('auth.updateUser exception (Google OAuth user), bypassing:', authErr?.message || authErr);
     }
 
     window.myName = name;
