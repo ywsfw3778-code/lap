@@ -12,6 +12,11 @@
     window.__lmInitialLang = lang;
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+    
+    const savedMsgAnim = localStorage.getItem('lm-msg-animation') !== 'off';
+    if (!savedMsgAnim) {
+      document.documentElement.classList.add('no-msg-animations');
+    }
   }catch(_e){}
 })();
 </script>
@@ -1614,6 +1619,10 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
           <div class="toggle-row">
             <div><div class="toggle-label" id="lblEnterSend">Enter to send</div><div class="toggle-desc" id="descEnterSend">Press Enter instead of send button</div></div>
             <div class="toggle on" id="settingsEnterSendToggle" onclick="toggleSettingsEnterSend(this)"></div>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label" id="lblMsgAnimation">Message Animations</div><div class="toggle-desc" id="descMsgAnimation">Visual dynamic animation on message load & events</div></div>
+            <div class="toggle on" id="settingsMsgAnimToggle" onclick="toggleMsgAnimation(this)"></div>
           </div>
           <div class="toggle-row">
             <div><div class="toggle-label" id="langLabel">Language</div><div class="toggle-desc" id="langDesc">Change app language</div></div>
@@ -3309,6 +3318,7 @@ const langPack = {
     themeTitle:'// الثيمات', optionsTitle:'// الخيارات', lblCrt:'CRT Scanlines', descCrt:'تأثير الشاشة القديمة',
     lblNotify:'الإشعارات', descNotify:'صوت عند وصول رسالة', lblEnterSend:'الإرسال بـ Enter',
     descEnterSend:'اضغط Enter بدل زر الإرسال', langLabel:'اللغة', langDesc:'تغيير لغة التطبيق',
+    lblMsgAnimation:'أنيميشن الرسائل', descMsgAnimation:'تأثير بصري متحرك عند إرسال واستلام الرسائل',
     profileEdit:'تعديل الملف الشخصي', profileSave:'حفظ التغييرات', profileClose:'إغلاق', profileLogout:'خروج',
     searchPanelTitle:'ابحث عن صديق', searchPanelSub:'ابحث بالإيميل أو الاسم', searchBtn:'بحث',
     searchStart:'ابدأ البحث 👆', searchLoading:'جارِ البحث...', searchEmpty:'لا يوجد مستخدمون', mainSearchTitle:'ابحث عن شخص لبدء المحادثة', mainSearchPlaceholder:'اكتب الاسم أو الإيميل', mainSearchBtn:'بحث', mainSearchHint:'اكتب الاسم في الحقل بالأعلى',
@@ -3324,6 +3334,7 @@ const langPack = {
     themeTitle:'// THEME', optionsTitle:'// OPTIONS', lblCrt:'CRT Scanlines', descCrt:'Classic screen effect',
     lblNotify:'Notifications', descNotify:'Sound on new message', lblEnterSend:'Enter to send',
     descEnterSend:'Press Enter instead of send button', langLabel:'Language', langDesc:'Change app language',
+    lblMsgAnimation:'Message Animations', descMsgAnimation:'Visual dynamic animation on message load & events',
     profileEdit:'Edit profile', profileSave:'Save Changes', profileClose:'Close', profileLogout:'Logout',
     searchPanelTitle:'Find a friend', searchPanelSub:'Search by email or name', searchBtn:'Search',
     searchStart:'Start searching 👆', searchLoading:'Searching...', searchEmpty:'No users found', mainSearchTitle:'Find someone to start chatting', mainSearchPlaceholder:'Type name or email', mainSearchBtn:'Search', mainSearchHint:'Type a name in the field above',
@@ -3370,6 +3381,8 @@ function applyLanguage(){
   if(byId('descNotify')) byId('descNotify').textContent = t('descNotify');
   if(byId('lblEnterSend')) byId('lblEnterSend').textContent = t('lblEnterSend');
   if(byId('descEnterSend')) byId('descEnterSend').textContent = t('descEnterSend');
+  if(byId('lblMsgAnimation')) byId('lblMsgAnimation').textContent = t('lblMsgAnimation');
+  if(byId('descMsgAnimation')) byId('descMsgAnimation').textContent = t('descMsgAnimation');
   if(byId('langLabel')) byId('langLabel').textContent = t('langLabel');
   if(byId('langDesc')) byId('langDesc').textContent = t('langDesc');
   if(byId('lang-ar-opt')) byId('lang-ar-opt').classList.toggle('active', appLang === 'ar');
@@ -3476,6 +3489,9 @@ window.openSettings = function() {
   
   const enterSend = localStorage.getItem('lm-enter-send') !== 'off';
   document.getElementById('settingsEnterSendToggle')?.classList.toggle('on', enterSend);
+  
+  const msgAnim = localStorage.getItem('lm-msg-animation') !== 'off';
+  document.getElementById('settingsMsgAnimToggle')?.classList.toggle('on', msgAnim);
   
   // Open overlay and switch to profile tab by default
   overlay.classList.add('open');
@@ -3701,6 +3717,19 @@ window.toggleSettingsEnterSend = function(el) {
   } else {
     el.classList.add('on');
     localStorage.setItem('lm-enter-send', 'on');
+  }
+};
+
+window.toggleMsgAnimation = function(el) {
+  const isCurrentlyOn = el.classList.contains('on');
+  if (isCurrentlyOn) {
+    el.classList.remove('on');
+    localStorage.setItem('lm-msg-animation', 'off');
+    document.documentElement.classList.add('no-msg-animations');
+  } else {
+    el.classList.add('on');
+    localStorage.setItem('lm-msg-animation', 'on');
+    document.documentElement.classList.remove('no-msg-animations');
   }
 };
 
@@ -5983,12 +6012,13 @@ function renderMessages(forceScrollToBottom = false){
                 if(meta) meta.remove();
               }
               const row = createMessageRow({ ...currentMsg, showMeta: true }, isOut, false);
+              row.classList.add('new-msg-anim');
               lastGroup.appendChild(row);
               i++;
             } else {
               // Create new message group
               const g = document.createElement('div');
-              g.className = `msg-group ${isOut ? 'out' : 'in'}`;
+              g.className = `msg-group ${isOut ? 'out' : 'in'} new-msg-anim`;
               let j = i;
               while(j < appendMsgs.length && appendMsgs[j].out === isOut && appendMsgs[j].dayKey === lastDayKey){
                 const last = j === appendMsgs.length - 1 || appendMsgs[j+1]?.out !== isOut || appendMsgs[j+1]?.dayKey !== lastDayKey;
@@ -6022,14 +6052,18 @@ function renderMessages(forceScrollToBottom = false){
       }
       const isOut = msgs[i].out;
       const g = document.createElement('div');
-      g.className = `msg-group ${isOut ? 'out' : 'in'}`;
       let j = i;
+      let hasAnyNew = false;
       while(j < msgs.length && msgs[j].out === isOut){
         const last = j === msgs.length - 1 || msgs[j+1]?.out !== isOut;
         const row = createMessageRow({ ...msgs[j], showMeta: last }, isOut, j === i);
+        if (msgs[j].createdAt && Math.abs(Date.now() - new Date(msgs[j].createdAt).getTime()) < 8000) {
+          hasAnyNew = true;
+        }
         g.appendChild(row);
         j++;
       }
+      g.className = `msg-group ${isOut ? 'out' : 'in'}${hasAnyNew ? ' new-msg-anim' : ''}`;
       fragment.appendChild(g);
       i = j;
     }
@@ -7452,6 +7486,20 @@ window.respondRequest = async function(requestId, newStatus) {
   #messages.switching-chat {
     opacity: 0 !important;
     transform: translateY(16px) scale(0.99) !important;
+  }
+  
+  @keyframes msgPopIn {
+    0% {
+      opacity: 0;
+      transform: translateY(12px) scale(0.97);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  html:not(.no-msg-animations) .new-msg-anim {
+    animation: msgPopIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   }
 </style>
 </body>
