@@ -15,7 +15,7 @@
     
     const savedMsgAnim = localStorage.getItem('lm-msg-animation') !== 'off';
     if (!savedMsgAnim) {
-      document.documentElement.classList.add('no-msg-animations');
+      document.documentElement.classList.add('no-animations');
     }
   }catch(_e){}
 })();
@@ -3727,11 +3727,11 @@ window.toggleMsgAnimation = function(el) {
   if (isCurrentlyOn) {
     el.classList.remove('on');
     localStorage.setItem('lm-msg-animation', 'off');
-    document.documentElement.classList.add('no-msg-animations');
+    document.documentElement.classList.add('no-animations');
   } else {
     el.classList.add('on');
     localStorage.setItem('lm-msg-animation', 'on');
-    document.documentElement.classList.remove('no-msg-animations');
+    document.documentElement.classList.remove('no-animations');
   }
 };
 
@@ -7513,8 +7513,15 @@ window.respondRequest = async function(requestId, newStatus) {
       transform: translateY(0) scale(1);
     }
   }
-  html:not(.no-msg-animations) .new-msg-anim {
+  html:not(.no-animations) .new-msg-anim {
     animation: msgPopIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  
+  html.no-animations *,
+  html.no-animations *::before,
+  html.no-animations *::after {
+    animation: none !important;
+    transition: none !important;
   }
 </style>
 </body>
