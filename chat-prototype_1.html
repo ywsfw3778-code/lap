@@ -3890,6 +3890,8 @@ window.handleDeleteChatFromMenu = function(event) {
   window.closeContactContextMenu();
   if (!contactId) return;
   
+  pendingDeleteContactId = contactId;
+  
   const modal = document.getElementById('deleteChatModal');
   const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
   if (checkbox) checkbox.checked = false;
@@ -3902,7 +3904,8 @@ window.closeDeleteChatModal = function() {
 };
 
 window.confirmDeleteChat = async function() {
-  const contactId = contactMenuState;
+  const contactId = pendingDeleteContactId;
+  pendingDeleteContactId = null;
   window.closeDeleteChatModal();
   if (!contactId) return;
   
