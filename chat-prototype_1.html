@@ -3322,7 +3322,7 @@ function setMobileChatMode(openChat){
   }
   // إضافة الكلاس اللي بيظهر الشات
   document.body.classList.toggle('mobile-chat-active', !!openChat);
-  if (openChat) {
+  if (openChat && typeof window.pushNavigationState === 'function') {
     window.pushNavigationState();
   }
 }
@@ -8469,6 +8469,7 @@ window.respondRequest = async function(requestId, newStatus) {
   }
   .send-btn:hover .handdrawn-svg {
     transform: scale(1.15) rotate(-15deg);
+  }
   /* RESPONSIVE FULLSCREEN MOBILE MODALS & PERFORMANCE OPTIMIZATION */
   @media (max-width: 768px) {
     /* Make Settings Panel fullscreen on mobile so it does not look cramped or broken */
