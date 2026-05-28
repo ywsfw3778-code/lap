@@ -222,6 +222,8 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
   white-space:normal;
   word-break:break-word;
   overflow-wrap:break-word;
+  unicode-bidi: plaintext;
+  text-align: start;
 }
 .voice-bubble{
   width:min(320px, 100%);
@@ -1804,7 +1806,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <div class="panel-title" id="deleteChatModalTitle" style="font-size: 18px; font-weight: 600; color: #ff6b6b; margin-bottom: 10px;">حذف الدردشة</div>
     <div class="panel-sub" id="deleteChatModalSub" style="font-size: 13.5px; color: var(--muted); margin-bottom: 15px; line-height: 1.5;">هل أنت متأكد من حذف هذه الدردشة بالكامل؟</div>
     
-    <div class="delete-chat-options">
+    <div class="delete-chat-options" style="display: none;">
       <label class="checkbox-container">
         <input type="checkbox" id="deleteChatForEveryoneCheckbox" />
         <span class="checkmark"></span>
@@ -4006,9 +4008,6 @@ window.confirmDeleteChat = async function() {
   window.closeDeleteChatModal();
   if (!contactId) return;
   
-  const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
-  const deleteForEveryone = !!(checkbox && checkbox.checked);
-  
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if (!sbClient || !currentUser) return;
@@ -4026,24 +4025,8 @@ window.confirmDeleteChat = async function() {
     c._lastInboxAt = '';
   }
   
-  // 1. Database deletions if Delete for Everyone is checked
-  if (deleteForEveryone) {
-    try {
-      await sbClient.from('messages').delete().eq('sender_id', currentUser.id).eq('receiver_id', contactId);
-    } catch(e) {
-      console.warn('Delete sent messages failed:', e);
-    }
-    try {
-      await sbClient.from('messages').delete().eq('sender_id', contactId).eq('receiver_id', currentUser.id);
-    } catch(e) {
-      console.warn('Delete received messages failed:', e);
-    }
-    // Remove local storage deleted timestamp so the chat stays in the list
-    localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId);
-  } else {
-    // 2. Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
-    localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
-  }
+  // Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
+  localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
   
   // Keep active chat active but render it empty
   if (activeContact && activeContact.id === contactId) {
@@ -6606,21 +6589,43 @@ window.escapeHTML = function(str) {
     .replace(/'/g, '&#039;');
 };
 
+// Precompile emoji map and regex for ultimate rendering performance
+let emojiMapCache = null;
+let emojiRegexCache = null;
+
+function getEmojiRegexAndMap() {
+  if (emojiMapCache) return { emojiMap: emojiMapCache, regex: emojiRegexCache };
+  
+  const map = {};
+  if (typeof emojiCategories !== 'undefined') {
+    Object.values(emojiCategories).forEach(cat => {
+      cat.forEach(item => {
+        map[item.text] = item.name;
+      });
+    });
+  }
+  
+  const keys = Object.keys(map).sort((a, b) => b.length - a.length);
+  const pattern = keys.map(k => k.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+  const regex = pattern ? new RegExp(`(${pattern})`, 'g') : null;
+  
+  emojiMapCache = map;
+  emojiRegexCache = regex;
+  return { emojiMap: map, regex };
+}
+
 window.replaceEmojisWith3D = function(text) {
   let escaped = window.escapeHTML(text);
-  const emojiMap = {};
-  Object.values(emojiCategories).forEach(cat => {
-    cat.forEach(item => {
-      emojiMap[item.text] = item.name;
-    });
+  const { emojiMap, regex } = getEmojiRegexAndMap();
+  if (!regex) return escaped;
+  
+  return escaped.replace(regex, (match) => {
+    const name = emojiMap[match];
+    if (name) {
+      return `<img class="inline-3d-emoji" src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/${name}.webp" alt="${match}" title="${match}" />`;
+    }
+    return match;
   });
-
-  for (const [char, name] of Object.entries(emojiMap)) {
-    const escapedChar = char.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const regex = new RegExp(escapedChar, 'g');
-    escaped = escaped.replace(regex, `<img class="inline-3d-emoji" src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/${name}.webp" alt="${char}" title="${char}" />`);
-  }
-  return escaped;
 };
 
 let lastEmojiToggleTime = 0;
@@ -7313,20 +7318,35 @@ window.startMessagesRealtime = function() {
       }, async (payload) => {
         const row = payload.new || payload.old;
         const activeContactRef = window.activeContactRef || activeContact;
-        if(row && activeContactRef) {
-          const senderId = String(row.sender_id || '').trim();
-          const receiverId = String(row.receiver_id || '').trim();
-          if(!senderId && !receiverId) {
-            // Probably a DELETE event where payload only has primary key 'id'
+        if(activeContactRef) {
+          if(!row) {
             loadMessagesForContact(activeContactRef.id);
           } else {
-            const partnerIds = await getIdentityIdsForEmail(activeContactRef.email || '', activeContactRef.id || '');
-            if(partnerIds.includes(senderId) || partnerIds.includes(receiverId)) {
+            const senderId = String(row.sender_id || '').trim();
+            const receiverId = String(row.receiver_id || '').trim();
+            if(!senderId && !receiverId) {
               loadMessagesForContact(activeContactRef.id);
+            } else {
+              // Rapid direct match:
+              const meId = currentUser.id;
+              const partnerId = activeContactRef.id;
+              const isMyChat = (senderId === meId && receiverId === partnerId) || 
+                               (senderId === partnerId && receiverId === meId);
+                               
+              if (isMyChat) {
+                loadMessagesForContact(activeContactRef.id);
+              } else {
+                // Email mapping match (using fast cache fallback)
+                const partnerIds = await getIdentityIdsForEmail(activeContactRef.email || '', activeContactRef.id || '');
+                const myIds = await getCurrentIdentityIds();
+                const isLinkedChat = (partnerIds.includes(senderId) && myIds.includes(receiverId)) ||
+                                     (partnerIds.includes(receiverId) && myIds.includes(senderId));
+                if (isLinkedChat) {
+                  loadMessagesForContact(activeContactRef.id);
+                }
+              }
             }
           }
-        } else if(!row && activeContactRef) {
-          loadMessagesForContact(activeContactRef.id);
         }
         loadInboxContacts();
       })
