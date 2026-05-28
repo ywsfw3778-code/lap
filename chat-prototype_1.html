@@ -2183,12 +2183,13 @@ window.refreshMyProfileUI = applyMyProfileUI;
 window.handleAvatarPick = async (event) => {
   const file = event?.target?.files?.[0];
   if(!file) return;
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || {};
   try{
     toast(document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ رفع الصورة للسيرفر...');
     
     // استخراج امتداد واسم الصورة
     const fileExt = file.name.split('.').pop();
-    const fileName = `avatar_${me.id}_${Date.now()}.${fileExt}`;
+    const fileName = `avatar_${me.id || 'unknown'}_${Date.now()}.${fileExt}`;
     const sbClient = window.sb;
     
     // الرفع الفعلي لمساحة تخزين Supabase
@@ -2201,22 +2202,22 @@ window.handleAvatarPick = async (event) => {
 
     // الحصول على رابط الصورة السريع
     const { data: urlData } = sbClient.storage.from('avatars').getPublicUrl(fileName);
-    myAvatarUrl = urlData.publicUrl;
+    window.myAvatarUrl = urlData.publicUrl;
 
     const note = document.getElementById('avatarNote');
     if(note) note.textContent = 'تم الرفع بنجاح';
     
     // تحديث الواجهة والبيانات
-    saveLocalAvatar(myAvatarUrl);
+    saveLocalAvatar(window.myAvatarUrl);
     applyMyProfileUI();
     
     try {
-      const { error: authErr } = await sbClient.auth.updateUser({ data: { full_name: myName, username: myUsername || null, avatar_url: myAvatarUrl || null } });
+      const { error: authErr } = await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
       if(authErr) console.warn('auth.updateUser returned error (Google OAuth user), bypassing:', authErr.message);
     } catch(authErr) {
       console.warn('auth.updateUser exception (Google OAuth user), bypassing:', authErr?.message || authErr);
     }
-    await upsertMyProfileOnServer({ avatar_url: myAvatarUrl || null });
+    await upsertMyProfileOnServer({ avatar_url: window.myAvatarUrl || null });
     
     if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
     if(typeof window.renderContacts === 'function') window.renderContacts();
@@ -7128,6 +7129,7 @@ window.onAuthReady = async function(){
   window.startFriendRequestsPolling?.();
   window.startFriendRequestsRealtime?.();
   window.startMessagesRealtime?.();
+  window.startProfilesRealtime?.();
 
   try {
     await loadInboxContacts();
@@ -7520,6 +7522,72 @@ window.startMessagesRealtime = function() {
       });
 
     window.messagesRealtimeChannel = messagesRealtimeChannel;
+  }).catch(() => {});
+};
+
+let profilesRealtimeChannel = null;
+window.startProfilesRealtime = function() {
+  const sbClient = getSbClient();
+  if(!sbClient) return;
+
+  getFreshCurrentUser().then((currentUser) => {
+    if(!currentUser) return;
+    if(profilesRealtimeChannel){
+      try { sbClient.removeChannel(profilesRealtimeChannel); } catch(_e){}
+      profilesRealtimeChannel = null;
+      window.profilesRealtimeChannel = null;
+    }
+
+    profilesRealtimeChannel = sbClient
+      .channel('realtime-profiles')
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'profiles'
+      }, async (payload) => {
+        const updatedProfile = payload.new;
+        if (!updatedProfile || !updatedProfile.id) return;
+        
+        // Update local window.profilesDirectory
+        if (Array.isArray(window.profilesDirectory)) {
+          const idx = window.profilesDirectory.findIndex(u => u.id === updatedProfile.id);
+          if (idx !== -1) {
+            window.profilesDirectory[idx] = {
+              ...window.profilesDirectory[idx],
+              ...updatedProfile
+            };
+          }
+        }
+        
+        // Update contacts cache
+        if (Array.isArray(contacts)) {
+          const c = contacts.find(c => c.id === updatedProfile.id);
+          if (c) {
+            c.name = updatedProfile.full_name || updatedProfile.username || (updatedProfile.email ? updatedProfile.email.split('@')[0] : 'User');
+            c.init = window.getDisplayInitial ? window.getDisplayInitial(c.name) : (c.name ? c.name.charAt(0) : 'U');
+            c.avatar = updatedProfile.avatar_url || '';
+            c.username = updatedProfile.username || '';
+            c.email = updatedProfile.email || '';
+            if (updatedProfile.member_code) {
+              c.memberCode = String(Number(updatedProfile.member_code)).padStart(3, '0');
+            }
+          }
+        }
+        
+        // Re-render UI elements
+        if (typeof window.renderContacts === 'function') window.renderContacts();
+        if (activeContact && activeContact.id === updatedProfile.id) {
+          activeContact.avatar = updatedProfile.avatar_url || '';
+          activeContact.name = updatedProfile.full_name || updatedProfile.username || (updatedProfile.email ? updatedProfile.email.split('@')[0] : 'User');
+          if (typeof window.syncActiveHeader === 'function') window.syncActiveHeader();
+        }
+        if (typeof window.renderMessages === 'function') window.renderMessages();
+      })
+      .subscribe((status, err) => {
+        console.log(`[Realtime] Profiles channel status: ${status}`, err || '');
+      });
+
+    window.profilesRealtimeChannel = profilesRealtimeChannel;
   }).catch(() => {});
 };
 
