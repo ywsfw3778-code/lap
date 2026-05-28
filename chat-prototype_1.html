@@ -4336,7 +4336,19 @@ function openProfileOverlayWithData(data){
 }
 
 window.openProfile = function(){
-  if(typeof window.openSettings === 'function') window.openSettings();
+  const me = getCurrentUser();
+  if(!me) return;
+  openProfileOverlayWithData({
+    id: me.id,
+    name: window.myName || 'User',
+    email: me.email || '—',
+    username: window.myUsername || '',
+    avatar: window.myAvatarUrl || '',
+    memberCode: window.getLabCode ? window.getLabCode(me.id) : '000',
+    lastSeenAt: '',
+    online: true,
+    isSelf: true
+  });
 };
 
 window.openActiveProfile = function(){
