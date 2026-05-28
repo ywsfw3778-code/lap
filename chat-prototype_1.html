@@ -3999,6 +3999,18 @@ window.handleDeleteChatFromMenu = function(event) {
   const modal = document.getElementById('deleteChatModal');
   const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
   if (checkbox) checkbox.checked = false;
+  
+  // Show "Delete for everyone" options ONLY if current user is an Admin
+  const optionsDiv = document.querySelector('.delete-chat-options');
+  const currentUser = getCurrentUser();
+  if (optionsDiv) {
+    if (currentUser && isAdmin(currentUser)) {
+      optionsDiv.style.setProperty('display', 'flex', 'important');
+    } else {
+      optionsDiv.style.setProperty('display', 'none', 'important');
+    }
+  }
+  
   if (modal) modal.classList.add('open');
 };
 
@@ -4016,6 +4028,45 @@ window.confirmDeleteChat = async function() {
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if (!sbClient || !currentUser) return;
+  
+  const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
+  const forEveryone = checkbox && checkbox.checked && isAdmin(currentUser);
+  
+  if (forEveryone) {
+    console.log(`[AdminDelete] Deleting all messages between ${currentUser.id} and ${contactId} for everyone`);
+    const identityIds = await getCurrentIdentityIds();
+    const ids = identityIds.length ? identityIds : [currentUser.id];
+    
+    // Get partner's linked identity IDs if they exist
+    const partner = contacts.find(x => x.id === contactId);
+    const partnerIds = partner ? await getIdentityIdsForEmail(partner.email || '', partner.id || '') : [contactId];
+    
+    try {
+      // 1. Delete messages where sender is me and receiver is partner
+      const deleteSent = sbClient
+        .from('messages')
+        .delete()
+        .in('sender_id', ids)
+        .in('receiver_id', partnerIds);
+        
+      // 2. Delete messages where sender is partner and receiver is me
+      const deleteRecv = sbClient
+        .from('messages')
+        .delete()
+        .in('sender_id', partnerIds)
+        .in('receiver_id', ids);
+        
+      const [resSent, resRecv] = await Promise.all([deleteSent, deleteRecv]);
+      if (resSent.error || resRecv.error) {
+        console.warn('[AdminDelete] Error deleting messages:', resSent.error?.message, resRecv.error?.message);
+        alert(appLang === 'ar' ? 'حدث خطأ أثناء الحذف من السيرفر' : 'Error deleting from server');
+      } else {
+        console.log('[AdminDelete] Messages successfully deleted from server for everyone');
+      }
+    } catch (err) {
+      console.error('[AdminDelete] Catch block error:', err);
+    }
+  }
   
   // Get latest message DB timestamp to prevent clock-drift issues
   const msgs = conversations[contactId] || [];
@@ -4049,17 +4100,22 @@ window.confirmDeleteChat = async function() {
     c._lastInboxAt = '';
   }
   
-  // Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
-  localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
-  
-  // Insert sync delete message into database to sync across user's other devices
-  sbClient.from('messages').insert({
-    sender_id: currentUser.id,
-    receiver_id: contactId,
-    content: `[system_delete_chat_me]${deletedTime}`
-  }).then(({ error }) => {
-    if (error) console.warn('Failed to insert delete sync message:', error.message);
-  });
+  if (!forEveryone) {
+    // Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
+    localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
+    
+    // Insert sync delete message into database to sync across user's other devices
+    sbClient.from('messages').insert({
+      sender_id: currentUser.id,
+      receiver_id: contactId,
+      content: `[system_delete_chat_me]${deletedTime}`
+    }).then(({ error }) => {
+      if (error) console.warn('Failed to insert delete sync message:', error.message);
+    });
+  } else {
+    // If deleted for everyone, remove the local storage deleted-at since messages are gone completely from database
+    localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId);
+  }
   
   // Keep active chat active but render it empty
   if (activeContact && activeContact.id === contactId) {
