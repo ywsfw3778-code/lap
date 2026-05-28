@@ -2087,9 +2087,9 @@ async function runProfilesQuery(builder){
 }
 
 function formatLastSeenLabel(input){
-  if(!input) return t('offline');
+  if(!input) return tr('offline');
   const date = new Date(input);
-  if(Number.isNaN(date.getTime())) return t('offline');
+  if(Number.isNaN(date.getTime())) return tr('offline');
   const lang = document.documentElement.lang === 'en' ? 'en' : 'ar';
   const formatted = date.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-US', {
     day: 'numeric',
