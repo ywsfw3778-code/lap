@@ -5189,6 +5189,11 @@ function showIncomingNotification(message, profile){
 }
 
 function closeMessageMenu(event){
+  if (event && (event.type === 'click' || event.type === 'scroll')) {
+    if (Date.now() - (window.messageMenuOpenedTime || 0) < 400) {
+      return;
+    }
+  }
   const menu = document.getElementById('messageMenu');
   if(menu){
     menu.classList.remove('open');
@@ -5214,7 +5219,12 @@ function openMessageMenu(event, msg, anchorEl = null){
   const tools = anchor?.closest?.('.msg-tools') || row?.querySelector?.('.msg-tools');
   if(!menu || !tools) return;
   const wasOpen = menu.classList.contains('open') && messageMenuState?.id === msg.id;
+  
+  const oldTime = window.messageMenuOpenedTime;
+  window.messageMenuOpenedTime = 0;
   closeMessageMenu();
+  window.messageMenuOpenedTime = oldTime;
+
   if(wasOpen) return;
   if(!prepareMessageMenuState(msg)) return;
   const canEdit = !!msg.out && !parseVoiceMessage(msg.text).isVoice && !String(msg.text || '').startsWith('[deleted]');
@@ -5248,6 +5258,7 @@ function openMessageMenu(event, msg, anchorEl = null){
   tools.classList.add('active');
   document.body.appendChild(menu);
   menu.classList.add('open');
+  window.messageMenuOpenedTime = Date.now();
   requestAnimationFrame(() => {
     const anchorRect = tools.getBoundingClientRect();
     const menuRect = menu.getBoundingClientRect();
@@ -5743,13 +5754,16 @@ function createMessageRow(msg, isOut, showAvatar){
 
   // --- Mobile Premium Long Press Options ---
   let touchTimer = null;
+  let menuOpenedByTouch = false;
   bubble.addEventListener('touchstart', (event) => {
     if (event.touches.length > 1) return;
+    menuOpenedByTouch = false;
     touchTimer = setTimeout(() => {
       if (navigator.vibrate) {
         try { navigator.vibrate(50); } catch(_v){}
       }
       openMessageMenu(event, msg, bubble);
+      menuOpenedByTouch = true;
       touchTimer = null;
     }, 600); // 600ms long press duration
   }, { passive: true });
@@ -5758,12 +5772,20 @@ function createMessageRow(msg, isOut, showAvatar){
     clearTimeout(touchTimer);
   });
 
-  bubble.addEventListener('touchend', () => {
+  bubble.addEventListener('touchend', (event) => {
     clearTimeout(touchTimer);
+    if (menuOpenedByTouch) {
+      event.preventDefault();
+      menuOpenedByTouch = false;
+    }
   });
 
-  bubble.addEventListener('touchcancel', () => {
+  bubble.addEventListener('touchcancel', (event) => {
     clearTimeout(touchTimer);
+    if (menuOpenedByTouch) {
+      event.preventDefault();
+      menuOpenedByTouch = false;
+    }
   });
 
   content.appendChild(tools);
@@ -7502,7 +7524,7 @@ window.addEventListener('storage', (event) => {
 });
 document.addEventListener('click', (event) => {
   const menu = document.getElementById('messageMenu');
-  if(menu && menu.classList.contains('open') && !menu.contains(event.target)) closeMessageMenu();
+  if(menu && menu.classList.contains('open') && !menu.contains(event.target)) closeMessageMenu(event);
   const chatMenu = document.getElementById('chatHeaderMenu');
   const chatBtn = document.getElementById('chatMenuBtn');
   if(chatMenu && chatMenu.classList.contains('open') && !chatMenu.contains(event.target) && !chatBtn?.contains(event.target)) closeChatHeaderMenu();
