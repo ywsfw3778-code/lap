@@ -4017,7 +4017,15 @@ window.confirmDeleteChat = async function() {
   const currentUser = getCurrentUser();
   if (!sbClient || !currentUser) return;
   
-  const deletedTime = new Date().toISOString();
+  // Get latest message DB timestamp to prevent clock-drift issues
+  const msgs = conversations[contactId] || [];
+  let deletedTime = new Date().toISOString();
+  if (msgs.length > 0) {
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg.createdAt || lastMsg.created_at) {
+      deletedTime = lastMsg.createdAt || lastMsg.created_at;
+    }
+  }
   
   // Clear conversation cache
   conversations[contactId] = [];
@@ -5621,17 +5629,6 @@ async function loadInboxContacts(){
 
   const applyRebuiltContacts = (rebuiltContacts) => {
     const persistentActiveId = localStorage.getItem('lm-persistent-active-chat-id') || pendingRestoredContactId;
-
-    // Auto-clear deletion timestamp if a new message has arrived after deletion
-    rebuiltContacts.forEach(c => {
-      const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
-      if (deletedAt) {
-        const lastRaw = c._lastInboxAt || c.lastInboxAt;
-        if (lastRaw && new Date(lastRaw).getTime() > new Date(deletedAt).getTime()) {
-          localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + c.id);
-        }
-      }
-    });
 
     if (persistentActiveId) {
       const hasIt = rebuiltContacts.some(x => x.id === persistentActiveId);
