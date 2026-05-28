@@ -4052,6 +4052,15 @@ window.confirmDeleteChat = async function() {
   // Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
   localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
   
+  // Insert sync delete message into database to sync across user's other devices
+  sbClient.from('messages').insert({
+    sender_id: currentUser.id,
+    receiver_id: contactId,
+    content: `[system_delete_chat_me]${deletedTime}`
+  }).then(({ error }) => {
+    if (error) console.warn('Failed to insert delete sync message:', error.message);
+  });
+  
   // Keep active chat active but render it empty
   if (activeContact && activeContact.id === contactId) {
     renderMessages();
@@ -5525,6 +5534,29 @@ async function loadMessagesForContact(contactId){
       return;
     }
 
+    // Scan database messages for any cross-device deletion synchronization messages
+    let dbDeletedAt = null;
+    if (Array.isArray(data)) {
+      data.forEach(m => {
+        const senderIsMe = idBelongsToCurrentUser(m.sender_id || m.from_user_id, identityIds, currentUser);
+        if (senderIsMe && m.content && String(m.content).startsWith('[system_delete_chat_me]')) {
+          const contentTime = String(m.content).substring('[system_delete_chat_me]'.length);
+          if (contentTime && !Number.isNaN(new Date(contentTime).getTime())) {
+            if (!dbDeletedAt || new Date(contentTime).getTime() > new Date(dbDeletedAt).getTime()) {
+              dbDeletedAt = contentTime;
+            }
+          }
+        }
+      });
+    }
+    
+    if (dbDeletedAt) {
+      const localDeletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId);
+      if (!localDeletedAt || new Date(dbDeletedAt).getTime() > new Date(localDeletedAt).getTime()) {
+        localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, dbDeletedAt);
+      }
+    }
+
     let deletedAt = localStorage.getItem('lm-chat-deleted-at-' + (currentUser?.id || '') + '-' + contactId);
     if (deletedAt && new Date(deletedAt).getTime() > Date.now() + 5000) {
       console.warn('[SelfHealing] Future deletedAt detected and cleared:', deletedAt);
@@ -5533,6 +5565,9 @@ async function loadMessagesForContact(contactId){
     }
     const rows = (data || [])
       .filter((m) => {
+        if (m.content && String(m.content).startsWith('[system_delete_chat_me]')) {
+          return false; // Never render delete sync messages as bubbles!
+        }
         if (hiddenMessageIds.has(String(m.id))) return false;
         if (deletedAt && new Date(m.created_at || m.createdAt).getTime() <= new Date(deletedAt).getTime()) {
           return false;
@@ -5784,6 +5819,9 @@ async function loadInboxContacts(){
         deletedAt = null;
       }
       let previewText = row.last_content || '';
+      if (previewText.startsWith('[system_delete_chat_me]')) {
+        previewText = '';
+      }
       let timeText = formatChatTime(row.last_created_at || new Date());
       let finalUnreadCount = unreadCount;
       
@@ -5912,6 +5950,9 @@ async function loadInboxContacts(){
       deletedAt = null;
     }
     let previewText = (last?.content || last?.body || last?.text || last?.message || '');
+    if (previewText.startsWith('[system_delete_chat_me]')) {
+      previewText = '';
+    }
     let timeText = formatChatTime(last?.created_at || last?.createdAt || new Date());
     let unreadCount = existingUnread.get(id) || 0;
     
