@@ -1730,6 +1730,28 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         </div>
       </div>
 
+  </div>
+</div>
+
+<!-- Crop Overlay -->
+<div class="overlay" id="cropOverlay" style="z-index: 10000; display: none; align-items: center; justify-content: center;" onclick="if(event.target===this)closeCropModal()">
+  <div class="panel" style="width: 450px; max-width: 95vw; display: flex; flex-direction: column; overflow: hidden; padding: 24px;">
+    <div class="panel-top" style="flex-shrink: 0; margin-bottom: 4px;">
+      <div class="panel-title">
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/scissors.webp" alt="crop" class="ui-3d-icon" style="display:inline-block; vertical-align:middle; margin-inline-end:8px; width:22px; height:22px;" />
+        قص الصورة الشخصية
+      </div>
+      <div class="panel-close" onclick="closeCropModal()">×</div>
+    </div>
+    <div class="panel-sub">اضبط أبعاد الصورة لتكون متناسقة ومربعة وممتازة</div>
+    
+    <div style="flex: 1; min-height: 250px; max-height: 50vh; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 12px; overflow: hidden; margin-bottom: 20px; border: 1px dashed var(--border2); position: relative;">
+      <img id="cropImage" src="" style="max-width: 100%; max-height: 100%; display: block;" />
+    </div>
+    
+    <div style="display: flex; justify-content: flex-end; gap: 12px;">
+      <button class="pbtn" type="button" onclick="closeCropModal()" style="padding: 10px 16px; border-radius: 10px; height: auto;">إلغلاق</button>
+      <button class="pbtn" id="saveCropBtn" type="button" style="padding: 10px 20px; border-radius: 10px; height: auto;">قص وحفظ</button>
     </div>
   </div>
 </div>
@@ -2180,36 +2202,146 @@ function applyMyProfileUI(){
 }
 window.refreshMyProfileUI = applyMyProfileUI;
 
-window.handleAvatarPick = async (event) => {
-  const file = event?.target?.files?.[0];
-  if(!file) return;
+function ensureCropperLoaded(callback) {
+  if (window.Cropper) {
+    callback();
+    return;
+  }
+  if (!document.getElementById('cropper-css')) {
+    const link = document.createElement('link');
+    link.id = 'cropper-css';
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css';
+    document.head.appendChild(link);
+  }
+  const script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js';
+  script.onload = () => {
+    callback();
+  };
+  document.head.appendChild(script);
+}
+
+let activeCropper = null;
+let currentCropCallback = null;
+
+window.closeCropModal = function() {
+  const overlay = document.getElementById('cropOverlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+    overlay.classList.remove('open');
+  }
+  if (activeCropper) {
+    activeCropper.destroy();
+    activeCropper = null;
+  }
+  currentCropCallback = null;
+};
+
+window.openCropModal = function(file, callback) {
+  ensureCropperLoaded(() => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById('cropImage');
+      img.src = e.target.result;
+      
+      const overlay = document.getElementById('cropOverlay');
+      if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.classList.add('open');
+      }
+      
+      if (activeCropper) {
+        activeCropper.destroy();
+      }
+      
+      setTimeout(() => {
+        activeCropper = new Cropper(img, {
+          aspectRatio: 1,
+          viewMode: 1,
+          autoCropArea: 0.8,
+          responsive: true,
+          restore: false,
+          guides: true,
+          center: true,
+          highlight: false,
+          cropBoxMovable: true,
+          cropBoxResizable: true,
+          toggleDragModeOnDblclick: false,
+        });
+      }, 150);
+      
+      currentCropCallback = callback;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+// Bind save event to button
+setTimeout(() => {
+  const btn = document.getElementById('saveCropBtn');
+  if (btn) {
+    btn.onclick = async () => {
+      if (!activeCropper || !currentCropCallback) return;
+      
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = document.documentElement.lang === 'en' ? 'Processing...' : 'جاري المعالجة...';
+      
+      const canvas = activeCropper.getCroppedCanvas({
+        width: 320,
+        height: 320,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high',
+      });
+      
+      canvas.toBlob((blob) => {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        
+        if (blob) {
+          const croppedFile = new File([blob], 'avatar.png', { type: 'image/png' });
+          if (currentCropCallback) currentCropCallback(croppedFile);
+        }
+        window.closeCropModal();
+      }, 'image/png');
+    };
+  }
+}, 1000);
+
+window.uploadAvatarFile = async (file, isSettings = false) => {
   const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || {};
+  const note = document.getElementById(isSettings ? 'settingsAvatarNote' : 'avatarNote');
   try{
-    toast(document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ رفع الصورة للسيرفر...');
+    if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ الرفع...';
+    toast(document.documentElement.lang === 'en' ? 'Uploading avatar...' : 'جارِ رفع الصورة للسيرفر...');
     
-    // استخراج امتداد واسم الصورة
-    const fileExt = file.name.split('.').pop();
-    const fileName = `avatar_${me.id || 'unknown'}_${Date.now()}.${fileExt}`;
+    const fileName = `avatar_${me.id || 'unknown'}_${Date.now()}.png`;
     const sbClient = window.sb;
     
-    // الرفع الفعلي لمساحة تخزين Supabase
     const { data, error } = await sbClient.storage.from('avatars').upload(fileName, file, { upsert: true });
     
     if(error) {
        toast('فشل الرفع: ' + error.message, 'error');
+       if(note) note.textContent = 'فشل الرفع';
        return;
     }
 
-    // الحصول على رابط الصورة السريع
     const { data: urlData } = sbClient.storage.from('avatars').getPublicUrl(fileName);
     window.myAvatarUrl = urlData.publicUrl;
 
-    const note = document.getElementById('avatarNote');
-    if(note) note.textContent = 'تم الرفع بنجاح';
+    if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploaded successfully!' : 'تم الرفع بنجاح!';
     
-    // تحديث الواجهة والبيانات
     saveLocalAvatar(window.myAvatarUrl);
     applyMyProfileUI();
+    
+    if (isSettings) {
+      const settingsAv = document.getElementById('settingsProfileAv');
+      if (settingsAv) {
+        settingsAv.innerHTML = '';
+        window.setAvatarNode(settingsAv, window.myName, window.myAvatarUrl);
+      }
+    }
     
     try {
       const { error: authErr } = await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
@@ -2224,11 +2356,20 @@ window.handleAvatarPick = async (event) => {
     if(typeof window.renderMessages === 'function') window.renderMessages();
     if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
     
-    toast(document.documentElement.lang === 'en' ? 'Photo saved to server' : '✅ تم حفظ الصورة وستظهر للجميع!');
+    toast(document.documentElement.lang === 'en' ? 'Avatar updated!' : '✅ تم تحديث الصورة الشخصية بنجاح!');
   }catch(_e){
     console.error(_e);
     toast('حدث خطأ أثناء الرفع', 'error');
+    if(note) note.textContent = 'حدث خطأ';
   }
+};
+
+window.handleAvatarPick = (event) => {
+  const file = event?.target?.files?.[0];
+  if(!file) return;
+  window.openCropModal(file, (croppedFile) => {
+    window.uploadAvatarFile(croppedFile, false);
+  });
 };
 
 async function loadMyProfile(){
@@ -3657,59 +3798,12 @@ window.closeSettings = function() {
   document.getElementById('settingsOverlay')?.classList.remove('open');
 };
 
-window.handleSettingsAvatarPick = async function(event) {
+window.handleSettingsAvatarPick = function(event) {
   const file = event?.target?.files?.[0];
   if(!file) return;
-  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null) || {};
-  const note = document.getElementById('settingsAvatarNote');
-  try {
-    if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ الرفع...';
-    toast(document.documentElement.lang === 'en' ? 'Uploading avatar...' : 'جارِ رفع الصورة الشخصية...');
-    
-    const fileExt = file.name.split('.').pop();
-    const fileName = `avatar_${me.id || 'unknown'}_${Date.now()}.${fileExt}`;
-    const sbClient = window.sb;
-    
-    const { data, error } = await sbClient.storage.from('avatars').upload(fileName, file, { upsert: true });
-    if(error) {
-       toast('فشل الرفع: ' + error.message, 'error');
-       if(note) note.textContent = 'فشل الرفع';
-       return;
-    }
-
-    const { data: urlData } = sbClient.storage.from('avatars').getPublicUrl(fileName);
-    window.myAvatarUrl = urlData.publicUrl;
-
-    if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploaded successfully!' : 'تم الرفع بنجاح!';
-    
-    saveLocalAvatar(window.myAvatarUrl);
-    applyMyProfileUI();
-    
-    const settingsAv = document.getElementById('settingsProfileAv');
-    if (settingsAv) {
-      settingsAv.innerHTML = '';
-      window.setAvatarNode(settingsAv, window.myName, window.myAvatarUrl);
-    }
-    
-    try {
-      const { error: authErr } = await sbClient.auth.updateUser({ data: { full_name: window.myName, username: window.myUsername || null, avatar_url: window.myAvatarUrl || null } });
-      if(authErr) console.warn('auth.updateUser returned error (Google OAuth user), bypassing:', authErr.message);
-    } catch(authErr) {
-      console.warn('auth.updateUser exception (Google OAuth user), bypassing:', authErr?.message || authErr);
-    }
-    await upsertMyProfileOnServer({ avatar_url: window.myAvatarUrl || null });
-    
-    if(typeof window.saveLocalChatState === 'function') window.saveLocalChatState();
-    if(typeof window.renderContacts === 'function') window.renderContacts();
-    if(typeof window.renderMessages === 'function') window.renderMessages();
-    if(typeof refreshProfilesDirectory === 'function') refreshProfilesDirectory();
-    
-    toast(document.documentElement.lang === 'en' ? 'Avatar updated!' : '✅ تم تحديث الصورة الشخصية بنجاح!');
-  } catch(_e) {
-    console.error(_e);
-    toast('حدث خطأ أثناء الرفع', 'error');
-    if(note) note.textContent = 'حدث خطأ';
-  }
+  window.openCropModal(file, (croppedFile) => {
+    window.uploadAvatarFile(croppedFile, true);
+  });
 };
 
 window.saveSettingsProfile = async function() {
@@ -4807,6 +4901,26 @@ async function handleFileSelected(event){
 window.handleFileSelected = handleFileSelected;
 window.removePendingFile = removePendingFile;
 window.clearPendingAttachments = clearPendingAttachments;
+
+window.addEventListener('paste', (event) => {
+  const items = (event.clipboardData || event.originalEvent?.clipboardData)?.items;
+  if (!items) return;
+  const files = [];
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') !== -1 || items[i].type.indexOf('video') !== -1) {
+      const file = items[i].getAsFile();
+      if (file) files.push(file);
+    }
+  }
+  if (files.length > 0) {
+    const activeEl = document.activeElement;
+    if (activeEl && activeEl.id === 'msgInput') {
+      event.preventDefault();
+      const fakeEvent = { target: { files: files } };
+      handleFileSelected(fakeEvent);
+    }
+  }
+});
 
 window.downloadMediaFromMenu = async function(url, type) {
   closeMessageMenu();
