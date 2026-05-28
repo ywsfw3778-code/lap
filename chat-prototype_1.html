@@ -4019,12 +4019,23 @@ window.confirmDeleteChat = async function() {
   
   // Get latest message DB timestamp to prevent clock-drift issues
   const msgs = conversations[contactId] || [];
-  let deletedTime = new Date(Date.now() - 30000).toISOString(); // Subtract 30 seconds to absorb client-server clock-drift
+  let deletedTime = null;
   if (msgs.length > 0) {
     const lastMsg = msgs[msgs.length - 1];
-    if (lastMsg.createdAt || lastMsg.created_at) {
-      deletedTime = lastMsg.createdAt || lastMsg.created_at;
+    deletedTime = lastMsg.createdAt || lastMsg.created_at;
+  }
+  
+  if (!deletedTime) {
+    const c = contacts.find(x => x.id === contactId);
+    if (c && c._lastInboxAt) {
+      deletedTime = c._lastInboxAt;
     }
+  }
+  
+  if (!deletedTime) {
+    // If there are absolutely no messages in this conversation, we don't need a filter at all.
+    // Set to epoch to prevent filtering any new messages.
+    deletedTime = '1970-01-01T00:00:00.000Z';
   }
   
   // Clear conversation cache
@@ -5514,7 +5525,12 @@ async function loadMessagesForContact(contactId){
       return;
     }
 
-    const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + (currentUser?.id || '') + '-' + contactId);
+    let deletedAt = localStorage.getItem('lm-chat-deleted-at-' + (currentUser?.id || '') + '-' + contactId);
+    if (deletedAt && new Date(deletedAt).getTime() > Date.now() + 5000) {
+      console.warn('[SelfHealing] Future deletedAt detected and cleared:', deletedAt);
+      localStorage.removeItem('lm-chat-deleted-at-' + (currentUser?.id || '') + '-' + contactId);
+      deletedAt = null;
+    }
     const rows = (data || [])
       .filter((m) => {
         if (hiddenMessageIds.has(String(m.id))) return false;
@@ -5762,7 +5778,11 @@ async function loadInboxContacts(){
         }
       }
 
-      const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id);
+      let deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id);
+      if (deletedAt && new Date(deletedAt).getTime() > Date.now() + 5000) {
+        localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id);
+        deletedAt = null;
+      }
       let previewText = row.last_content || '';
       let timeText = formatChatTime(row.last_created_at || new Date());
       let finalUnreadCount = unreadCount;
@@ -5886,7 +5906,11 @@ async function loadInboxContacts(){
     const last = latestByPartner.get(id);
     const existing = existingById.get(id);
     const clr = existing ? { bg: existing.color, t: existing.text } : colorFromId(id);
-    const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + id);
+    let deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + id);
+    if (deletedAt && new Date(deletedAt).getTime() > Date.now() + 5000) {
+      localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + id);
+      deletedAt = null;
+    }
     let previewText = (last?.content || last?.body || last?.text || last?.message || '');
     let timeText = formatChatTime(last?.created_at || last?.createdAt || new Date());
     let unreadCount = existingUnread.get(id) || 0;
