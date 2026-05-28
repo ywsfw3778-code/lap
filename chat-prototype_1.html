@@ -1467,8 +1467,8 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         <polyline points="12 19 5 12 12 5"></polyline>
       </svg>
     </div>
-    <div class="chat-user">
-      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);cursor:pointer;" onclick="openActiveAvatarPreview()">💬</div>
+    <div class="chat-user" style="cursor:pointer;" onclick="window.openActiveProfileFromHeader()">
+      <div class="avatar" id="headerAvatar" style="background:var(--surface2);color:var(--accent);cursor:pointer;">💬</div>
       <div>
         <div class="chat-user-name" id="headerName">اختر محادثة</div>
         <div class="chat-user-status" id="chatUserStatus"><span class="status-pulse"></span> Online</div>
@@ -2801,7 +2801,9 @@ window.searchFriends = async function() {
       await window.refreshProfilesDirectory(500);
     }
     const users = await window.searchProfiles(q, 10);
-    const filtered = (users || []).filter(u => u.id !== window.me.id);
+    const currentUser = await getFreshCurrentUser();
+    const myId = currentUser?.id || window.me?.id;
+    const filtered = (users || []).filter(u => u.id !== myId);
     if (filtered.length === 0) {
       resDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">لم يتم العثور على مستخدم</div>';
       return;
@@ -4147,7 +4149,7 @@ window.closeImageViewer = function(){
 
 let contactMenuState = null;
 let contactTouchTimeout = null;
-let contactTouchMoved = false;
+let contactMenuOpenedByTouch = false;
 
 window.openContactContextMenu = function(event, contactId) {
   if (!contactId) return;
@@ -4161,7 +4163,13 @@ window.openContactContextMenu = function(event, contactId) {
   if (typeof closeMessageMenu === 'function') closeMessageMenu();
   if (typeof closeChatHeaderMenu === 'function') closeChatHeaderMenu();
   
+  const oldTime = window.contactContextMenuOpenedTime;
+  window.contactContextMenuOpenedTime = 0;
+  window.closeContactContextMenu();
+  window.contactContextMenuOpenedTime = oldTime;
+
   menu.classList.add('open');
+  window.contactContextMenuOpenedTime = Date.now();
   
   let clientX = event.clientX;
   let clientY = event.clientY;
@@ -4185,7 +4193,12 @@ window.openContactContextMenu = function(event, contactId) {
   });
 };
 
-window.closeContactContextMenu = function() {
+window.closeContactContextMenu = function(event) {
+  if (event && (event.type === 'click' || event.type === 'scroll')) {
+    if (Date.now() - (window.contactContextMenuOpenedTime || 0) < 400) {
+      return;
+    }
+  }
   const menu = document.getElementById('contactContextMenu');
   if (menu) menu.classList.remove('open');
   contactMenuState = null;
@@ -4193,11 +4206,13 @@ window.closeContactContextMenu = function() {
 
 window.handleContactTouchStart = function(event, contactId) {
   contactTouchMoved = false;
+  contactMenuOpenedByTouch = false;
   if (contactTouchTimeout) clearTimeout(contactTouchTimeout);
   
   contactTouchTimeout = setTimeout(() => {
     if (!contactTouchMoved) {
       window.openContactContextMenu(event, contactId);
+      contactMenuOpenedByTouch = true;
       if (navigator.vibrate) navigator.vibrate(40);
     }
   }, 600);
@@ -4210,6 +4225,10 @@ window.handleContactTouchMove = function(event) {
 
 window.handleContactTouchEnd = function(event) {
   if (contactTouchTimeout) clearTimeout(contactTouchTimeout);
+  if (contactMenuOpenedByTouch) {
+    event.preventDefault();
+    contactMenuOpenedByTouch = false;
+  }
 };
 
 window.handleDeleteChatFromMenu = function(event) {
@@ -4568,6 +4587,11 @@ window.openActiveAvatarPreview = function(){
   if(!currentContact) return;
   if(currentContact.avatar) window.openImageViewer(currentContact.avatar, currentContact.name || '');
   else window.openUserProfile(currentContact.id);
+};
+
+window.openActiveProfileFromHeader = function(){
+  const currentContact = window.activeContactRef || activeContact;
+  if(currentContact) window.openActiveProfile();
 };
 
 window.openActiveProfileFromMenu = function(){
@@ -7545,7 +7569,7 @@ document.addEventListener('click', (event) => {
   const chatBtn = document.getElementById('chatMenuBtn');
   if(chatMenu && chatMenu.classList.contains('open') && !chatMenu.contains(event.target) && !chatBtn?.contains(event.target)) closeChatHeaderMenu();
   const contactMenu = document.getElementById('contactContextMenu');
-  if(contactMenu && contactMenu.classList.contains('open') && !contactMenu.contains(event.target)) closeContactContextMenu();
+  if(contactMenu && contactMenu.classList.contains('open') && !contactMenu.contains(event.target)) closeContactContextMenu(event);
 });
 document.getElementById('messageMenu')?.addEventListener('click', (event) => {
   event.stopPropagation();
