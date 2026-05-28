@@ -3322,6 +3322,9 @@ function setMobileChatMode(openChat){
   }
   // إضافة الكلاس اللي بيظهر الشات
   document.body.classList.toggle('mobile-chat-active', !!openChat);
+  if (openChat) {
+    window.pushNavigationState();
+  }
 }
 
 window.openSidebarMobile = function(){
@@ -3335,6 +3338,112 @@ window.openSidebarMobile = function(){
   renderContacts();
   renderMessages();
 };
+
+// --- Premium SPA Navigation State Management (Back Button Interceptor) ---
+window.isAnyOverlayOpen = function() {
+  const overlays = [
+    'profileOverlay',
+    'settingsOverlay',
+    'searchOverlay',
+    'imageViewerOverlay',
+    'cropOverlay',
+    'deleteChatModal'
+  ];
+  for (const id of overlays) {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('open')) {
+      return id;
+    }
+  }
+  if (document.body.classList.contains('profile-overlay-open')) {
+    return 'profileOverlay';
+  }
+  return null;
+};
+
+window.closeAllOverlays = function() {
+  const openOverlayId = window.isAnyOverlayOpen();
+  if (openOverlayId === 'profileOverlay') {
+    if (typeof window.closeProfile === 'function') window.closeProfile();
+  } else if (openOverlayId === 'settingsOverlay') {
+    if (typeof window.closeSettings === 'function') window.closeSettings();
+  } else if (openOverlayId === 'searchOverlay') {
+    if (typeof window.closeSearchPanel === 'function') window.closeSearchPanel();
+  } else if (openOverlayId === 'imageViewerOverlay') {
+    if (typeof window.closeImageViewer === 'function') window.closeImageViewer();
+  } else if (openOverlayId === 'cropOverlay') {
+    if (typeof window.closeCropModal === 'function') window.closeCropModal();
+  } else if (openOverlayId === 'deleteChatModal') {
+    if (typeof window.closeDeleteChatModal === 'function') window.closeDeleteChatModal();
+  }
+};
+
+window.pushNavigationState = function() {
+  if (history.state && history.state.lmState) return; // Prevent duplicate state push
+  history.pushState({ lmState: Date.now() }, '');
+};
+
+// Listen to back gesture / browser back button
+window.addEventListener('popstate', (event) => {
+  const openOverlayId = window.isAnyOverlayOpen();
+  
+  if (openOverlayId) {
+    window.closeAllOverlays();
+    window.pushNavigationState();
+    return;
+  }
+  
+  if (isMobileView() && activeContact) {
+    window.openSidebarMobile();
+    window.pushNavigationState();
+    return;
+  }
+});
+
+// Setup MutationObserver to watch overlays opening
+document.addEventListener('DOMContentLoaded', () => {
+  // Push initial state so we have a base state to go back to
+  window.pushNavigationState();
+
+  const overlays = [
+    'profileOverlay',
+    'settingsOverlay',
+    'searchOverlay',
+    'imageViewerOverlay',
+    'cropOverlay',
+    'deleteChatModal'
+  ];
+  
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        const target = mutation.target;
+        if (target.classList.contains('open')) {
+          window.pushNavigationState();
+        }
+      }
+    });
+  });
+
+  overlays.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    }
+  });
+
+  // Also watch document.body for profile-overlay-open
+  const bodyObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        if (document.body.classList.contains('profile-overlay-open')) {
+          window.pushNavigationState();
+        }
+      }
+    });
+  });
+  bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+});
 
 function getChatStateKey(){
   const me = getCurrentUser();
