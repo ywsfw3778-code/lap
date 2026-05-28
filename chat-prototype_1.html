@@ -4042,26 +4042,39 @@ window.confirmDeleteChat = async function() {
     const partnerIds = partner ? await getIdentityIdsForEmail(partner.email || '', partner.id || '') : [contactId];
     
     try {
-      // 1. Delete messages where sender is me and receiver is partner
-      const deleteSent = sbClient
-        .from('messages')
-        .delete()
-        .in('sender_id', ids)
-        .in('receiver_id', partnerIds);
-        
-      // 2. Delete messages where sender is partner and receiver is me
-      const deleteRecv = sbClient
-        .from('messages')
-        .delete()
-        .in('sender_id', partnerIds)
-        .in('receiver_id', ids);
-        
-      const [resSent, resRecv] = await Promise.all([deleteSent, deleteRecv]);
-      if (resSent.error || resRecv.error) {
-        console.warn('[AdminDelete] Error deleting messages:', resSent.error?.message, resRecv.error?.message);
-        alert(appLang === 'ar' ? 'حدث خطأ أثناء الحذف من السيرفر' : 'Error deleting from server');
+      // Fetch all sent and received message IDs first to delete them by ID (primary key)
+      const [resSent, resRecv] = await Promise.all([
+        sbClient
+          .from('messages')
+          .select('id')
+          .in('sender_id', ids)
+          .in('receiver_id', partnerIds),
+        sbClient
+          .from('messages')
+          .select('id')
+          .in('sender_id', partnerIds)
+          .in('receiver_id', ids)
+      ]);
+      
+      const msgIds = [
+        ...(resSent.data || []).map(m => m.id),
+        ...(resRecv.data || []).map(m => m.id)
+      ];
+      
+      if (msgIds.length > 0) {
+        const { error: delErr } = await sbClient
+          .from('messages')
+          .delete()
+          .in('id', msgIds);
+          
+        if (delErr) {
+          console.warn('[AdminDelete] Error deleting by ID:', delErr.message);
+          alert(appLang === 'ar' ? 'حدث خطأ أثناء الحذف من السيرفر: ' + delErr.message : 'Error deleting from server: ' + delErr.message);
+        } else {
+          console.log(`[AdminDelete] Successfully deleted ${msgIds.length} messages by ID for everyone`);
+        }
       } else {
-        console.log('[AdminDelete] Messages successfully deleted from server for everyone');
+        console.log('[AdminDelete] No messages found to delete on server');
       }
     } catch (err) {
       console.error('[AdminDelete] Catch block error:', err);
