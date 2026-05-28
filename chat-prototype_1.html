@@ -4019,7 +4019,7 @@ window.confirmDeleteChat = async function() {
   
   // Get latest message DB timestamp to prevent clock-drift issues
   const msgs = conversations[contactId] || [];
-  let deletedTime = new Date().toISOString();
+  let deletedTime = new Date(Date.now() - 30000).toISOString(); // Subtract 30 seconds to absorb client-server clock-drift
   if (msgs.length > 0) {
     const lastMsg = msgs[msgs.length - 1];
     if (lastMsg.createdAt || lastMsg.created_at) {
@@ -5444,116 +5444,132 @@ function createMessageRow(msg, isOut, showAvatar){
   return row;
 }
 
+let activeMessageLoads = new Map(); // contactId -> Promise
+
 async function loadMessagesForContact(contactId){
   const sbClient = getSbClient();
   const currentUser = await getFreshCurrentUser();
   if(!sbClient || !currentUser || !contactId) return;
-  const identityIds = await getCurrentIdentityIds();
-  let data = null;
-  let error = null;
-  const currentEmail = String(currentUser.email || '').trim();
-  let rpcRes = { data: null, error: new Error('rpc-not-run') };
-  if(currentEmail){
-    rpcRes = await callRpcSafe('get_chat_messages_for_email', {
-      current_email: currentEmail,
-      partner_user_id: contactId,
-      result_limit: 200
-    });
-    console.log(`[MsgLoad] RPC get_chat_messages_for_email => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
+  
+  if (activeMessageLoads.has(contactId)) {
+    return activeMessageLoads.get(contactId);
   }
-  if(!rpcHasRows(rpcRes)){
-    rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
-    console.log(`[MsgLoad] RPC get_chat_messages => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
-  }
-  if(rpcHasRows(rpcRes)){
-    data = rpcRes.data;
-    console.log(`[MsgLoad] Using RPC data, ${data.length} messages`);
-  }else{
-    const ids = identityIds.length ? identityIds : [currentUser.id];
-    console.log(`[MsgLoad] Fallback direct query with ids:`, ids, 'contactId:', contactId);
-    const [sentRes, recvRes] = await Promise.all([
-      sbClient
-        .from('messages')
-        .select('*')
-        .in('sender_id', ids)
-        .eq('receiver_id', contactId)
-        .order('created_at', { ascending: true })
-        .limit(200),
-      sbClient
-        .from('messages')
-        .select('*')
-        .eq('sender_id', contactId)
-        .in('receiver_id', ids)
-        .order('created_at', { ascending: true })
-        .limit(200)
-    ]);
-    error = sentRes.error || recvRes.error || null;
-    console.log(`[MsgLoad] Fallback sent: ${sentRes.data?.length ?? 'null'} (err: ${sentRes.error?.message || 'none'}), recv: ${recvRes.data?.length ?? 'null'} (err: ${recvRes.error?.message || 'none'})`);
-    const merged = [...(sentRes.data || []), ...(recvRes.data || [])];
-    const seen = new Set();
-    data = merged
-      .filter((row) => {
-        const key = String(row?.id || '');
-        if(!key || seen.has(key)) return false;
-        seen.add(key);
+  
+  const loadPromise = (async () => {
+    const identityIds = await getCurrentIdentityIds();
+    let data = null;
+    let error = null;
+    const currentEmail = String(currentUser.email || '').trim();
+    let rpcRes = { data: null, error: new Error('rpc-not-run') };
+    if(currentEmail){
+      rpcRes = await callRpcSafe('get_chat_messages_for_email', {
+        current_email: currentEmail,
+        partner_user_id: contactId,
+        result_limit: 200
+      });
+      console.log(`[MsgLoad] RPC get_chat_messages_for_email => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
+    }
+    if(!rpcHasRows(rpcRes)){
+      rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
+      console.log(`[MsgLoad] RPC get_chat_messages => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
+    }
+    if(rpcHasRows(rpcRes)){
+      data = rpcRes.data;
+      console.log(`[MsgLoad] Using RPC data, ${data.length} messages`);
+    }else{
+      const ids = identityIds.length ? identityIds : [currentUser.id];
+      console.log(`[MsgLoad] Fallback direct query with ids:`, ids, 'contactId:', contactId);
+      const [sentRes, recvRes] = await Promise.all([
+        sbClient
+          .from('messages')
+          .select('*')
+          .in('sender_id', ids)
+          .eq('receiver_id', contactId)
+          .order('created_at', { ascending: true })
+          .limit(200),
+        sbClient
+          .from('messages')
+          .select('*')
+          .eq('sender_id', contactId)
+          .in('receiver_id', ids)
+          .order('created_at', { ascending: true })
+          .limit(200)
+      ]);
+      error = sentRes.error || recvRes.error || null;
+      console.log(`[MsgLoad] Fallback sent: ${sentRes.data?.length ?? 'null'} (err: ${sentRes.error?.message || 'none'}), recv: ${recvRes.data?.length ?? 'null'} (err: ${recvRes.error?.message || 'none'})$`);
+      const merged = [...(sentRes.data || []), ...(recvRes.data || [])];
+      const seen = new Set();
+      data = merged
+        .filter((row) => {
+          const key = String(row?.id || '');
+          if(!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')));
+    }
+
+    if(error){
+      console.warn('messages load failed:', error.message);
+      return;
+    }
+
+    const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + (currentUser?.id || '') + '-' + contactId);
+    const rows = (data || [])
+      .filter((m) => {
+        if (hiddenMessageIds.has(String(m.id))) return false;
+        if (deletedAt && new Date(m.created_at || m.createdAt).getTime() <= new Date(deletedAt).getTime()) {
+          return false;
+        }
         return true;
       })
-      .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')));
-  }
+      .map(m => {
+        const senderIsMe = idBelongsToCurrentUser(m.sender_id || m.from_user_id, identityIds, currentUser);
+        return {
+          id: m.id,
+          out: senderIsMe,
+          text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
+          previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), senderIsMe),
+          time: formatChatTime(m.created_at),
+          createdAt: m.created_at,
+          dayKey: getMessageDayKey(m.created_at),
+          dayLabel: formatDayDivider(m.created_at),
+          read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
+        };
+      });
 
-  if(error){
-    console.warn('messages load failed:', error.message);
-    return;
-  }
+    console.log(`[MsgLoad] Final processed rows: ${rows.length}, existing cached: ${(conversations[contactId] || []).length}`);
 
-  const deletedAt = localStorage.getItem('lm-chat-deleted-at-' + (currentUser?.id || '') + '-' + contactId);
-  const rows = (data || [])
-    .filter((m) => {
-      if (hiddenMessageIds.has(String(m.id))) return false;
-      if (deletedAt && new Date(m.created_at || m.createdAt).getTime() <= new Date(deletedAt).getTime()) {
-        return false;
-      }
-      return true;
-    })
-    .map(m => {
-      const senderIsMe = idBelongsToCurrentUser(m.sender_id || m.from_user_id, identityIds, currentUser);
-      return {
-        id: m.id,
-        out: senderIsMe,
-        text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
-        previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), senderIsMe),
-        time: formatChatTime(m.created_at),
-        createdAt: m.created_at,
-        dayKey: getMessageDayKey(m.created_at),
-        dayLabel: formatDayDivider(m.created_at),
-        read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
-      };
-    });
+    if(!rows.length && Array.isArray(conversations[contactId]) && conversations[contactId].length){
+      console.warn('chat messages returned empty; preserving cached conversation for', contactId);
+      renderMessages();
+      return;
+    }
 
-  console.log(`[MsgLoad] Final processed rows: ${rows.length}, existing cached: ${(conversations[contactId] || []).length}`);
+    conversations[contactId] = rows;
 
-  if(!rows.length && Array.isArray(conversations[contactId]) && conversations[contactId].length){
-    console.warn('chat messages returned empty; preserving cached conversation for', contactId);
-    renderMessages();
-    return;
-  }
+    const c = contacts.find(x => x.id === contactId);
+    if(c && rows.length){
+      const last = rows[rows.length-1];
+      c.preview = last.previewText || formatMessagePreviewText(last.text, !!last.out);
+      c.time = formatChatTime(last.createdAt || new Date());
+    }
 
-  conversations[contactId] = rows;
+    saveLocalChatState();
+    renderContacts();
+    if(activeContact && activeContact.id === contactId) renderMessages();
 
-  const c = contacts.find(x => x.id === contactId);
-  if(c && rows.length){
-    const last = rows[rows.length-1];
-    c.preview = last.previewText || formatMessagePreviewText(last.text, !!last.out);
-   c.time = formatChatTime(last.createdAt || new Date());
-  }
-
-  saveLocalChatState();
-  renderContacts();
-  if(activeContact && activeContact.id === contactId) renderMessages();
-
-  // Mark incoming messages as read when chat is open and app is active/visible
-  if(activeContact && activeContact.id === contactId && !document.hidden){
-    markMessagesAsRead(contactId).catch(() => {});
+    // Mark incoming messages as read when chat is open and app is active/visible
+    if(activeContact && activeContact.id === contactId && !document.hidden){
+      markMessagesAsRead(contactId).catch(() => {});
+    }
+  })();
+  
+  activeMessageLoads.set(contactId, loadPromise);
+  try {
+    await loadPromise;
+  } finally {
+    activeMessageLoads.delete(contactId);
   }
 }
 window.loadMessagesForContact = loadMessagesForContact;
