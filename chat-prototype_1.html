@@ -4461,19 +4461,20 @@ window.openProfile = function(){
 };
 
 window.openActiveProfile = function(){
-  if(!activeContact) return;
+  const currentContact = window.activeContactRef || activeContact;
+  if(!currentContact) return;
   openProfileOverlayWithData({
-    id: activeContact.id,
-    name: activeContact.name || 'User',
-    email: activeContact.email || '—',
-    username: activeContact.username || '',
-    avatar: activeContact.avatar || '',
-    memberCode: window.getLabCode ? window.getLabCode(activeContact.id) : '000',
-    lastSeenAt: activeContact.lastSeenAt || '',
-    online: isUserOnline(activeContact.id),
+    id: currentContact.id,
+    name: currentContact.name || 'User',
+    email: currentContact.email || '—',
+    username: currentContact.username || '',
+    avatar: currentContact.avatar || '',
+    memberCode: window.getLabCode ? window.getLabCode(currentContact.id) : '000',
+    lastSeenAt: currentContact.lastSeenAt || '',
+    online: isUserOnline(currentContact.id),
     isSelf: false
   });
-  window.openUserProfile(activeContact.id);
+  window.openUserProfile(currentContact.id);
 };
 
 window.openUserProfile = async function(userId){
@@ -4543,13 +4544,16 @@ window.openProfileImage = function(){
 };
 
 window.openActiveAvatarPreview = function(){
-  if(activeContact?.avatar) window.openImageViewer(activeContact.avatar, activeContact.name || '');
-  else if(activeContact) window.openUserProfile(activeContact.id);
+  const currentContact = window.activeContactRef || activeContact;
+  if(!currentContact) return;
+  if(currentContact.avatar) window.openImageViewer(currentContact.avatar, currentContact.name || '');
+  else window.openUserProfile(currentContact.id);
 };
 
 window.openActiveProfileFromMenu = function(){
   closeChatHeaderMenu();
-  if(activeContact) window.openActiveProfile();
+  const currentContact = window.activeContactRef || activeContact;
+  if(currentContact) window.openActiveProfile();
 };
 
 window.openActiveAvatarFromMenu = function(){
@@ -8465,6 +8469,80 @@ window.respondRequest = async function(requestId, newStatus) {
   }
   .send-btn:hover .handdrawn-svg {
     transform: scale(1.15) rotate(-15deg);
+  /* RESPONSIVE FULLSCREEN MOBILE MODALS & PERFORMANCE OPTIMIZATION */
+  @media (max-width: 768px) {
+    /* Make Settings Panel fullscreen on mobile so it does not look cramped or broken */
+    #settingsOverlay .panel {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      border-radius: 0px !important;
+      border: none !important;
+      padding: 16px 16px 32px 16px !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      transform: none !important; /* Remove heavy scaling popping on mobile */
+      transition: opacity 0.2s ease !important; /* Snappy, GPU-friendly opacity transition */
+    }
+    
+    #settingsOverlay .settings-content-wrapper {
+      padding-bottom: 24px !important;
+    }
+
+    /* Optimize Profile Overlay on mobile */
+    #profileOverlay .panel {
+      width: 94% !important;
+      max-width: 94vw !important;
+      padding: 16px !important;
+      border-radius: 16px !important;
+      margin: auto !important;
+      transform: translateY(6px) !important;
+      transition: opacity 0.2s ease, transform 0.2s ease !important;
+    }
+
+    #profileOverlay.open .panel {
+      transform: translateY(0) !important;
+    }
+
+    /* Optimize Crop Overlay on mobile */
+    #cropOverlay .panel {
+      width: 94% !important;
+      max-width: 94vw !important;
+      padding: 16px !important;
+      border-radius: 16px !important;
+      margin: auto !important;
+      transform: scale(1) !important;
+      transition: opacity 0.2s ease !important;
+    }
+
+    /* Optimize Friend Search Panel on mobile */
+    #searchOverlay .panel {
+      width: 94% !important;
+      max-width: 94vw !important;
+      padding: 16px !important;
+      border-radius: 16px !important;
+      margin: auto !important;
+    }
+
+    /* Performance optimization: reduce heavy backdrop filter on mobile for lag-free scrolling */
+    .overlay {
+      backdrop-filter: blur(5px) !important; /* Reduced from 14px to prevent GPU rendering lag */
+      -webkit-backdrop-filter: blur(5px) !important;
+      transition: opacity 0.2s ease !important;
+    }
+
+    /* Snappy tab fade in on mobile */
+    .settings-tab-pane {
+      animation: mobileTabFadeIn 0.15s ease-out !important;
+    }
+  }
+
+  @keyframes mobileTabFadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 </style>
 
