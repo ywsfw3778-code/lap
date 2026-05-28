@@ -5831,53 +5831,69 @@ async function loadMessagesForContact(contactId){
     let data = null;
     let error = null;
     const currentEmail = String(currentUser.email || '').trim();
-    let rpcRes = { data: null, error: new Error('rpc-not-run') };
-    if(currentEmail){
-      rpcRes = await callRpcSafe('get_chat_messages_for_email', {
-        current_email: currentEmail,
-        partner_user_id: contactId,
-        result_limit: 200
-      });
-      console.log(`[MsgLoad] RPC get_chat_messages_for_email => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
-    }
-    if(!rpcHasRows(rpcRes)){
-      rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 200 });
-      console.log(`[MsgLoad] RPC get_chat_messages => rows: ${rpcRes?.data?.length ?? 'null'}, err: ${rpcRes?.error?.message || 'none'}`);
-    }
-    if(rpcHasRows(rpcRes)){
-      data = rpcRes.data;
-      console.log(`[MsgLoad] Using RPC data, ${data.length} messages`);
-    }else{
+    
+    // 1. Try direct client-side query first to get the newest messages
+    try {
       const ids = identityIds.length ? identityIds : [currentUser.id];
-      console.log(`[MsgLoad] Fallback direct query with ids:`, ids, 'contactId:', contactId);
+      console.log(`[MsgLoad] Direct query with ids:`, ids, 'contactId:', contactId);
       const [sentRes, recvRes] = await Promise.all([
         sbClient
           .from('messages')
           .select('*')
           .in('sender_id', ids)
           .eq('receiver_id', contactId)
-          .order('created_at', { ascending: true })
-          .limit(200),
+          .order('created_at', { ascending: false })
+          .limit(1000),
         sbClient
           .from('messages')
           .select('*')
           .eq('sender_id', contactId)
           .in('receiver_id', ids)
-          .order('created_at', { ascending: true })
-          .limit(200)
+          .order('created_at', { ascending: false })
+          .limit(1000)
       ]);
-      error = sentRes.error || recvRes.error || null;
-      console.log(`[MsgLoad] Fallback sent: ${sentRes.data?.length ?? 'null'} (err: ${sentRes.error?.message || 'none'}), recv: ${recvRes.data?.length ?? 'null'} (err: ${recvRes.error?.message || 'none'})$`);
-      const merged = [...(sentRes.data || []), ...(recvRes.data || [])];
-      const seen = new Set();
-      data = merged
-        .filter((row) => {
-          const key = String(row?.id || '');
-          if(!key || seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
-        .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')));
+      
+      if (!sentRes.error && !recvRes.error) {
+        const merged = [...(sentRes.data || []), ...(recvRes.data || [])];
+        const seen = new Set();
+        data = merged
+          .filter((row) => {
+            const key = String(row?.id || '');
+            if(!key || seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')));
+          
+        console.log(`[MsgLoad] Direct query loaded ${data?.length} messages successfully`);
+      } else {
+        error = sentRes.error || recvRes.error;
+        console.warn(`[MsgLoad] Direct query returned error:`, error?.message);
+      }
+    } catch (e) {
+      console.warn(`[MsgLoad] Direct query exception:`, e);
+      error = e;
+    }
+
+    // 2. Fallback to RPC only if direct query failed or returned no data
+    if (!data || data.length === 0) {
+      console.log(`[MsgLoad] Falling back to RPC query...`);
+      let rpcRes = { data: null, error: new Error('rpc-not-run') };
+      if(currentEmail){
+        rpcRes = await callRpcSafe('get_chat_messages_for_email', {
+          current_email: currentEmail,
+          partner_user_id: contactId,
+          result_limit: 500
+        });
+      }
+      if(!rpcHasRows(rpcRes)){
+        rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 500 });
+      }
+      if(rpcHasRows(rpcRes)){
+        data = rpcRes.data;
+        error = null;
+        console.log(`[MsgLoad] Loaded ${data.length} messages via fallback RPC`);
+      }
     }
 
     if(error){
