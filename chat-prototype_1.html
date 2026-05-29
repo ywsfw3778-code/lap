@@ -4901,12 +4901,20 @@ function syncNotificationToggle(){
 // Web Audio API synthesized notification sound (luxury double-chime)
 window.playNotificationSound = function() {
   try {
+    let ctx = window.globalAudioContext;
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    if (ctx.state === 'suspended') {
-      ctx.resume();
+    if (!ctx && AudioCtx) {
+      // Fallback fallback if not initialized yet
+      ctx = new AudioCtx();
+      window.globalAudioContext = ctx;
     }
+    if (!ctx) return;
+    
+    // Force resume if browser suspended it again
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    
     const now = ctx.currentTime;
     
     // Note 1 (Harmonic sweep)
@@ -8163,32 +8171,41 @@ window.onAuthReady = async function(){
   // Audio Context Auto-Unlock to bypass browser autoplay blocks
   let isAudioUnlocked = false;
   window.unlockAudioContext = function() {
-    if (isAudioUnlocked) return;
+    if (isAudioUnlocked && window.globalAudioContext) return;
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) {
-        const tempCtx = new AudioCtx();
-        if (tempCtx.state === 'suspended') {
-          tempCtx.resume().then(() => {
-            console.log("AudioContext unlocked successfully!");
+        // Create the single global persistent audio context inside user gesture!
+        const ctx = new AudioCtx();
+        window.globalAudioContext = ctx;
+        
+        if (ctx.state === 'suspended') {
+          ctx.resume().then(() => {
+            console.log("Global AudioContext unlocked successfully via user gesture!");
             isAudioUnlocked = true;
-            // Play a silent buffer to prime the audio engine
-            const buffer = tempCtx.createBuffer(1, 1, 22050);
-            const source = tempCtx.createBufferSource();
+            // Play a silent buffer to prime the audio engine completely
+            const buffer = ctx.createBuffer(1, 1, 22050);
+            const source = ctx.createBufferSource();
             source.buffer = buffer;
-            source.connect(tempCtx.destination);
+            source.connect(ctx.destination);
             source.start(0);
+          }).catch(e => {
+            console.warn("Failed to resume global audio context:", e);
           });
         } else {
           isAudioUnlocked = true;
+          console.log("Global AudioContext already active!");
         }
       }
     } catch (e) {
       console.warn("Audio unlock failed:", e);
     }
   };
+  // Listen to any interactive event on document to unlock audio
   document.addEventListener('click', window.unlockAudioContext, { once: true });
   document.addEventListener('touchstart', window.unlockAudioContext, { once: true });
+  document.addEventListener('keydown', window.unlockAudioContext, { once: true });
+  document.addEventListener('mousedown', window.unlockAudioContext, { once: true });
 
   // Clear unread counts for active contact upon returning to tab
   document.addEventListener('visibilitychange', () => {
