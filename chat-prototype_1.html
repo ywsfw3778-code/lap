@@ -5338,7 +5338,7 @@ function parseReplyMessage(raw){
   if (text.startsWith('[reply:')) {
     const endIdx = text.indexOf('}]');
     if (endIdx !== -1) {
-      const jsonStr = text.substring('[reply:'.length, endIdx + 2);
+      const jsonStr = text.substring('[reply:'.length, endIdx + 1);
       const actualText = text.substring(endIdx + 2);
       try {
         const replyMeta = JSON.parse(jsonStr);
