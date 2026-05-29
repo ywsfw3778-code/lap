@@ -7454,8 +7454,8 @@ async function sendMessage(){
   // If there's text, send it now
   if (textToSend) {
     let finalContent = textToSend;
-    if (window.replyingToMsgState) {
-      const parent = window.replyingToMsgState;
+    if (replyingToMsgState) {
+      const parent = replyingToMsgState;
       const meta = {
         id: parent.id,
         sender: parent.out ? (appLang === 'ar' ? 'أنت' : 'You') : (activeContact ? activeContact.name : (appLang === 'ar' ? 'صديق' : 'Friend')),
