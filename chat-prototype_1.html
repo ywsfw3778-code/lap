@@ -3,7 +3,7 @@
 <head>
   <link rel='stylesheet' href='https://cdn-uicons.flaticon.com/uicons-regular-rounded/css/uicons-regular-rounded.css'>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <script>
 (() => {
   try{
@@ -1030,10 +1030,10 @@ body.theme-cyan{--bg1:#000810;--bg2:#001018;--accent-rgb:0,212,255;--online-rgb:
 body.theme-white{--bg1:#e8edf8;--bg2:#d8e1f5;--accent-rgb:37,99,235;--online-rgb:16,185,129;--msg-out-rgb:200,215,255;--msg-in-rgb:220,228,255;--glass-bg:rgba(255,255,255,.55);--glass-border:rgba(37,99,235,.15);--glass-hover:rgba(255,255,255,.7);}
 body.theme-black{--bg1:#020202;--bg2:#080808;--accent-rgb:212,212,216;--online-rgb:34,197,94;--msg-out-rgb:28,28,28;--msg-in-rgb:18,18,18;--glass-bg:rgba(255,255,255,.04);--glass-border:rgba(255,255,255,.08);--glass-hover:rgba(255,255,255,.06);}
 
-html,body{height:100dvh;overflow:hidden;}
+html,body{height:100dvh;width:100vw;overflow:hidden;overflow-x:hidden;}
 body{
   display:block;position:fixed;inset:0;padding:12px;color:var(--text);
-  background:var(--bg1);touch-action:pan-y;
+  background:var(--bg1);touch-action:none;overflow-x:hidden;
 }
 body::before{
   content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -6216,7 +6216,15 @@ function createMessageRow(msg, isOut, showAvatar){
     }
     
     if (isSwiping) {
+      if (event.cancelable) event.preventDefault();
+      
       if (diffX < 0) {
+        // Hide the three-dots msg-tools button during swiping!
+        if (tools) {
+          tools.style.opacity = '0';
+          tools.style.pointerEvents = 'none';
+        }
+        
         const dragX = Math.max(-80, diffX);
         bubble.style.transform = `translateX(${dragX}px)`;
         
@@ -6242,9 +6250,13 @@ function createMessageRow(msg, isOut, showAvatar){
       } else {
         bubble.style.transform = '';
         swipeIndicator.style.opacity = '0';
+        if (tools) {
+          tools.style.opacity = '';
+          tools.style.pointerEvents = '';
+        }
       }
     }
-  }, { passive: true });
+  }, { passive: false });
 
   bubble.addEventListener('touchend', (event) => {
     clearTimeout(touchTimer);
@@ -6264,6 +6276,13 @@ function createMessageRow(msg, isOut, showAvatar){
       swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
       swipeIndicator.style.opacity = '0';
       swipeIndicator.style.transform = 'translateY(-50%) translateX(35px) scale(0.6)';
+      
+      // Smoothly restore the three-dots msg-tools button
+      if (tools) {
+        tools.style.transition = 'opacity 0.25s';
+        tools.style.opacity = '';
+        tools.style.pointerEvents = '';
+      }
       
       if (dragX <= -45) {
         window.replyMessage(msg);
@@ -6285,6 +6304,12 @@ function createMessageRow(msg, isOut, showAvatar){
     swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
     swipeIndicator.style.opacity = '0';
     swipeIndicator.style.transform = 'translateY(-50%) translateX(35px) scale(0.6)';
+    
+    // Restore the three-dots msg-tools button
+    if (tools) {
+      tools.style.opacity = '';
+      tools.style.pointerEvents = '';
+    }
     isSwiping = false;
   });
 
