@@ -22,7 +22,6 @@
 </script>
 <title>Lab Members</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3h12M12 3v7M5 21h14M5 21l3.5-10.5h7L19 21'/%3E%3Ccircle cx='12' cy='16' r='2' fill='%2334d399'/%3E%3C/svg%3E">
-<link rel="manifest" href="manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600&family=Share+Tech+Mono&family=VT323&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
  /* إخفاء الحروف القديمة ورسم أيقونة فيسبوك بأمان تام */
@@ -4946,7 +4945,7 @@ window.updateTabTitleWithUnreadCount = function() {
   const totalUnread = (window._contacts || contacts || []).reduce((sum, c) => sum + Number(c.unread || 0), 0);
   const baseTitle = "Lab Members";
   if (totalUnread > 0) {
-    document.title = `(${totalUnread}) ${appLang === 'ar' ? 'رسالة جديدة' : 'new message'} | ${baseTitle}`;
+    document.title = `🔔 (${totalUnread}) ${appLang === 'ar' ? 'لديك إشعار جديد!' : 'You have a new notification!'} | ${baseTitle}`;
   } else {
     document.title = baseTitle;
   }
@@ -5589,12 +5588,23 @@ function shouldNotifyForIncomingMessage(message){
 }
 
 function showIncomingNotification(message, profile){
-  if(!shouldNotifyForIncomingMessage(message)) return;
+  if(!message || !message.sender_id) return;
 
-  // تشغيل نغمة الرنين الفخمة محلياً
-  if (typeof window.playNotificationSound === 'function') {
+  const currentUser = getCurrentUser();
+  const isMyOwnMessage = currentUser && String(message.sender_id).trim() === String(currentUser.id).trim();
+
+  // تشغيل نغمة الرنين التوليدية الفخمة محلياً دائماً وبدون شروط عند استقبال رسالة من مستخدم آخر
+  if (!isMyOwnMessage && typeof window.playNotificationSound === 'function') {
     window.playNotificationSound();
   }
+
+  // تحديث عداد الإشعارات وعنوان التبويب لحظيًا
+  if (typeof window.updateTabTitleWithUnreadCount === 'function') {
+    window.updateTabTitleWithUnreadCount();
+  }
+
+  // بعد ذلك نتحقق مما إذا كان يجب عرض إشعار النظام المكتبي (في حال كانت الصلاحيات ممنوحة والصفحة في الخلفية)
+  if(!shouldNotifyForIncomingMessage(message)) return;
 
   const senderName = (profile?.full_name || profile?.username || profile?.email || 'New message').trim();
   const senderId = profile?.id || message.sender_id;
@@ -8139,14 +8149,46 @@ window.onAuthReady = async function(){
     console.warn('Boot startMessagePolling failed:', e);
   }
 
-  // Register Service Worker for PWA (Android / iOS support)
+  // Unregister any existing service workers to fully clean up PWA behavior
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js')
-        .then(reg => console.log('Service Worker registered successfully:', reg.scope))
-        .catch(err => console.warn('Service Worker registration failed:', err));
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (let registration of registrations) {
+        registration.unregister().then(success => {
+          if (success) console.log('Successfully cleaned up and unregistered old service worker.');
+        });
+      }
     });
   }
+
+  // Audio Context Auto-Unlock to bypass browser autoplay blocks
+  let isAudioUnlocked = false;
+  window.unlockAudioContext = function() {
+    if (isAudioUnlocked) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const tempCtx = new AudioCtx();
+        if (tempCtx.state === 'suspended') {
+          tempCtx.resume().then(() => {
+            console.log("AudioContext unlocked successfully!");
+            isAudioUnlocked = true;
+            // Play a silent buffer to prime the audio engine
+            const buffer = tempCtx.createBuffer(1, 1, 22050);
+            const source = tempCtx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(tempCtx.destination);
+            source.start(0);
+          });
+        } else {
+          isAudioUnlocked = true;
+        }
+      }
+    } catch (e) {
+      console.warn("Audio unlock failed:", e);
+    }
+  };
+  document.addEventListener('click', window.unlockAudioContext, { once: true });
+  document.addEventListener('touchstart', window.unlockAudioContext, { once: true });
 
   // Clear unread counts for active contact upon returning to tab
   document.addEventListener('visibilitychange', () => {
