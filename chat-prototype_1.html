@@ -219,11 +219,160 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
   padding:9px 13px;
   border-radius:16px;
   line-height:1.5;
-  white-space:normal;
+  white-space:pre-wrap;
   word-break:break-word;
   overflow-wrap:break-word;
   unicode-bidi: plaintext;
   text-align: start;
+}
+
+/* Reply preview tray above input panel */
+.reply-preview-tray {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  padding: 10px 16px;
+  margin-bottom: -1px;
+  position: relative;
+  animation: slideUpReply 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 5;
+}
+
+@keyframes slideUpReply {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reply-preview-accent {
+  width: 4px;
+  align-self: stretch;
+  background: var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.reply-preview-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reply-preview-sender {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+
+.reply-preview-text {
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+
+.reply-preview-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.reply-preview-close:hover {
+  color: var(--text);
+  transform: scale(1.15);
+}
+
+/* Replied message block inside bubble */
+.msg-reply-block {
+  background: rgba(255, 255, 255, 0.05);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: start;
+}
+.msg-reply-block:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.msg-reply-sender {
+  font-weight: 700;
+  color: var(--accent);
+}
+.msg-reply-text {
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Swipe reply swipe indicators */
+.msg-row {
+  position: relative;
+  overflow: visible;
+}
+.swipe-reply-indicator {
+  position: absolute;
+  top: 50%;
+  right: -40px;
+  transform: translateY(-50%) scale(0.6);
+  opacity: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--accent-glow);
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-size: 13px;
+  pointer-events: none;
+  transition: transform 0.2s, opacity 0.2s, right 0.25s;
+  box-shadow: 0 0 10px var(--accent-glow);
+  z-index: 1;
+}
+.swipe-reply-indicator.active-glow {
+  transform: translateY(-50%) scale(1.15) !important;
+  opacity: 1 !important;
+  background: var(--accent) !important;
+  color: var(--bg) !important;
+}
+
+/* Original message glow pulse highlight */
+@keyframes pulseHighlight {
+  0% { box-shadow: none; background: transparent; }
+  25% { box-shadow: 0 0 25px var(--accent-glow); background: rgba(255,255,255,0.08); }
+  100% { box-shadow: none; background: transparent; }
+}
+.msg-row.pulse-highlight .bubble {
+  animation: pulseHighlight 1.8s ease-in-out;
 }
 .voice-bubble{
   width:min(320px, 100%);
@@ -1513,6 +1662,15 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       <div class="emoji-picker-content" id="emojiTab-extras" style="display:none;"></div>
     </div>
 
+    <div class="reply-preview-tray" id="replyPreviewTray" style="display:none;">
+      <div class="reply-preview-accent"></div>
+      <div class="reply-preview-content">
+        <div class="reply-preview-sender" id="replyPreviewSender">اسم المرسل</div>
+        <div class="reply-preview-text" id="replyPreviewText">نص الرسالة للمعاينة...</div>
+      </div>
+      <button class="reply-preview-close" onclick="cancelReply()" type="button">×</button>
+    </div>
+
     <div class="attachment-preview-tray" id="attachmentPreviewTray" style="display:none;"></div>
     <div class="input-main-row">
         <div class="input-wrap">
@@ -1816,6 +1974,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 
 <div class="message-menu" id="messageMenu">
   <div class="message-menu-date" id="messageMenuDate">—</div>
+  <button type="button" id="messageMenuReplyBtn" onclick="replyMessageFromMenu()"><span>الرد على الرسالة</span><span>↩️</span></button>
   <button type="button" id="messageMenuDownloadBtn" style="display:none;"><span>حفظ إلى الجهاز</span><span>💾</span></button>
   <button type="button" id="messageMenuEditBtn" onclick="editMessageFromMenu()"><span>تعديل الرسالة</span><span>✏️</span></button>
   <button type="button" id="messageMenuDeleteMineBtn" onclick="deleteMessageMineFromMenu()"><span>حذف لديك</span><span>🗑</span></button>
@@ -1855,6 +2014,27 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <img id="imageViewerImg" alt="Profile image" />
     <div class="image-viewer-name" id="imageViewerName">—</div>
     <button class="pbtn" type="button" onclick="closeImageViewer()" id="imageViewerCloseBtn">إغلاق</button>
+  </div>
+</div>
+
+<!-- EDIT MESSAGE MODAL -->
+<div class="overlay" id="editMessageModal" onclick="if(event.target===this)closeEditMessageModal()">
+  <div class="panel edit-message-panel" style="min-width: 320px; max-width: 90%; padding: 24px; width: 450px; display: flex; flex-direction: column;">
+    <div class="panel-top" style="flex-shrink: 0; margin-bottom: 4px;">
+      <div class="panel-title" style="font-size: 18px; font-weight: 600; color: var(--accent); display: flex; align-items: center; gap: 8px;">
+        <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/pencil.webp" alt="edit" class="ui-3d-icon" style="width:22px; height:22px;" />
+        تعديل الرسالة
+      </div>
+      <div class="panel-close" onclick="closeEditMessageModal()">×</div>
+    </div>
+    <div class="panel-sub" style="font-size: 13px; color: var(--muted); margin-bottom: 12px;">قم بتعديل محتوى رسالتك ثم اضغط حفظ</div>
+    
+    <textarea id="editMessageTextarea" style="width: 100%; min-height: 100px; max-height: 200px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 12px; padding: 12px; color: var(--text); font-family: inherit; font-size: 14px; outline: none; transition: border-color 0.2s; resize: vertical; margin-bottom: 16px; direction: auto;" placeholder="اكتب رسالتك المعدلة..."></textarea>
+    
+    <div class="panel-acts" style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button class="pbtn" onclick="closeEditMessageModal()" style="min-width: 80px; height: auto; padding: 10px 16px; border-radius: 10px; font-size: 13px;">إلغاء</button>
+      <button class="pbtn" id="btnConfirmEditMessage" onclick="confirmEditMessage()" style="min-width: 80px; height: auto; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 700;">حفظ</button>
+    </div>
   </div>
 </div>
 
@@ -5153,11 +5333,38 @@ function parseMediaMessage(raw){
   return { isImage: false, isVideo: false, url: '' };
 }
 
+function parseReplyMessage(raw){
+  const text = String(raw || '').trim();
+  if (text.startsWith('[reply:')) {
+    const endIdx = text.indexOf('}]');
+    if (endIdx !== -1) {
+      const jsonStr = text.substring('[reply:'.length, endIdx + 2);
+      const actualText = text.substring(endIdx + 2);
+      try {
+        const replyMeta = JSON.parse(jsonStr);
+        return {
+          isReply: true,
+          replyId: replyMeta.id,
+          replySender: replyMeta.sender,
+          replyText: replyMeta.text,
+          actualText: actualText
+        };
+      } catch (e) {
+        console.warn('Failed to parse reply JSON:', e);
+      }
+    }
+  }
+  return { isReply: false, replyId: '', replySender: '', replyText: '', actualText: text };
+}
+
 function formatMessagePreviewText(raw, isOutgoing = false){
-  const voice = parseVoiceMessage(raw);
+  const replyInfo = parseReplyMessage(raw);
+  const cleanRaw = replyInfo.actualText;
+  
+  const voice = parseVoiceMessage(cleanRaw);
   if(voice.isVoice) return formatVoicePreviewText(voice.duration, isOutgoing);
   
-  const media = parseMediaMessage(raw);
+  const media = parseMediaMessage(cleanRaw);
   if(media.isImage){
     return appLang === 'ar' ? '📷 صورة' : '📷 Image';
   }
@@ -5165,7 +5372,7 @@ function formatMessagePreviewText(raw, isOutgoing = false){
     return appLang === 'ar' ? '🎥 فيديو' : '🎥 Video';
   }
   
-  return String(raw || '').replace(/\r?\n|\r/g, ' ').trim();
+  return String(cleanRaw || '').replace(/\r?\n|\r/g, ' ').trim();
 }
 
 function buildVoicePayload(audioUrl, durationSeconds){
@@ -5213,6 +5420,64 @@ function showIncomingNotification(message, profile){
     note.close();
   };
 }
+
+let replyingToMsgState = null;
+
+window.replyMessage = function(msg) {
+  if (!msg || !msg.id) return;
+  replyingToMsgState = { ...msg };
+  
+  const tray = document.getElementById('replyPreviewTray');
+  const senderEl = document.getElementById('replyPreviewSender');
+  const textEl = document.getElementById('replyPreviewText');
+  
+  if (tray && senderEl && textEl) {
+    senderEl.textContent = msg.out 
+      ? (appLang === 'ar' ? 'أنت' : 'You')
+      : (activeContact ? activeContact.name : (appLang === 'ar' ? 'صديق' : 'Friend'));
+      
+    const textContent = msg.rawText || msg.text || '';
+    textEl.textContent = textContent.length > 80 
+      ? textContent.substring(0, 80) + '...' 
+      : textContent;
+      
+    tray.style.display = 'flex';
+    const input = document.getElementById('msgInput');
+    if (input) input.focus();
+  }
+};
+
+window.cancelReply = function() {
+  replyingToMsgState = null;
+  const tray = document.getElementById('replyPreviewTray');
+  if (tray) {
+    tray.style.display = 'none';
+  }
+};
+
+window.scrollToMessage = function(messageId) {
+  const el = document.querySelector(`.msg-row[data-id="${messageId}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('pulse-highlight');
+    setTimeout(() => {
+      el.classList.remove('pulse-highlight');
+    }, 2000);
+  } else {
+    if (typeof window.showToast === 'function') {
+      window.showToast(appLang === 'ar' ? 'الرسالة الأصلية غير موجودة في هذا الجزء' : 'Original message not found in this segment', 'info');
+    } else {
+      alert(appLang === 'ar' ? 'الرسالة الأصلية غير موجودة في هذا الجزء' : 'Original message not found in this segment');
+    }
+  }
+};
+
+window.replyMessageFromMenu = function() {
+  const msg = messageMenuState;
+  closeMessageMenu();
+  if (!msg) return;
+  window.replyMessage(msg);
+};
 
 function closeMessageMenu(event){
   if (event && (event.type === 'click' || event.type === 'scroll')) {
@@ -5302,25 +5567,100 @@ function openMessageMenu(event, msg, anchorEl = null){
   });
 }
 
-window.editMessageFromMenu = async function(){
+let editingMessageState = null;
+let editingMessageReplyPrefix = "";
+
+window.editMessageFromMenu = function() {
   const msg = messageMenuState;
   closeMessageMenu();
   if(!msg || !msg.id || !msg.out) return;
-  const voice = parseVoiceMessage(msg.text);
+  
+  const voice = parseVoiceMessage(msg.rawText || msg.text);
   if(voice.isVoice) return;
-  const media = parseMediaMessage(msg.text);
+  
+  const media = parseMediaMessage(msg.rawText || msg.text);
   if(media.isImage || media.isVideo) return;
-  const nextText = prompt(appLang === 'ar' ? 'عدّل الرسالة' : 'Edit message', msg.text || '');
-  if(nextText === null) return;
-  const trimmed = String(nextText).trim();
-  if(!trimmed || trimmed === String(msg.text || '').trim()) return;
+  
+  editingMessageState = { ...msg };
+  
+  const rawDb = msg.rawDbContent || "";
+  if (rawDb.startsWith('[reply:')) {
+    const endIdx = rawDb.indexOf('}]');
+    if (endIdx !== -1) {
+      editingMessageReplyPrefix = rawDb.substring(0, endIdx + 2);
+    } else {
+      editingMessageReplyPrefix = "";
+    }
+  } else {
+    editingMessageReplyPrefix = "";
+  }
+  
+  const modal = document.getElementById('editMessageModal');
+  const textarea = document.getElementById('editMessageTextarea');
+  
+  if (modal && textarea) {
+    textarea.value = msg.rawText || msg.text || '';
+    modal.classList.add('open');
+    textarea.focus();
+  }
+};
 
+window.closeEditMessageModal = function() {
+  editingMessageState = null;
+  editingMessageReplyPrefix = "";
+  const modal = document.getElementById('editMessageModal');
+  if (modal) {
+    modal.classList.remove('open');
+  }
+};
+
+window.confirmEditMessage = async function() {
+  const msg = editingMessageState;
+  if (!msg || !msg.id) return;
+  
+  const textarea = document.getElementById('editMessageTextarea');
+  const textVal = textarea ? textarea.value.trim() : "";
+  
+  if (!textVal) {
+    if (typeof window.showToast === 'function') {
+      window.showToast(appLang === 'ar' ? 'الرسالة لا يمكن أن تكون فارغة' : 'Message cannot be empty', 'error');
+    } else {
+      alert(appLang === 'ar' ? 'الرسالة لا يمكن أن تكون فارغة' : 'Message cannot be empty');
+    }
+    return;
+  }
+  
+  if (textVal === (msg.rawText || msg.text || '').trim()) {
+    window.closeEditMessageModal();
+    return;
+  }
+  
+  const saveBtn = document.getElementById('btnConfirmEditMessage');
+  if (saveBtn) saveBtn.disabled = true;
+  
+  const finalContent = editingMessageReplyPrefix + textVal;
+  
   const sbClient = getSbClient();
-  if(!sbClient) return;
-  const { error } = await sbClient.from('messages').update({ content: trimmed }).eq('id', msg.id);
-  const success = !error;
-  if(success && activeContact) await loadMessagesForContact(activeContact.id);
-  if(success) await loadInboxContacts();
+  if (sbClient) {
+    const { error } = await sbClient.from('messages').update({ content: finalContent }).eq('id', msg.id);
+    if (error) {
+      console.error('Failed to update message:', error);
+      if (typeof window.showToast === 'function') {
+        window.showToast((appLang === 'ar' ? 'فشل تعديل الرسالة: ' : 'Failed to edit message: ') + error.message, 'error');
+      } else {
+        alert((appLang === 'ar' ? 'فشل تعديل الرسالة: ' : 'Failed to edit message: ') + error.message);
+      }
+    } else {
+      if (typeof window.showToast === 'function') {
+        window.showToast(appLang === 'ar' ? 'تم تعديل الرسالة بنجاح! ✨' : 'Message edited successfully! ✨');
+      }
+      window.closeEditMessageModal();
+      if (activeContact) await loadMessagesForContact(activeContact.id);
+      await loadInboxContacts();
+    }
+  }
+  
+  if (saveBtn) saveBtn.disabled = false;
 };
 
 window.deleteMessageMineFromMenu = async function(){
@@ -5696,6 +6036,29 @@ function createVoicePlayer(audioUrl, initialDurationSeconds = 0){
   return wrap;
 }
 
+function createReplyBlock(msg) {
+  const replyBlock = document.createElement('div');
+  replyBlock.className = 'msg-reply-block';
+  replyBlock.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (typeof window.scrollToMessage === 'function') {
+      window.scrollToMessage(msg.replyId);
+    }
+  });
+  
+  const senderEl = document.createElement('span');
+  senderEl.className = 'msg-reply-sender';
+  senderEl.textContent = msg.replySender;
+  
+  const textEl = document.createElement('span');
+  textEl.className = 'msg-reply-text';
+  textEl.textContent = msg.replyText;
+  
+  replyBlock.appendChild(senderEl);
+  replyBlock.appendChild(textEl);
+  return replyBlock;
+}
+
 function createMessageRow(msg, isOut, showAvatar){
   const row = document.createElement('div');
   row.className = 'msg-row';
@@ -5741,6 +6104,10 @@ function createMessageRow(msg, isOut, showAvatar){
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
 
+  if (msg.isReply && msg.replyId) {
+    bubble.appendChild(createReplyBlock(msg));
+  }
+
   const voice = parseVoiceMessage(msg.text);
   const media = parseMediaMessage(msg.text);
   if(voice.isVoice){
@@ -5777,10 +6144,24 @@ function createMessageRow(msg, isOut, showAvatar){
     }
   }
   bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
+  bubble.addEventListener('dblclick', (event) => {
+    event.preventDefault();
+    window.replyMessage(msg);
+  });
 
-  // --- Mobile Premium Long Press Options ---
+  // --- Mobile Swipe to Reply & Long Press options ---
   let touchTimer = null;
   let menuOpenedByTouch = false;
+  let startX = 0;
+  let startY = 0;
+  let isSwiping = false;
+  let hasVibrated = false;
+
+  const swipeIndicator = document.createElement('div');
+  swipeIndicator.className = 'swipe-reply-indicator';
+  swipeIndicator.innerHTML = '↩️';
+  row.appendChild(swipeIndicator);
+
   bubble.addEventListener('touchstart', (event) => {
     if (event.touches.length > 1) return;
     menuOpenedByTouch = false;
@@ -5791,12 +6172,55 @@ function createMessageRow(msg, isOut, showAvatar){
       openMessageMenu(event, msg, bubble);
       menuOpenedByTouch = true;
       touchTimer = null;
-    }, 600); // 600ms long press duration
+    }, 600);
+    
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+    isSwiping = false;
+    hasVibrated = false;
+    bubble.style.transition = 'none';
   }, { passive: true });
 
-  bubble.addEventListener('touchmove', () => {
+  bubble.addEventListener('touchmove', (event) => {
     clearTimeout(touchTimer);
-  });
+    
+    const clientX = event.touches[0].clientX;
+    const clientY = event.touches[0].clientY;
+    const diffX = clientX - startX;
+    const diffY = clientY - startY;
+    
+    if (!isSwiping && Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+      isSwiping = true;
+    }
+    
+    if (isSwiping) {
+      if (diffX < 0) {
+        const dragX = Math.max(-80, diffX);
+        bubble.style.transform = `translateX(${dragX}px)`;
+        
+        const absDrag = Math.abs(dragX);
+        swipeIndicator.style.opacity = String(Math.min(1, absDrag / 45));
+        swipeIndicator.style.right = `${12 + (absDrag * 0.4)}px`;
+        swipeIndicator.style.transform = `translateY(-50%) scale(${Math.min(1.1, 0.6 + (absDrag / 100))})`;
+        
+        if (absDrag >= 45) {
+          swipeIndicator.classList.add('active-glow');
+          if (!hasVibrated) {
+            if (navigator.vibrate) {
+              try { navigator.vibrate(20); } catch(_v){}
+            }
+            hasVibrated = true;
+          }
+        } else {
+          swipeIndicator.classList.remove('active-glow');
+          hasVibrated = false;
+        }
+      } else {
+        bubble.style.transform = '';
+        swipeIndicator.style.opacity = '0';
+      }
+    }
+  }, { passive: true });
 
   bubble.addEventListener('touchend', (event) => {
     clearTimeout(touchTimer);
@@ -5804,6 +6228,24 @@ function createMessageRow(msg, isOut, showAvatar){
       event.preventDefault();
       menuOpenedByTouch = false;
     }
+    
+    if (isSwiping) {
+      const transformText = bubble.style.transform;
+      const match = transformText.match(/translateX\(([-\d.]+)px\)/);
+      const dragX = match ? parseFloat(match[1]) : 0;
+      
+      bubble.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      bubble.style.transform = '';
+      
+      swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
+      swipeIndicator.style.opacity = '0';
+      swipeIndicator.style.transform = 'translateY(-50%) scale(0.6)';
+      
+      if (dragX <= -45) {
+        window.replyMessage(msg);
+      }
+    }
+    isSwiping = false;
   });
 
   bubble.addEventListener('touchcancel', (event) => {
@@ -5812,6 +6254,11 @@ function createMessageRow(msg, isOut, showAvatar){
       event.preventDefault();
       menuOpenedByTouch = false;
     }
+    
+    bubble.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    bubble.style.transform = '';
+    swipeIndicator.style.opacity = '0';
+    isSwiping = false;
   });
 
   content.appendChild(tools);
@@ -5969,16 +6416,24 @@ async function loadMessagesForContact(contactId){
       })
       .map(m => {
         const senderIsMe = idBelongsToCurrentUser(m.sender_id || m.from_user_id, identityIds, currentUser);
+        const rawContent = m.content || m.body || m.text || m.message || '';
+        const replyInfo = parseReplyMessage(rawContent);
         return {
           id: m.id,
           out: senderIsMe,
-          text: (m.content || m.body || m.text || m.message || '').replace(/\r?\n|\r/g, ' ').trim(),
-          previewText: formatMessagePreviewText((m.content || m.body || m.text || m.message || ''), senderIsMe),
+          text: replyInfo.actualText.trim(),
+          rawText: replyInfo.actualText,
+          rawDbContent: rawContent,
+          previewText: formatMessagePreviewText(rawContent, senderIsMe),
           time: formatChatTime(m.created_at),
           createdAt: m.created_at,
           dayKey: getMessageDayKey(m.created_at),
           dayLabel: formatDayDivider(m.created_at),
-          read: !!(m.read_at || m.is_read || m.seen_at || m.read === true)
+          read: !!(m.read_at || m.is_read || m.seen_at || m.read === true),
+          isReply: replyInfo.isReply,
+          replyId: replyInfo.replyId,
+          replySender: replyInfo.replySender,
+          replyText: replyInfo.replyText
         };
       });
 
@@ -6998,7 +7453,19 @@ async function sendMessage(){
   
   // If there's text, send it now
   if (textToSend) {
-    const payload = { sender_id: currentUser.id, receiver_id: targetContact.id, content: textToSend };
+    let finalContent = textToSend;
+    if (window.replyingToMsgState) {
+      const parent = window.replyingToMsgState;
+      const meta = {
+        id: parent.id,
+        sender: parent.out ? (appLang === 'ar' ? 'أنت' : 'You') : (activeContact ? activeContact.name : (appLang === 'ar' ? 'صديق' : 'Friend')),
+        text: (parent.rawText || parent.text || '')
+      };
+      finalContent = `[reply:${JSON.stringify(meta)}]${textToSend}`;
+      window.cancelReply();
+    }
+    
+    const payload = { sender_id: currentUser.id, receiver_id: targetContact.id, content: finalContent };
     const { error } = await sbClient.from('messages').insert(payload);
     if(error){
       alert('Message send failed: ' + error.message);
