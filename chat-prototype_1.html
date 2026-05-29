@@ -340,8 +340,8 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
 .swipe-reply-indicator {
   position: absolute;
   top: 50%;
-  right: 12px;
-  transform: translateY(-50%) translateX(35px) scale(0.6);
+  right: -36px;
+  transform: translateY(-50%) translateX(25px) scale(0.6);
   opacity: 0;
   width: 28px;
   height: 28px;
@@ -1033,7 +1033,7 @@ body.theme-black{--bg1:#020202;--bg2:#080808;--accent-rgb:212,212,216;--online-r
 html,body{height:100dvh;width:100vw;overflow:hidden;overflow-x:hidden;}
 body{
   display:block;position:fixed;inset:0;padding:12px;color:var(--text);
-  background:var(--bg1);touch-action:none;overflow-x:hidden;
+  background:var(--bg1);touch-action:pan-y;overflow-x:hidden;
 }
 body::before{
   content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
@@ -6182,7 +6182,7 @@ function createMessageRow(msg, isOut, showAvatar){
       <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
     </svg>
   `;
-  row.appendChild(swipeIndicator);
+  content.appendChild(swipeIndicator);
 
   bubble.addEventListener('touchstart', (event) => {
     if (event.touches.length > 1) return;
@@ -6231,7 +6231,7 @@ function createMessageRow(msg, isOut, showAvatar){
         const absDrag = Math.abs(dragX);
         swipeIndicator.style.opacity = String(Math.min(1, absDrag / 45));
         
-        const transX = Math.max(0, 35 - (absDrag * 0.6));
+        const transX = Math.max(0, 25 - (absDrag * 0.5));
         const scale = Math.min(1.15, 0.6 + (absDrag / 100));
         swipeIndicator.style.transform = `translateY(-50%) translateX(${transX}px) scale(${scale})`;
         
@@ -6275,7 +6275,7 @@ function createMessageRow(msg, isOut, showAvatar){
       
       swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
       swipeIndicator.style.opacity = '0';
-      swipeIndicator.style.transform = 'translateY(-50%) translateX(35px) scale(0.6)';
+      swipeIndicator.style.transform = 'translateY(-50%) translateX(25px) scale(0.6)';
       
       // Smoothly restore the three-dots msg-tools button
       if (tools) {
@@ -6303,7 +6303,7 @@ function createMessageRow(msg, isOut, showAvatar){
     
     swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
     swipeIndicator.style.opacity = '0';
-    swipeIndicator.style.transform = 'translateY(-50%) translateX(35px) scale(0.6)';
+    swipeIndicator.style.transform = 'translateY(-50%) translateX(25px) scale(0.6)';
     
     // Restore the three-dots msg-tools button
     if (tools) {
