@@ -140,14 +140,14 @@ body.theme-steins .logo{font-size:20px;letter-spacing:1px;}
 .mobile-back svg{transition:transform 0.2s ease;}
 html[dir="rtl"] .mobile-back svg{transform:rotate(180deg);}
 .messages{
-flex:1;
-overflow-y:auto;
-padding:20px;
-display:flex;
-flex-direction:column;
-gap:7px;
-background:var(--bg);
-
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden !important;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  background:var(--bg);
 }
 .messages::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
 .date-divider{display:flex;align-items:center;gap:10px;margin:6px 0;}
@@ -335,13 +335,18 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
 /* Swipe reply swipe indicators */
 .msg-row {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
+  touch-action: pan-y;
+  width: 100%;
+}
+.bubble {
+  touch-action: pan-y;
 }
 .swipe-reply-indicator {
   position: absolute;
   top: 50%;
-  right: -36px;
-  transform: translateY(-50%) translateX(25px) scale(0.6);
+  left: 4px;
+  transform: translateY(-50%) scale(0.5);
   opacity: 0;
   width: 28px;
   height: 28px;
@@ -353,15 +358,13 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
   justify-content: center;
   color: var(--accent);
   pointer-events: none;
-  transition: opacity 0.2s, transform 0.2s;
-  box-shadow: 0 0 10px var(--accent-glow);
   z-index: 1;
 }
 .swipe-reply-indicator.active-glow {
-  transform: translateY(-50%) translateX(0px) scale(1.15) !important;
   opacity: 1 !important;
   background: var(--accent) !important;
   color: var(--bg) !important;
+  transform: translateY(-50%) scale(1.1) !important;
 }
 
 /* Original message glow pulse highlight */
@@ -1196,10 +1199,6 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   body{
     padding:0;
     overflow: hidden;
-  }
-  .sidebar, .chat-area, .panel, .chat-menu, .message-menu, .msg-inline-menu, .friend-panel-shell, .reply-preview-tray {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
   }
   #app{
     position: relative;
@@ -6182,26 +6181,18 @@ function createMessageRow(msg, isOut, showAvatar){
 
   const swipeIndicator = document.createElement('div');
   swipeIndicator.className = 'swipe-reply-indicator';
-  swipeIndicator.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
-      <polyline points="9 17 4 12 9 7"></polyline>
-      <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-    </svg>
-  `;
-  content.appendChild(swipeIndicator);
+  swipeIndicator.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px"><polyline points="9 17 4 12 9 7"></polyline><path d="M20 18v-2a4 4 0 0 0-4-4H4"></path></svg>`;
+  row.appendChild(swipeIndicator);
 
   bubble.addEventListener('touchstart', (event) => {
     if (event.touches.length > 1) return;
     menuOpenedByTouch = false;
     touchTimer = setTimeout(() => {
-      if (navigator.vibrate) {
-        try { navigator.vibrate(50); } catch(_v){}
-      }
+      if (navigator.vibrate) { try { navigator.vibrate(50); } catch(_v){} }
       openMessageMenu(event, msg, bubble);
       menuOpenedByTouch = true;
       touchTimer = null;
     }, 600);
-    
     startX = event.touches[0].clientX;
     startY = event.touches[0].clientY;
     isSwiping = false;
@@ -6211,111 +6202,59 @@ function createMessageRow(msg, isOut, showAvatar){
 
   bubble.addEventListener('touchmove', (event) => {
     clearTimeout(touchTimer);
-    
     const clientX = event.touches[0].clientX;
     const clientY = event.touches[0].clientY;
     const diffX = clientX - startX;
     const diffY = clientY - startY;
-    
-    if (!isSwiping && Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+    if (!isSwiping && Math.abs(diffX) > 15 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
       isSwiping = true;
     }
-    
-    if (isSwiping) {
-      if (event.cancelable) event.preventDefault();
-      
-      if (diffX < 0) {
-        // Hide the three-dots msg-tools button during swiping!
-        if (tools) {
-          tools.style.opacity = '0';
-          tools.style.pointerEvents = 'none';
-        }
-        
-        const dragX = Math.max(-80, diffX);
-        bubble.style.transform = `translateX(${dragX}px)`;
-        
-        const absDrag = Math.abs(dragX);
-        swipeIndicator.style.opacity = String(Math.min(1, absDrag / 45));
-        
-        const transX = Math.max(0, 25 - (absDrag * 0.5));
-        const scale = Math.min(1.15, 0.6 + (absDrag / 100));
-        swipeIndicator.style.transform = `translateY(-50%) translateX(${transX}px) scale(${scale})`;
-        
-        if (absDrag >= 45) {
-          swipeIndicator.classList.add('active-glow');
-          if (!hasVibrated) {
-            if (navigator.vibrate) {
-              try { navigator.vibrate(20); } catch(_v){}
-            }
-            hasVibrated = true;
-          }
-        } else {
-          swipeIndicator.classList.remove('active-glow');
-          hasVibrated = false;
-        }
+    if (isSwiping && diffX < 0) {
+      const dragX = Math.max(-70, diffX);
+      bubble.style.transform = `translateX(${dragX}px)`;
+      if (tools) tools.style.opacity = '0';
+      const absDrag = Math.abs(dragX);
+      const s = Math.min(1.1, 0.5 + absDrag / 80);
+      swipeIndicator.style.opacity = String(Math.min(1, absDrag / 40));
+      swipeIndicator.style.transform = `translateY(-50%) scale(${s})`;
+      if (absDrag >= 45) {
+        swipeIndicator.classList.add('active-glow');
+        if (!hasVibrated) { if (navigator.vibrate) { try { navigator.vibrate(20); } catch(_v){} } hasVibrated = true; }
       } else {
-        bubble.style.transform = '';
-        swipeIndicator.style.opacity = '0';
-        if (tools) {
-          tools.style.opacity = '';
-          tools.style.pointerEvents = '';
-        }
+        swipeIndicator.classList.remove('active-glow');
+        hasVibrated = false;
       }
+    } else if (isSwiping) {
+      bubble.style.transform = '';
+      swipeIndicator.style.opacity = '0';
+      if (tools) tools.style.opacity = '';
     }
-  }, { passive: false });
+  }, { passive: true });
 
   bubble.addEventListener('touchend', (event) => {
     clearTimeout(touchTimer);
-    if (menuOpenedByTouch) {
-      event.preventDefault();
-      menuOpenedByTouch = false;
-    }
-    
+    if (menuOpenedByTouch) { event.preventDefault(); menuOpenedByTouch = false; }
     if (isSwiping) {
-      const transformText = bubble.style.transform;
-      const match = transformText.match(/translateX\(([-\d.]+)px\)/);
-      const dragX = match ? parseFloat(match[1]) : 0;
-      
-      bubble.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      const m = (bubble.style.transform || '').match(/translateX\(([-\d.]+)px\)/);
+      const dragX = m ? parseFloat(m[1]) : 0;
+      bubble.style.transition = 'transform 0.2s ease-out';
       bubble.style.transform = '';
-      
-      swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
       swipeIndicator.style.opacity = '0';
-      swipeIndicator.style.transform = 'translateY(-50%) translateX(25px) scale(0.6)';
-      
-      // Smoothly restore the three-dots msg-tools button
-      if (tools) {
-        tools.style.transition = 'opacity 0.25s';
-        tools.style.opacity = '';
-        tools.style.pointerEvents = '';
-      }
-      
-      if (dragX <= -45) {
-        window.replyMessage(msg);
-      }
+      swipeIndicator.style.transform = 'translateY(-50%) scale(0.5)';
+      swipeIndicator.classList.remove('active-glow');
+      if (tools) tools.style.opacity = '';
+      if (dragX <= -45) { window.replyMessage(msg); }
     }
     isSwiping = false;
   });
 
-  bubble.addEventListener('touchcancel', (event) => {
+  bubble.addEventListener('touchcancel', () => {
     clearTimeout(touchTimer);
-    if (menuOpenedByTouch) {
-      event.preventDefault();
-      menuOpenedByTouch = false;
-    }
-    
-    bubble.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    bubble.style.transition = 'transform 0.2s ease-out';
     bubble.style.transform = '';
-    
-    swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
     swipeIndicator.style.opacity = '0';
-    swipeIndicator.style.transform = 'translateY(-50%) translateX(25px) scale(0.6)';
-    
-    // Restore the three-dots msg-tools button
-    if (tools) {
-      tools.style.opacity = '';
-      tools.style.pointerEvents = '';
-    }
+    swipeIndicator.classList.remove('active-glow');
+    if (tools) tools.style.opacity = '';
     isSwiping = false;
   });
 
