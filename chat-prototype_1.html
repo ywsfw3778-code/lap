@@ -6151,11 +6151,14 @@ function createMessageRow(msg, isOut, showAvatar){
     bubble.appendChild(player);
   }else{
     const textContent = msg.text || '';
+    const textValEl = document.createElement('div');
+    textValEl.className = 'msg-text-val';
     if(typeof window.replaceEmojisWith3D === 'function'){
-      bubble.innerHTML = window.replaceEmojisWith3D(textContent);
+      textValEl.innerHTML = window.replaceEmojisWith3D(textContent);
     }else{
-      bubble.textContent = textContent;
+      textValEl.textContent = textContent;
     }
+    bubble.appendChild(textValEl);
   }
   bubble.addEventListener('contextmenu', (event) => openMessageMenu(event, msg));
   bubble.addEventListener('dblclick', (event) => {
