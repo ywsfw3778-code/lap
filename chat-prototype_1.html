@@ -340,8 +340,8 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
 .swipe-reply-indicator {
   position: absolute;
   top: 50%;
-  right: -40px;
-  transform: translateY(-50%) scale(0.6);
+  right: 12px;
+  transform: translateY(-50%) translateX(35px) scale(0.6);
   opacity: 0;
   width: 28px;
   height: 28px;
@@ -352,14 +352,13 @@ html[dir="ltr"] .msg-inline-menu{right:0;left:auto;}
   align-items: center;
   justify-content: center;
   color: var(--accent);
-  font-size: 13px;
   pointer-events: none;
-  transition: transform 0.2s, opacity 0.2s, right 0.25s;
+  transition: opacity 0.2s, transform 0.2s;
   box-shadow: 0 0 10px var(--accent-glow);
   z-index: 1;
 }
 .swipe-reply-indicator.active-glow {
-  transform: translateY(-50%) scale(1.15) !important;
+  transform: translateY(-50%) translateX(0px) scale(1.15) !important;
   opacity: 1 !important;
   background: var(--accent) !important;
   color: var(--bg) !important;
@@ -5341,7 +5340,7 @@ function parseReplyMessage(raw){
       const jsonStr = text.substring('[reply:'.length, endIdx + 1);
       const actualText = text.substring(endIdx + 2);
       try {
-        const replyMeta = JSON.parse(jsonStr);
+        const replyMeta = JSON.parse(jsonStr.trim());
         return {
           isReply: true,
           replyId: replyMeta.id,
@@ -5350,7 +5349,22 @@ function parseReplyMessage(raw){
           actualText: actualText
         };
       } catch (e) {
-        console.warn('Failed to parse reply JSON:', e);
+        console.warn('Failed to parse reply JSON:', e.message);
+        try {
+          const cleanedMatch = jsonStr.match(/\{[\s\S]*\}/);
+          if (cleanedMatch) {
+            const replyMeta = JSON.parse(cleanedMatch[0].trim());
+            return {
+              isReply: true,
+              replyId: replyMeta.id,
+              replySender: replyMeta.sender,
+              replyText: replyMeta.text,
+              actualText: actualText
+            };
+          }
+        } catch (err) {
+          console.warn('Reply fallback parsing failed:', err.message);
+        }
       }
     }
   }
@@ -6159,7 +6173,12 @@ function createMessageRow(msg, isOut, showAvatar){
 
   const swipeIndicator = document.createElement('div');
   swipeIndicator.className = 'swipe-reply-indicator';
-  swipeIndicator.innerHTML = '↩️';
+  swipeIndicator.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;">
+      <polyline points="9 17 4 12 9 7"></polyline>
+      <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+    </svg>
+  `;
   row.appendChild(swipeIndicator);
 
   bubble.addEventListener('touchstart', (event) => {
@@ -6200,8 +6219,10 @@ function createMessageRow(msg, isOut, showAvatar){
         
         const absDrag = Math.abs(dragX);
         swipeIndicator.style.opacity = String(Math.min(1, absDrag / 45));
-        swipeIndicator.style.right = `${12 + (absDrag * 0.4)}px`;
-        swipeIndicator.style.transform = `translateY(-50%) scale(${Math.min(1.1, 0.6 + (absDrag / 100))})`;
+        
+        const transX = Math.max(0, 35 - (absDrag * 0.6));
+        const scale = Math.min(1.15, 0.6 + (absDrag / 100));
+        swipeIndicator.style.transform = `translateY(-50%) translateX(${transX}px) scale(${scale})`;
         
         if (absDrag >= 45) {
           swipeIndicator.classList.add('active-glow');
@@ -6239,7 +6260,7 @@ function createMessageRow(msg, isOut, showAvatar){
       
       swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
       swipeIndicator.style.opacity = '0';
-      swipeIndicator.style.transform = 'translateY(-50%) scale(0.6)';
+      swipeIndicator.style.transform = 'translateY(-50%) translateX(35px) scale(0.6)';
       
       if (dragX <= -45) {
         window.replyMessage(msg);
@@ -6257,7 +6278,10 @@ function createMessageRow(msg, isOut, showAvatar){
     
     bubble.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
     bubble.style.transform = '';
+    
+    swipeIndicator.style.transition = 'opacity 0.25s, transform 0.25s';
     swipeIndicator.style.opacity = '0';
+    swipeIndicator.style.transform = 'translateY(-50%) translateX(35px) scale(0.6)';
     isSwiping = false;
   });
 
