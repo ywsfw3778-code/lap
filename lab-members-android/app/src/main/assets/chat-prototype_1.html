@@ -4733,22 +4733,17 @@ window.confirmDeleteChat = async function() {
     cFound._lastInboxAt = '';
   }
   
-  if (!forEveryone) {
-    // Save local storage hidden timestamp to hide all messages up to now (Delete for me only)
-    localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
-    
-    // Insert sync delete message into database to sync across user's other devices
-    sbClient.from('messages').insert({
-      sender_id: currentUser.id,
-      receiver_id: contactId,
-      content: `[system_delete_chat_me]${deletedTime}`
-    }).then(({ error }) => {
-      if (error) console.warn('Failed to insert delete sync message:', error.message);
-    });
-  } else {
-    // If deleted for everyone, remove the local storage deleted-at since messages are gone completely from database
-    localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId);
-  }
+  // Save local storage hidden timestamp to hide all messages up to now (Delete for me and sync)
+  localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
+  
+  // Insert sync delete message into database to sync across user's other devices
+  sbClient.from('messages').insert({
+    sender_id: currentUser.id,
+    receiver_id: contactId,
+    content: `[system_delete_chat_me]${deletedTime}`
+  }).then(({ error }) => {
+    if (error) console.warn('Failed to insert delete sync message:', error.message);
+  });
   
   // Clear active chat if it was the deleted one
   if (activeContact && activeContact.id === contactId) {
