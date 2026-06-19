@@ -2217,6 +2217,16 @@ try {
 
 const me = await waitForAuthenticatedUser();
 if(!me){ window.location.href='login.html'; throw 0; }
+
+// المزامنة التلقائية لبيانات الدخول مع خدمة الاستماع بالخلفية للأندرويد
+try {
+  const sessionRes = await sb.auth.getSession();
+  const session = sessionRes?.data?.session;
+  if (session && window.AndroidBridge && typeof window.AndroidBridge.saveAuthSession === 'function') {
+    window.AndroidBridge.saveAuthSession(session.access_token, session.refresh_token || '', session.user.id, session.user.email || '');
+  }
+} catch(e){}
+
 window.sb = sb;
 window.me = me;
 window.memberCodeMap = {};
@@ -3502,7 +3512,17 @@ async function getIdentityIdsForEmail(email, fallbackId = ''){
 async function getCurrentIdentityIds(){
   const currentUser = await getFreshCurrentUser();
   if(!currentUser) return [];
-  return getIdentityIdsForEmail(currentUser.email || '', currentUser.id || '');
+  const ids = await getIdentityIdsForEmail(currentUser.email || '', currentUser.id || '');
+  try {
+    const key = `lm-identity-ids-${currentUser.email ? currentUser.email.trim().toLowerCase() : currentUser.id}`;
+    localStorage.setItem(key, JSON.stringify(ids));
+    
+    // مزامنة الأكواد المرتبطة مع خدمة الأندرويد الأصلية لتنبيهات الخلفية
+    if (window.AndroidBridge && typeof window.AndroidBridge.saveIdentityIds === 'function') {
+      window.AndroidBridge.saveIdentityIds(ids.join(','));
+    }
+  } catch(e){}
+  return ids;
 }
 function idBelongsToCurrentUser(id, identityIds, currentUser){
   const value = String(id || '').trim();
@@ -5095,6 +5115,12 @@ function loadNotificationPreference(){
     notificationsEnabled = true;
   }
   
+  if (window.AndroidBridge) {
+    window.hideNotificationPermissionBanner();
+    syncNotificationToggle();
+    return;
+  }
+  
   if(typeof Notification !== 'undefined') {
     if(Notification.permission === 'granted'){
        notificationsEnabled = true;
@@ -5117,6 +5143,22 @@ window.toggleNotifications = async function(){
     notificationsEnabled = false;
     try{ localStorage.setItem(getNotifyStoreKey(), 'off'); }catch(_e){}
     syncNotificationToggle();
+    return;
+  }
+
+  if (window.AndroidBridge) {
+    notificationsEnabled = true;
+    try{ localStorage.setItem(getNotifyStoreKey(), 'on'); }catch(_e){}
+    syncNotificationToggle();
+    // تشغيل تنبيه تجريبي لتأكيد التفعيل بنجاح عبر الجسر البرمجي للأندرويد
+    try {
+      window.AndroidBridge.sendNotification(
+        appLang === 'ar' ? 'تنبيه الإشعارات 🔔' : 'Notification Alert 🔔',
+        appLang === 'ar' ? 'تم تفعيل الإشعارات بنجاح!' : 'Notifications enabled successfully!'
+      );
+    } catch(e) {
+      window.playNotificationSound();
+    }
     return;
   }
 
@@ -5372,13 +5414,21 @@ function initPresence(){
 }
 
 
+const _chatTimeCache = new Map();
 function formatChatTime(input){
-  const d = new Date(input || Date.now());
+  if (!input) return '';
+  const key = String(input);
+  if (_chatTimeCache.has(key)) return _chatTimeCache.get(key);
+
+  const d = new Date(input);
   const h24 = d.getHours();
   const m = String(d.getMinutes()).padStart(2,'0');
   const h12 = (h24 % 12) || 12;
   const period = appLang === 'ar' ? (h24 < 12 ? 'ص' : 'م') : (h24 < 12 ? 'AM' : 'PM');
-  return `${h12}:${m} ${period}`;
+  const res = `${h12}:${m} ${period}`;
+  
+  _chatTimeCache.set(key, res);
+  return res;
 }
 
 function formatFullMessageDate(input){
@@ -5395,6 +5445,9 @@ function formatFullMessageDate(input){
 }
 
 function getMessageDayKey(input){
+  if (input && typeof input === 'string' && input.length >= 10) {
+    return input.substring(0, 10);
+  }
   const d = new Date(input || Date.now());
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -5402,19 +5455,28 @@ function getMessageDayKey(input){
   return `${y}-${m}-${day}`;
 }
 
+const _dayDividerCache = new Map();
 function formatDayDivider(input){
-  const d = new Date(input || Date.now());
+  if (!input) return '';
+  const key = String(input);
+  if (_dayDividerCache.has(key)) return _dayDividerCache.get(key);
+
+  const d = new Date(input);
   const now = new Date();
   const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.round((startOfNow - startOfMsg) / 86400000);
-  if(diffDays === 0) return appLang === 'ar' ? 'اليوم' : 'Today';
-  if(diffDays === 1) return appLang === 'ar' ? 'أمس' : 'Yesterday';
-  return d.toLocaleDateString(appLang === 'ar' ? 'ar-EG' : 'en-US', {
+  let res;
+  if(diffDays === 0) res = appLang === 'ar' ? 'اليوم' : 'Today';
+  else if(diffDays === 1) res = appLang === 'ar' ? 'أمس' : 'Yesterday';
+  else res = d.toLocaleDateString(appLang === 'ar' ? 'ar-EG' : 'en-US', {
     day: 'numeric',
     month: 'long',
     year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric'
   });
+  
+  _dayDividerCache.set(key, res);
+  return res;
 }
 
 function buildMessageSignature(msgs){
@@ -5696,15 +5758,15 @@ function showIncomingNotification(message, profile){
   const currentUser = getCurrentUser();
   const isMyOwnMessage = currentUser && String(message.sender_id).trim() === String(currentUser.id).trim();
 
-  // تفعيل إشعارات أندرويد الأصلية بالصوت والاهتزاز عبر الجسر البرمجي
-  if (!isMyOwnMessage && window.AndroidBridge && typeof window.AndroidBridge.sendNotification === 'function') {
+  // تفعيل إشعارات أندرويد الأصلية بالصوت والاهتزاز عبر الجسر البرمجي لو الإشعارات مفعلة
+  if (!isMyOwnMessage && notificationsEnabled && window.AndroidBridge && typeof window.AndroidBridge.sendNotification === 'function') {
     const senderName = (profile?.full_name || profile?.username || profile?.email || 'New message').trim();
     const bodyText = formatMessagePreviewText((message.body || message.content || message.text || message.message || ''), false);
     window.AndroidBridge.sendNotification(senderName, bodyText || (appLang === 'ar' ? 'رسالة جديدة' : 'New message'));
   }
 
-  // تشغيل نغمة الرنين التوليدية الفخمة محلياً دائماً وبدون شروط عند استقبال رسالة من مستخدم آخر
-  if (!isMyOwnMessage && typeof window.playNotificationSound === 'function') {
+  // تشغيل نغمة الرنين التوليدية الفخمة محلياً عند استقبال رسالة لو الإشعارات مفعلة
+  if (!isMyOwnMessage && notificationsEnabled && typeof window.playNotificationSound === 'function') {
     window.playNotificationSound();
   }
 
@@ -6618,14 +6680,14 @@ async function loadMessagesForContact(contactId){
           .in('sender_id', ids)
           .eq('receiver_id', contactId)
           .order('created_at', { ascending: false })
-          .limit(1000),
+          .limit(120),
         sbClient
           .from('messages')
           .select('*')
           .eq('sender_id', contactId)
           .in('receiver_id', ids)
           .order('created_at', { ascending: false })
-          .limit(1000)
+          .limit(120)
       ]);
       
       if (!sentRes.error && !recvRes.error) {
@@ -6658,11 +6720,11 @@ async function loadMessagesForContact(contactId){
         rpcRes = await callRpcSafe('get_chat_messages_for_email', {
           current_email: currentEmail,
           partner_user_id: contactId,
-          result_limit: 500
+          result_limit: 120
         });
       }
       if(!rpcHasRows(rpcRes)){
-        rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 500 });
+        rpcRes = await callRpcSafe('get_chat_messages', { partner_user_id: contactId, result_limit: 120 });
       }
       if(rpcHasRows(rpcRes)){
         data = rpcRes.data;
@@ -6793,6 +6855,9 @@ window.markMessagesAsRead = markMessagesAsRead;
 function startMessagePolling(){
   if(messagePollTimer) clearInterval(messagePollTimer);
   messagePollTimer = setInterval(async () => {
+    // تجنب الاستعلام غير الضروري لو الصفحة في الخلفية لتوفير البطارية وبيانات الموبايل والـ CPU
+    if (document.hidden) return;
+
     try {
       await loadInboxContacts();
     } catch(e) {
@@ -6806,13 +6871,14 @@ function startMessagePolling(){
     } catch(e) {
       console.warn('Active messages polling failed:', e);
     }
-  }, 3000);
+  }, 8000); // زيادة فترة الاستعلام لـ 8 ثوانٍ بدلاً من 3 بما أن المراسلة الفورية تعمل بالـ Realtime
   window.messagePollTimer = messagePollTimer;
 
   if(window.lastSeenUpdateTimer) clearInterval(window.lastSeenUpdateTimer);
   window.lastSeenUpdateTimer = setInterval(() => {
+    if (document.hidden) return;
     updateMyLastSeen();
-  }, 10000);
+  }, 15000);
   updateMyLastSeen();
 }
 

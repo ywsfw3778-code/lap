@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Lab Members Background Worker</title>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
+
+let sb = null;
+let activeChannel = null;
+
+function getSupabase() {
+  if (sb) return sb;
+  if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+    throw new Error('Supabase SDK failed to load');
+  }
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+      persistSession: true,
+      detectSessionInUrl: false
+    }
+  });
+  return sb;
+}
+
+function getStorageIdentityPart(user) {
+  if(!user) return 'guest';
+  const email = String(user.email || '').trim().toLowerCase();
+  return email || user.id;
+}
+
+function getNotifyStoreKey(user){
+  return user ? `lm-notify-${getStorageIdentityPart(user)}` : 'lm-notify-guest';
+}
+
+async function startRealtime() {
+  console.log('[BgWorker] Starting background listener loop...');
+  try {
+    const client = getSupabase();
+    const { data: { session } } = await client.auth.getSession();
+    
+    if (!session || !session.user) {
+      console.log('[BgWorker] No active session found. Retrying in 5 seconds...');
+      setTimeout(startRealtime, 5000);
+      return;
+    }
+
+    const currentUser = session.user;
+    console.log('[BgWorker] Active background session found for:', currentUser.email);
+
+    if (activeChannel) {
+      try { client.removeChannel(activeChannel); } catch(e){}
+    }
+
+    activeChannel = client
+      .channel(`realtime-messages-bg-${currentUser.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      }, async (payload) => {
+        const row = payload.new;
+        if (!row) return;
+
+        const senderId = String(row.sender_id || '').trim();
+        const receiverId = String(row.receiver_id || '').trim();
+
+        // 1. Ignore my own messages
+        if (senderId === currentUser.id) return;
+
+        // 2. Check if notifications are enabled in local storage
+        const notifyKey = getNotifyStoreKey(currentUser);
+        const notificationsEnabled = localStorage.getItem(notifyKey) !== 'off';
+        if (!notificationsEnabled) {
+          console.log('[BgWorker] Message received, but notifications are muted.');
+          return;
+        }
+
+        // 3. Verify if message belongs to me or one of my aliases (linked chats)
+        // Wait, let's fetch my linked IDs or simply match if receiverId is mine
+        // Since we are running in the background service context, we can check receiverId:
+        if (receiverId !== currentUser.id) {
+          // Check if it belongs to linked accounts (checking email logic)
+          // For maximum reliability, we can fetch profiles directory or do direct check
+          // But usually, receiverId will match the currentUser.id for standard DMs.
+          // Let's do linked checking:
+          let isForMe = false;
+          try {
+            const storedAliases = localStorage.getItem(`lm-identity-ids-${getStorageIdentityPart(currentUser)}`);
+            if (storedAliases) {
+              const aliases = JSON.parse(storedAliases);
+              if (Array.isArray(aliases) && aliases.includes(receiverId)) {
+                isForMe = true;
+              }
+            }
+          } catch(e){}
+          
+          if (!isForMe) return;
+        }
+
+        console.log('[BgWorker] Incoming message detected, preparing native notification...');
+
+        // 4. Fetch sender's profile for the display name
+        let senderName = 'رسالة جديدة 💬';
+        try {
+          const { data: profile } = await client
+            .from('profiles')
+            .select('full_name, username')
+            .eq('id', senderId)
+            .single();
+          if (profile) {
+            senderName = profile.full_name || profile.username || 'عضو المعمل';
+          }
+        } catch(e) {
+          console.error('[BgWorker] Profile fetch error:', e);
+        }
+
+        // 5. Parse and clean message content
+        let bodyText = row.content || row.body || 'رسالة جديدة';
+        
+        // Remove reply prefix if present
+        if (bodyText.startsWith('[reply:')) {
+          const endIdx = bodyText.indexOf('}]');
+          if (endIdx !== -1) {
+            bodyText = bodyText.substring(endIdx + 2);
+          }
+        }
+
+        // Handle media formats
+        if (bodyText.startsWith('[image]')) {
+          bodyText = '📷 صورة';
+        } else if (bodyText.startsWith('[video]')) {
+          bodyText = '🎥 فيديو';
+        } else if (bodyText.startsWith('[voice')) {
+          bodyText = '🎤 ريكورد صوتي';
+        }
+
+        // 6. Send native push alert via Android Bridge
+        if (window.AndroidBridge && typeof window.AndroidBridge.sendNotification === 'function') {
+          window.AndroidBridge.sendNotification(senderName, bodyText);
+        }
+      })
+      .subscribe((status, err) => {
+        console.log(`[BgWorker] Subscription status: ${status}`, err || '');
+        if (status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          console.warn('[BgWorker] Realtime channel closed or errored, reconnecting in 5s...');
+          setTimeout(startRealtime, 5000);
+        }
+      });
+
+  } catch (err) {
+    console.error('[BgWorker] Loop exception, retrying in 10s:', err);
+    setTimeout(startRealtime, 10000);
+  }
+}
+
+// Start listener
+startRealtime();
+</script>
+</body>
+</html>
