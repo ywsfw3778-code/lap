@@ -4529,6 +4529,7 @@ window.closeImageViewer = function(){
 let contactMenuState = null;
 let contactTouchTimeout = null;
 let contactMenuOpenedByTouch = false;
+let pendingDeleteContactId = null;
 
 window.openContactContextMenu = function(event, contactId) {
   if (!contactId) return;
@@ -4648,7 +4649,7 @@ window.confirmDeleteChat = async function() {
   if (!contactId) return;
   
   const sbClient = getSbClient();
-  const currentUser = getCurrentUser();
+  const currentUser = await getFreshCurrentUser();
   if (!sbClient || !currentUser) return;
   
   const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
