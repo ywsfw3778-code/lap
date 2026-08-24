@@ -1139,7 +1139,7 @@
         let finalAvatarUrl = undefined;
 
         if (avatarAction === 'REMOVE') {
-          finalAvatarUrl = null;
+          finalAvatarUrl = '';
         } else if (selectedAvatarFile) {
           const fileExt = selectedAvatarFile.name.split('.').pop() || 'png';
           const fileName = `admin-avatar-${id}-${Date.now()}.${fileExt}`;
@@ -1151,10 +1151,10 @@
             console.warn('Storage upload error:', uploadErr.message);
           } else {
             const { data: pubData } = sb.storage.from('avatars').getPublicUrl(fileName);
-            finalAvatarUrl = pubData?.publicUrl || null;
+            finalAvatarUrl = pubData?.publicUrl || '';
           }
         } else if (avatarAction === 'UPDATE') {
-          finalAvatarUrl = document.getElementById('editUserAvatarUrl').value.trim() || null;
+          finalAvatarUrl = document.getElementById('editUserAvatarUrl').value.trim();
         }
 
         const updatePayload = { full_name: name, member_code: code };
@@ -1162,22 +1162,36 @@
           updatePayload.avatar_url = finalAvatarUrl;
         }
 
-        // Try direct update first
-        const { error } = await sb.from('profiles').update(updatePayload).eq('id', id);
-        
-        if (error) {
-          // Try RPC update fallback
-          await sb.rpc('admin_update_user_profile', {
+        let saveSuccess = false;
+        let lastErrorMsg = '';
+
+        // 1. Direct update with select() verification
+        const { data: updData, error: dirErr } = await sb.from('profiles').update(updatePayload).eq('id', id).select();
+        if (!dirErr && updData && updData.length > 0) {
+          saveSuccess = true;
+        } else {
+          if (dirErr) lastErrorMsg = dirErr.message;
+          // 2. RPC fallback
+          const { data: rpcData, error: rpcErr } = await sb.rpc('admin_update_user_profile', {
             target_user_id: id,
             new_name: name,
             new_member_code: code,
-            new_avatar_url: finalAvatarUrl === null ? '__REMOVE__' : finalAvatarUrl
+            new_avatar_url: finalAvatarUrl === '' ? '__REMOVE__' : (finalAvatarUrl || '')
           });
+          if (!rpcErr) {
+            saveSuccess = true;
+          } else {
+            lastErrorMsg = rpcErr.message;
+          }
         }
 
-        alert('تم حفظ بيانات وصورة المستخدم بنجاح! ✅');
-        closeEditModal();
-        await loadUsers();
+        if (saveSuccess) {
+          alert('تم حفظ بيانات وصورة المستخدم بنجاح في قاعدة البيانات! ✅');
+          closeEditModal();
+          await loadUsers();
+        } else {
+          alert('تعذر حفظ التعديل: ' + (lastErrorMsg || 'السيرفر لم يستجب للتعديل، يرجى تشغيل كود الصلاحيات في Supabase'));
+        }
       } catch (err) {
         alert('خطأ في حفظ التعديل: ' + err.message);
       } finally {
@@ -1192,18 +1206,26 @@
       if (!confirm(promptText)) return;
 
       try {
-        const { error } = await sb.rpc('admin_set_user_ban', {
+        let success = false;
+        const { error: rpcErr } = await sb.rpc('admin_set_user_ban', {
           target_user_id: id,
           ban_status: newBanState,
           reason_text: newBanState ? 'إيقاف إداري' : ''
         });
-        if (error) {
-          // Fallback to table insert
-          await sb.from('admin_user_moderation').upsert({ user_id: id, is_banned: newBanState, ban_reason: 'Admin Action' });
+        if (!rpcErr) {
+          success = true;
+        } else {
+          const { error: upsertErr } = await sb.from('admin_user_moderation').upsert({ user_id: id, is_banned: newBanState, ban_reason: 'Admin Action' });
+          if (!upsertErr) success = true;
         }
-        alert(newBanState ? 'تم حظر المستخدم بنجاح 🚫' : 'تم فك الحظر بنجاح 🔓');
-        await loadUsers();
-        await loadStats();
+
+        if (success) {
+          alert(newBanState ? 'تم حظر المستخدم بنجاح 🚫' : 'تم فك الحظر بنجاح 🔓');
+          await loadUsers();
+          await loadStats();
+        } else {
+          alert('تعذر تحديث حالة الحظر على السيرفر.');
+        }
       } catch (e) {
         alert('خطأ أثناء تعديل حالة الحظر: ' + e.message);
       }

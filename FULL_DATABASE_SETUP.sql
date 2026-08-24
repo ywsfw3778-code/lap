@@ -1,6 +1,5 @@
 -- ==============================================================================
 -- 🚀 LAB MEMBERS - COMPLETE DATABASE SETUP & ADMIN SCHEMA (100% All-in-One)
--- تشغيل هذا الملف بالكامل في Supabase -> SQL Editor -> Run
 -- ==============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -20,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- تسلسل تلقائي لأكواد العضوية
 CREATE SEQUENCE IF NOT EXISTS public.member_code_seq START WITH 1 INCREMENT BY 1;
+SELECT setval('public.member_code_seq', greatest(1, coalesce((SELECT max(member_code) FROM public.profiles), 0) + 1), false);
 
 -- 2. تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد (Auto Profile on Signup)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -53,7 +53,6 @@ begin
   ON CONFLICT (id) DO UPDATE
   SET email = excluded.email,
       full_name = coalesce(public.profiles.full_name, excluded.full_name),
-      member_code = coalesce(public.profiles.member_code, excluded.member_code),
       updated_at = now();
 
   INSERT INTO public.user_identities (user_id, email)
@@ -69,7 +68,7 @@ CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- إدخال كل المستخدمين الموجودين حالياً في auth.users إلى profiles
+-- إدخال المستخدمين الجدد فقط إذا لم يكونوا موجودين مسبقاً
 INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
 SELECT 
   u.id,
@@ -77,11 +76,13 @@ SELECT
   coalesce(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', split_part(coalesce(u.email, ''), '@', 1), 'User'),
   lower(u.email),
   coalesce(u.raw_user_meta_data->>'avatar_url', ''),
-  nextval('public.member_code_seq'),
+  (coalesce((SELECT max(member_code) FROM public.profiles), 0) + row_number() over ()),
   now()
 FROM auth.users u
-ON CONFLICT (id) DO UPDATE
-SET email = excluded.email;
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
+
+-- تحديث تسلسل أكواد العضوية
+SELECT setval('public.member_code_seq', greatest(1, coalesce((SELECT max(member_code) FROM public.profiles), 0) + 1), false);
 
 -- 3. جدول هويات المستخدمين (User Identities)
 CREATE TABLE IF NOT EXISTS public.user_identities (
