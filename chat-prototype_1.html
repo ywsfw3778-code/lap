@@ -1765,28 +1765,130 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
 }
-.footer-user-actions {
+
+.footer-chevron {
+  color: var(--muted);
   display: flex;
   align-items: center;
-  gap: 4px;
+  transition: transform 0.2s;
 }
-.footer-action-btn {
-  background: transparent;
-  border: none;
+.footer-chevron.open {
+  transform: rotate(180deg);
+}
+
+/* Discord Status Popover */
+.discord-status-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  right: 8px;
+  background: rgba(18, 24, 38, 0.97);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: slideUpFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.popover-header {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--muted);
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.popover-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 4px;
+}
+
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.status-option:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.status-option.menu-action:hover {
+  background: rgba(0, 255, 136, 0.1);
+}
+.status-option.menu-action.logout:hover {
+  background: rgba(255, 71, 87, 0.15);
+  color: var(--danger);
+}
+.menu-action-icon {
+  font-size: 16px;
+  width: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.15s;
 }
-.footer-action-btn:hover {
+
+.status-option-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.status-option-title {
+  font-size: 13px;
+  font-weight: 600;
   color: #fff;
-  background: var(--surface3);
+}
+.status-option-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+.status-check {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* Discord Status Indicator Discs */
+.status-indicator-disc {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+.status-indicator-disc.online {
+  background: #23a55a;
+  box-shadow: 0 0 8px rgba(35, 165, 90, 0.6);
+}
+.status-indicator-disc.idle {
+  background: #f0b232;
+  box-shadow: 0 0 8px rgba(240, 178, 50, 0.6);
+}
+.status-indicator-disc.dnd {
+  background: #f23f43;
+  box-shadow: 0 0 8px rgba(242, 63, 67, 0.6);
+}
+.status-indicator-disc.invisible {
+  background: #80848e;
 }
 
 /* Welcome Empty View in Chat Area */
@@ -1933,19 +2035,88 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   <div class="contacts" id="contacts"></div>
 
   <!-- User Profile Card At Bottom of Sidebar -->
-  <div class="sidebar-user-footer" id="sidebarUserFooter" onclick="window.openMyProfileModal()">
-    <div class="footer-user-avatar" id="footerMyAvatar">
-      <span id="footerAvatarInitial">U</span>
-      <img id="footerAvatarImg" src="" style="display:none;" />
-      <span class="footer-online-dot"></span>
+  <div class="sidebar-user-footer-wrapper" style="position: relative; flex-shrink: 0;">
+    <!-- Discord-Style Status Popover -->
+    <div class="discord-status-popover" id="discordStatusPopover" style="display: none;" onclick="event.stopPropagation()">
+      <div class="popover-header">
+        <div class="popover-header-title">تعيين الحالة</div>
+      </div>
+      
+      <div class="status-option" onclick="setUserCustomStatus('online')">
+        <div class="status-indicator-disc online"></div>
+        <div class="status-option-text">
+          <div class="status-option-title">متصل (Online)</div>
+          <div class="status-option-desc">ظاهر ونشط لجميع الأعضاء</div>
+        </div>
+        <span class="status-check" id="check-online">✓</span>
+      </div>
+
+      <div class="status-option" onclick="setUserCustomStatus('idle')">
+        <div class="status-indicator-disc idle"></div>
+        <div class="status-option-text">
+          <div class="status-option-title">خامل (Idle / AFK)</div>
+          <div class="status-option-desc">بعيد عن المحادثات مؤقتاً</div>
+        </div>
+        <span class="status-check" id="check-idle" style="display:none;">✓</span>
+      </div>
+
+      <div class="status-option" onclick="setUserCustomStatus('dnd')">
+        <div class="status-indicator-disc dnd"></div>
+        <div class="status-option-text">
+          <div class="status-option-title">عدم الإزعاج (Do Not Disturb)</div>
+          <div class="status-option-desc">كتم جميع أصوات الإشعارات</div>
+        </div>
+        <span class="status-check" id="check-dnd" style="display:none;">✓</span>
+      </div>
+
+      <div class="status-option" onclick="setUserCustomStatus('invisible')">
+        <div class="status-indicator-disc invisible"></div>
+        <div class="status-option-text">
+          <div class="status-option-title">مخفي (Invisible)</div>
+          <div class="status-option-desc">الظهور كغير متصل مع استخدام التطبيق</div>
+        </div>
+        <span class="status-check" id="check-invisible" style="display:none;">✓</span>
+      </div>
+
+      <div class="popover-divider"></div>
+
+      <div class="status-option menu-action" onclick="closeDiscordStatusPopover(); window.openMyProfileModal();">
+        <span class="menu-action-icon">👤</span>
+        <div class="status-option-text">
+          <div class="status-option-title">تعديل الملف الشخصي والصورة</div>
+        </div>
+      </div>
+
+      <div class="status-option menu-action" onclick="closeDiscordStatusPopover(); window.openSettingsModal();">
+        <span class="menu-action-icon">⚙️</span>
+        <div class="status-option-text">
+          <div class="status-option-title">الإعدادات والمظهر</div>
+        </div>
+      </div>
+
+      <div class="status-option menu-action logout" onclick="closeDiscordStatusPopover(); if(typeof logout === 'function') logout(); else location.reload();">
+        <span class="menu-action-icon">🚪</span>
+        <div class="status-option-text">
+          <div class="status-option-title">تسجيل الخروج</div>
+        </div>
+      </div>
     </div>
-    <div class="footer-user-info">
-      <div class="footer-user-name" id="footerMyName">جار التحميل...</div>
-      <div class="footer-user-code" id="footerMyCode">#000 • متصل 🟢</div>
-    </div>
-    <div class="footer-user-actions">
-      <button type="button" class="footer-action-btn" onclick="event.stopPropagation(); window.openMyProfileModal()" title="تعديل البروفايل">👤</button>
-      <button type="button" class="footer-action-btn" onclick="event.stopPropagation(); window.openSettingsModal()" title="الإعدادات">⚙️</button>
+
+    <div class="sidebar-user-footer" id="sidebarUserFooter" onclick="toggleDiscordStatusPopover(event)">
+      <div class="footer-user-avatar" id="footerMyAvatar">
+        <span id="footerAvatarInitial">U</span>
+        <img id="footerAvatarImg" src="" style="display:none;" />
+        <span class="footer-online-dot" id="footerOnlineDot"></span>
+      </div>
+      <div class="footer-user-info">
+        <div class="footer-user-name" id="footerMyName">جار التحميل...</div>
+        <div class="footer-user-code" id="footerMyCode">#001 • متصل 🟢</div>
+      </div>
+      <div class="footer-chevron" id="footerChevron">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+      </div>
     </div>
   </div>
 </div>
@@ -2637,6 +2808,56 @@ function subscribeToBroadcasts() {
   }
 }
 
+let currentUserCustomStatus = localStorage.getItem('lm-user-custom-status') || 'online';
+
+const statusMeta = {
+  online: { label: 'متصل 🟢', dotClass: 'online', color: '#23a55a' },
+  idle: { label: 'خامل 🌙', dotClass: 'idle', color: '#f0b232' },
+  dnd: { label: 'عدم الإزعاج ⛔', dotClass: 'dnd', color: '#f23f43' },
+  invisible: { label: 'مخفي 🔘', dotClass: 'invisible', color: '#80848e' }
+};
+
+window.toggleDiscordStatusPopover = function(e) {
+  if (e) e.stopPropagation();
+  const popover = document.getElementById('discordStatusPopover');
+  const chevron = document.getElementById('footerChevron');
+  if (!popover) return;
+  const isHidden = popover.style.display === 'none' || !popover.style.display;
+  popover.style.display = isHidden ? 'flex' : 'none';
+  if (chevron) chevron.classList.toggle('open', isHidden);
+};
+
+window.closeDiscordStatusPopover = function() {
+  const popover = document.getElementById('discordStatusPopover');
+  const chevron = document.getElementById('footerChevron');
+  if (popover) popover.style.display = 'none';
+  if (chevron) chevron.classList.remove('open');
+};
+
+document.addEventListener('click', (e) => {
+  const wrapper = document.querySelector('.sidebar-user-footer-wrapper');
+  if (wrapper && !wrapper.contains(e.target)) {
+    closeDiscordStatusPopover();
+  }
+});
+
+window.setUserCustomStatus = function(status) {
+  currentUserCustomStatus = status;
+  localStorage.setItem('lm-user-custom-status', status);
+
+  // Update checkmarks in popover
+  ['online', 'idle', 'dnd', 'invisible'].forEach(s => {
+    const checkEl = document.getElementById('check-' + s);
+    if (checkEl) checkEl.style.display = (s === status) ? 'inline-block' : 'none';
+  });
+
+  // Mute sounds if DND
+  window.suppressNotificationSounds = (status === 'dnd');
+
+  updateSidebarUserFooter();
+  closeDiscordStatusPopover();
+};
+
 async function updateSidebarUserFooter() {
   try {
     const user = (typeof getFreshCurrentUser === 'function' ? await getFreshCurrentUser() : window.me);
@@ -2645,15 +2866,29 @@ async function updateSidebarUserFooter() {
     const codeEl = document.getElementById('footerMyCode');
     const initEl = document.getElementById('footerAvatarInitial');
     const imgEl = document.getElementById('footerAvatarImg');
+    const dotEl = document.getElementById('footerOnlineDot');
 
     const displayName = window.myName || user.user_metadata?.full_name || user.user_metadata?.name || String(user.email || 'User').split('@')[0];
     const initial = (displayName || 'U')[0].toUpperCase();
     const avatarUrl = window.myAvatarUrl || user.user_metadata?.avatar_url || '';
     const myCode = user.user_metadata?.member_code ? `#${String(user.user_metadata.member_code).padStart(3, '0')}` : '#001';
 
+    const statusInfo = statusMeta[currentUserCustomStatus] || statusMeta.online;
+
     if (nameEl) nameEl.innerText = displayName;
-    if (codeEl) codeEl.innerText = `${myCode} • متصل 🟢`;
+    if (codeEl) codeEl.innerText = `${myCode} • ${statusInfo.label}`;
     if (initEl) initEl.innerText = initial;
+
+    if (dotEl) {
+      dotEl.style.background = statusInfo.color;
+      dotEl.style.boxShadow = (statusInfo.color !== '#80848e') ? `0 0 6px ${statusInfo.color}` : 'none';
+    }
+
+    // Initialize checkmark
+    ['online', 'idle', 'dnd', 'invisible'].forEach(s => {
+      const checkEl = document.getElementById('check-' + s);
+      if (checkEl) checkEl.style.display = (s === currentUserCustomStatus) ? 'inline-block' : 'none';
+    });
 
     if (imgEl) {
       if (avatarUrl) {
@@ -5661,6 +5896,7 @@ async function updateMyLastSeen(force = false){
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if(!sbClient || !currentUser) return;
+  if(currentUserCustomStatus === 'invisible') return;
   if(document.hidden && !force) return;
   try{
     await sbClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
