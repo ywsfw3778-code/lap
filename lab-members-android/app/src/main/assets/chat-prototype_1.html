@@ -3041,6 +3041,9 @@ checkActiveBroadcasts();
 subscribeToBroadcasts();
 updateSidebarUserFooter();
 updateChatViewVisibility();
+try {
+  sb.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', me.id).then();
+} catch(_e){}
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
@@ -6107,7 +6110,10 @@ async function updateMyLastSeen(force = false){
   if(document.hidden && !force) return;
   try{
     const nowIso = new Date().toISOString();
-    await sbClient.from('profiles').update({ last_seen_at: nowIso }).eq('id', currentUser.id);
+    const { error } = await sbClient.from('profiles').update({ last_seen_at: nowIso }).eq('id', currentUser.id);
+    if (error && typeof upsertMyProfileOnServer === 'function') {
+      await upsertMyProfileOnServer({ last_seen_at: nowIso });
+    }
     const myContact = (typeof contacts !== 'undefined' ? contacts : []).find(c => c.id === currentUser.id);
     if(myContact){
       myContact.lastSeenAt = nowIso;
@@ -9226,6 +9232,9 @@ window.onAuthReady = async function(){
 
   try {
     initPresence();
+    if (typeof updateMyLastSeen === 'function') {
+      updateMyLastSeen(true);
+    }
   } catch(e) {
     console.warn('Boot initPresence failed:', e);
   }
