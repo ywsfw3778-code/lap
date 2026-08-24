@@ -71,8 +71,17 @@ body {
 }
 body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-events:none;z-index:9999;}
 
+#app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
 /* SIDEBAR */
-.sidebar{width:290px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar{width:290px;background:var(--sidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;height:100%;max-height:100%;overflow:hidden;position:relative;box-sizing:border-box;}
 .sidebar-header{padding:18px 10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px;}
 .logo{font-family:var(--logo-font);font-size:18px;font-weight:500;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:0.5px;filter:drop-shadow(0 0 6px var(--accent-glow));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0;}
 body.theme-steins .logo{font-size:20px;letter-spacing:1px;}
@@ -1703,18 +1712,24 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   position: relative;
   flex-shrink: 0;
   width: 100%;
-  background: #0f131f;
+  background: #0d121d;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  margin-top: auto;
+  z-index: 50;
 }
 .sidebar-user-footer {
   background: transparent;
-  padding: 10px 14px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
   gap: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 58px;
 }
 .sidebar-user-footer:hover {
   background: rgba(255, 255, 255, 0.05);
@@ -4284,18 +4299,69 @@ const userPresenceStatusMap = new Map(); // uid -> 'online' | 'idle' | 'dnd' | '
 
 function isUserOnline(contactOrId){
   if(!contactOrId) return false;
-  let id = typeof contactOrId === 'string' ? contactOrId : (contactOrId.id || '');
-  return onlineUserIds.has(String(id || ''));
+  let id = '';
+  let lastSeen = null;
+  if(typeof contactOrId === 'string'){
+    id = contactOrId;
+    const c = (typeof contacts !== 'undefined' ? contacts : []).find(x => x.id === id);
+    if(c) lastSeen = c.lastSeenAt;
+  } else {
+    id = contactOrId.id;
+    lastSeen = contactOrId.lastSeenAt;
+  }
+  if (!id) return false;
+
+  const me = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if(me && String(me.id) === String(id)) {
+    return currentUserCustomStatus !== 'invisible';
+  }
+
+  const customSt = userPresenceStatusMap.get(String(id));
+  if (customSt === 'invisible') return false;
+  if (customSt === 'online' || customSt === 'idle' || customSt === 'dnd') return true;
+
+  if (onlineUserIds.has(String(id))) return true;
+
+  if (lastSeen) {
+    const time = new Date(lastSeen).getTime();
+    if (!Number.isNaN(time) && Date.now() - time < 5 * 60 * 1000) {
+      return true;
+    }
+  }
+
+  return false;
 }
 window.isUserOnline = isUserOnline;
 
 function getUserPresenceStatus(contactOrId){
   if(!contactOrId) return 'offline';
   let id = typeof contactOrId === 'string' ? contactOrId : (contactOrId.id || '');
+  let lastSeen = typeof contactOrId === 'object' ? contactOrId.lastSeenAt : null;
   if(!id) return 'offline';
+
+  const me = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+  if(me && String(me.id) === String(id)) {
+    return currentUserCustomStatus || 'online';
+  }
+
   const customSt = userPresenceStatusMap.get(String(id));
+  if(customSt === 'invisible') return 'offline';
   if(customSt) return customSt;
+
   if(onlineUserIds.has(String(id))) return 'online';
+
+  if (!lastSeen) {
+    const c = (typeof contacts !== 'undefined' ? contacts : []).find(x => x.id === id);
+    if (c) lastSeen = c.lastSeenAt;
+  }
+
+  if (lastSeen) {
+    const time = new Date(lastSeen).getTime();
+    if (!Number.isNaN(time) && Date.now() - time < 5 * 60 * 1000) {
+      return 'online';
+    }
+  }
+
   return 'offline';
 }
 window.getUserPresenceStatus = getUserPresenceStatus;
