@@ -2901,7 +2901,20 @@ window.setUserCustomStatus = function(status) {
   // Mute sounds if DND
   window.suppressNotificationSounds = (status === 'dnd');
 
+  // Immediately broadcast to Supabase Realtime Presence Channel
+  if (typeof window.trackMyPresence === 'function') {
+    window.trackMyPresence();
+  }
+
+  // Update DB heartbeat
+  if (status !== 'invisible' && typeof window.updateMyLastSeen === 'function') {
+    window.updateMyLastSeen(true);
+  }
+
+  // Refresh UI
   updateSidebarUserFooter();
+  if (typeof renderContacts === 'function') renderContacts();
+  if (typeof updateHeaderPresence === 'function') updateHeaderPresence();
   closeDiscordStatusPopover();
 };
 
@@ -4313,31 +4326,51 @@ const userPresenceStatusMap = new Map(); // uid -> 'online' | 'idle' | 'dnd' | '
 function isUserOnline(contactOrId){
   if(!contactOrId) return false;
   let id = '';
+  let email = '';
   let lastSeen = null;
   if(typeof contactOrId === 'string'){
     id = contactOrId;
     const c = (typeof contacts !== 'undefined' ? contacts : []).find(x => x.id === id);
-    if(c) lastSeen = c.lastSeenAt;
+    if(c) {
+      lastSeen = c.lastSeenAt;
+      email = c.email || '';
+    }
   } else {
     id = contactOrId.id;
     lastSeen = contactOrId.lastSeenAt;
+    email = contactOrId.email || '';
   }
-  if (!id) return false;
+  if (!id && !email) return false;
 
-  const me = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-  if(me && String(me.id) === String(id)) {
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+  if(me && (String(me.id) === String(id) || (email && String(me.email || '').toLowerCase() === String(email).toLowerCase()))) {
     return currentUserCustomStatus !== 'invisible';
   }
 
-  const customSt = userPresenceStatusMap.get(String(id));
+  // 1. Direct ID check in presence status map
+  const customSt = id ? userPresenceStatusMap.get(String(id)) : null;
   if (customSt === 'invisible') return false;
   if (customSt === 'online' || customSt === 'idle' || customSt === 'dnd') return true;
 
-  if (onlineUserIds.has(String(id))) return true;
+  // 2. Direct ID check in onlineUserIds
+  if (id && onlineUserIds.has(String(id))) return true;
 
+  // 3. Email alias identity check
+  if (email) {
+    const normEmail = String(email).trim().toLowerCase();
+    const dir = (typeof profilesDirectory !== 'undefined' ? profilesDirectory : []);
+    for (const uid of onlineUserIds) {
+      const prof = dir.find(p => p.id === uid);
+      if (prof && String(prof.email || '').trim().toLowerCase() === normEmail) {
+        return true;
+      }
+    }
+  }
+
+  // 4. Fallback to lastSeenAt within 10 minutes
   if (lastSeen) {
     const time = new Date(lastSeen).getTime();
-    if (!Number.isNaN(time) && Date.now() - time < 5 * 60 * 1000) {
+    if (!Number.isNaN(time) && Date.now() - time < 10 * 60 * 1000) {
       return true;
     }
   }
@@ -4349,28 +4382,46 @@ window.isUserOnline = isUserOnline;
 function getUserPresenceStatus(contactOrId){
   if(!contactOrId) return 'offline';
   let id = typeof contactOrId === 'string' ? contactOrId : (contactOrId.id || '');
+  let email = typeof contactOrId === 'object' ? (contactOrId.email || '') : '';
   let lastSeen = typeof contactOrId === 'object' ? contactOrId.lastSeenAt : null;
-  if(!id) return 'offline';
 
-  const me = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-  if(me && String(me.id) === String(id)) {
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+  if(me && (String(me.id) === String(id) || (email && String(me.email || '').toLowerCase() === String(email).toLowerCase()))) {
     return currentUserCustomStatus || 'online';
   }
 
-  const customSt = userPresenceStatusMap.get(String(id));
-  if(customSt === 'invisible') return 'offline';
-  if(customSt) return customSt;
+  let customSt = id ? userPresenceStatusMap.get(String(id)) : null;
+  if (customSt === 'invisible') return 'offline';
+  if (customSt) return customSt;
 
-  if(onlineUserIds.has(String(id))) return 'online';
+  if (email) {
+    const normEmail = String(email).trim().toLowerCase();
+    const dir = (typeof profilesDirectory !== 'undefined' ? profilesDirectory : []);
+    for (const [uid, st] of userPresenceStatusMap.entries()) {
+      const prof = dir.find(p => p.id === uid);
+      if (prof && String(prof.email || '').trim().toLowerCase() === normEmail) {
+        if (st === 'invisible') return 'offline';
+        return st;
+      }
+    }
+    for (const uid of onlineUserIds) {
+      const prof = dir.find(p => p.id === uid);
+      if (prof && String(prof.email || '').trim().toLowerCase() === normEmail) {
+        return 'online';
+      }
+    }
+  }
 
-  if (!lastSeen) {
+  if(id && onlineUserIds.has(String(id))) return 'online';
+
+  if (!lastSeen && id) {
     const c = (typeof contacts !== 'undefined' ? contacts : []).find(x => x.id === id);
     if (c) lastSeen = c.lastSeenAt;
   }
 
   if (lastSeen) {
     const time = new Date(lastSeen).getTime();
-    if (!Number.isNaN(time) && Date.now() - time < 5 * 60 * 1000) {
+    if (!Number.isNaN(time) && Date.now() - time < 10 * 60 * 1000) {
       return 'online';
     }
   }
