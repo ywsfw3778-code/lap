@@ -7014,7 +7014,7 @@ async function loadInboxContacts(){
           init: existing?.init || window.getDisplayInitial(row.name || row.username || row.email || 'User'),
           color: clr.bg,
           text: clr.t,
-          avatar: row.avatar_url || existing?.avatar || '',
+          avatar: (row.avatar_url !== undefined && row.avatar_url !== null) ? row.avatar_url : (existing?.avatar || ''),
           memberCode: Number.isFinite(Number(row.member_code)) ? String(Number(row.member_code)).padStart(3, '0') : (existing?.memberCode || ''),
           lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '',
           online: isUserOnline({ id: row.partner_id, lastSeenAt: row.last_seen_at || existing?.lastSeenAt || '', online: !!existing?.online }),
@@ -7185,14 +7185,15 @@ async function loadInboxContacts(){
     const email = (p.email || '').trim();
     const name = fullName || uname || (email ? email.split('@')[0] : c.name || 'User');
 
-    if(name && (c.name === 'User' || c.name === id || !c.name)){
+    if(name && c.name !== name){
       c.name = name;
       c.init = window.getDisplayInitial(name);
       enriched = true;
     }
     if(uname && c.username !== uname){ c.username = uname; enriched = true; }
     if(email && c.email !== email){ c.email = email; enriched = true; }
-    if(p.avatar_url && c.avatar !== p.avatar_url){ c.avatar = p.avatar_url; enriched = true; }
+    const freshAvatar = p.avatar_url || '';
+    if(c.avatar !== freshAvatar){ c.avatar = freshAvatar; enriched = true; }
     if(Number.isFinite(Number(p.member_code))){
       const code = String(Number(p.member_code)).padStart(3, '0');
       if(c.memberCode !== code){ c.memberCode = code; enriched = true; }
