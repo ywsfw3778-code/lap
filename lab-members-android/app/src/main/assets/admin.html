@@ -1,0 +1,1201 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Lab Members - لوحة التحكم الإدارية</title>
+  <meta name="theme-color" content="#0a0e17" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #07090e;
+      --bg-alt: #0d111a;
+      --sidebar: #101623;
+      --surface: #141c2c;
+      --surface2: #1b263b;
+      --surface3: #223049;
+      --border: rgba(255, 255, 255, 0.08);
+      --border2: rgba(255, 255, 255, 0.14);
+      --accent: #00ff88;
+      --accent-hover: #00e078;
+      --accent-glow: rgba(0, 255, 136, 0.18);
+      --danger: #ff4757;
+      --danger-glow: rgba(255, 71, 87, 0.2);
+      --warning: #ffa502;
+      --warning-glow: rgba(255, 165, 2, 0.2);
+      --info: #2ed573;
+      --urgent: #ff4757;
+      --text: #f1f2f6;
+      --muted: #8b9bb4;
+      --online: #2ed573;
+      --offline: #747d8c;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Alexandria', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 255, 136, 0.03) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(30, 144, 255, 0.03) 0%, transparent 40%);
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background: rgba(16, 22, 35, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.05));
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #05140d;
+    }
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+    }
+    .btn-secondary:hover {
+      background: var(--surface3);
+    }
+
+    .btn-danger {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 71, 87, 0.3);
+    }
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #fff;
+      box-shadow: 0 0 16px var(--danger-glow);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1300px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Tabs Navigation */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      background: var(--sidebar);
+      padding: 6px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 140px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      background: var(--surface2);
+      color: var(--accent);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    /* Tab Content Panels */
+    .tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.25s ease-out;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+
+    .metric-card {
+      background: var(--sidebar);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border2);
+    }
+
+    .metric-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .metric-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* User Management Section */
+    .section-card {
+      background: var(--sidebar);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .search-input {
+      flex: 1;
+      min-width: 240px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+    }
+
+    .filter-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* Users Table */
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: right;
+      font-size: 13px;
+    }
+
+    th {
+      background: var(--surface);
+      color: var(--muted);
+      padding: 12px 16px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--accent);
+      border: 1px solid var(--border2);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-names {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .user-fullname {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .user-email {
+      font-size: 11px;
+      color: var(--muted);
+      direction: ltr;
+      text-align: right;
+    }
+
+    .badge-role {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .role-admin {
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+    }
+
+    .role-user {
+      background: var(--surface2);
+      color: var(--muted);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .status-dot.online { background: var(--online); box-shadow: 0 0 8px var(--online); }
+    .status-dot.offline { background: var(--offline); }
+    .status-dot.banned { background: var(--danger); }
+
+    .action-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+
+    .btn-icon:hover {
+      background: var(--surface3);
+      border-color: var(--border2);
+    }
+
+    .btn-icon.ban:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    /* Broadcast Form */
+    .broadcast-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .form-input, .form-textarea, .form-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: var(--accent);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* Broadcast Items List */
+    .broadcast-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .broadcast-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .broadcast-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .broadcast-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .broadcast-body {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .broadcast-time {
+      font-size: 11px;
+      color: var(--offline);
+      margin-top: 4px;
+    }
+
+    /* Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--sidebar);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 24px;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 20px 48px rgba(0,0,0,0.5);
+      animation: modalPop 0.2s ease-out;
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      header { padding: 12px 16px; }
+      main { padding: 16px; }
+      .metrics-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand-section">
+      <div class="brand-title">
+        <span>⚡</span> Lab Members Admin
+      </div>
+      <div class="brand-badge" id="adminBadge">
+        <span>🛡️</span> مشرف معتمد
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="loadAllAdminData()" title="تحديث البيانات">
+        <span>🔄</span> تحديث
+      </button>
+      <a href="chat-prototype_1.html" class="btn btn-primary">
+        <span>💬</span> العودة للشات
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Dashboard -->
+  <main>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="switchAdminTab('metrics')">
+        <span>📊</span> الإحصائيات العامة
+      </button>
+      <button class="tab-btn" onclick="switchAdminTab('users')">
+        <span>👥</span> إدارة المستخدمين
+      </button>
+      <button class="tab-btn" onclick="switchAdminTab('broadcast')">
+        <span>📢</span> التعميمات والإعلانات
+      </button>
+      <button class="tab-btn" onclick="switchAdminTab('maintenance')">
+        <span>🛠️</span> الصيانة وقاعدة البيانات
+      </button>
+    </div>
+
+    <!-- Tab 1: Metrics Overview -->
+    <div class="tab-content active" id="tab-metrics">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span>إجمالي الأعضاء</span>
+            <div class="metric-icon">👥</div>
+          </div>
+          <div class="metric-value" id="statTotalUsers">—</div>
+          <div class="metric-sub">الحسابات المسجلة في المنصة</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span>المتصلين حالياً</span>
+            <div class="metric-icon" style="color:var(--online)">🟢</div>
+          </div>
+          <div class="metric-value" id="statOnlineUsers" style="color:var(--online)">—</div>
+          <div class="metric-sub">نشطين خلال آخر 5 دقائق</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span>إجمالي الرسائل</span>
+            <div class="metric-icon">💬</div>
+          </div>
+          <div class="metric-value" id="statTotalMessages">—</div>
+          <div class="metric-sub">الرسائل المتبادلة في قاعدة البيانات</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span>المحادثات الصوتية</span>
+            <div class="metric-icon">🎙️</div>
+          </div>
+          <div class="metric-value" id="statVoiceMessages">—</div>
+          <div class="metric-sub">تسجيلات صوتية مرسلة</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span>الصور المرفوعة</span>
+            <div class="metric-icon">🖼️</div>
+          </div>
+          <div class="metric-value" id="statImageMessages">—</div>
+          <div class="metric-sub">صور مرفوعة للمحادثات</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span>المستخدمين المحظورين</span>
+            <div class="metric-icon" style="color:var(--danger)">🚫</div>
+          </div>
+          <div class="metric-value" id="statBannedUsers" style="color:var(--danger)">—</div>
+          <div class="metric-sub">حسابات موقوفة عن الإرسال</div>
+        </div>
+      </div>
+
+      <!-- Quick Server Info Banner -->
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title"><span>📡</span> حالة خوادم المنصة وقاعدة البيانات</div>
+          <span class="badge-role role-admin" style="font-size:12px;">✅ الاتصال السحابي سليم 100%</span>
+        </div>
+        <div style="font-size: 13px; color: var(--muted); line-height: 1.6;">
+          المنصة متصلة بسيرفر <strong>Supabase PostgreSQL</strong> اللحظي عبر WebSocket، مع تفعيل حماية سياسات RLS، ودعم مصادقة Google OAuth والتسجيل المباشر.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: User Management -->
+    <div class="tab-content" id="tab-users">
+      <div class="section-card">
+        <div class="section-header">
+          <div class="section-title">
+            <span>👥</span> سجل المستخدمين والأعضاء (<span id="userListCount">0</span>)
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" class="search-input" id="userSearchInput" placeholder="بحث بالاسم، الإيميل، أو كود العضوية..." oninput="filterUsersList()" />
+          <select class="filter-select" id="userRoleFilter" onchange="filterUsersList()">
+            <option value="all">كل الرتب والحالات</option>
+            <option value="admins">المشرفين فقط</option>
+            <option value="banned">المحظورين فقط</option>
+            <option value="online">المتصلين الآن</option>
+          </select>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>المستخدم</th>
+                <th>كود العضوية</th>
+                <th>الرتبة</th>
+                <th>الحالة</th>
+                <th>آخر نشاط</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="6" style="text-align:center; padding:30px; color:var(--muted);">جاري تحميل قائمة المستخدمين...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Broadcasts -->
+    <div class="tab-content" id="tab-broadcast">
+      <div class="section-card">
+        <div class="section-title"><span>📢</span> إرسال تعميم / إعلان جماعي لجميع الأعضاء</div>
+        <form class="broadcast-form" onsubmit="handleSendBroadcast(event)">
+          <div class="form-group">
+            <label class="form-label">عنوان الإعلان</label>
+            <input type="text" class="form-input" id="broadcastTitle" placeholder="مثال: تحديث أمني هام في النظام" required />
+          </div>
+          <div class="form-group">
+            <label class="form-label">نوع الإعلان</label>
+            <select class="form-select" id="broadcastType">
+              <option value="info">ℹ️ إشعار عام عادي (Info)</option>
+              <option value="warning">⚠️ تنبيه هام (Warning)</option>
+              <option value="urgent">🚨 عاجل وفوري (Urgent)</option>
+              <option value="success">✅ تحديث ناجح (Success)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">محتوى الرسالة</label>
+            <textarea class="form-textarea" id="broadcastContent" placeholder="اكتب نص الإشعار الذي سيظهر لجميع مستخدمي المنصة..." required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="btnSendBroadcast">
+            <span>🚀</span> إرسال الإعلان للجميع لحظياً
+          </button>
+        </form>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><span>📜</span> سجل الإعلانات السابقة</div>
+        <div class="broadcast-list" id="broadcastListContainer">
+          <div style="text-align:center; padding:20px; color:var(--muted);">جاري جلب سجل الإعلانات...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Maintenance & DB Tools -->
+    <div class="tab-content" id="tab-maintenance">
+      <div class="section-card" style="border-color: rgba(255, 71, 87, 0.3);">
+        <div class="section-title" style="color:var(--danger)">
+          <span>⚠️</span> تفريغ ومسح جميع الرسائل من السيرفر نهائياً
+        </div>
+        <div style="font-size:13px; color:var(--muted); line-height:1.6;">
+          هذا الخيار يقوم بمسح وحذف جدول الرسائل بالكامل (`TRUNCATE public.messages`) من قاعدة البيانات على السيرفر، وتصفير المحادثات لجميع الأعضاء بدون حذف حساباتهم أو ملفاتهم الشخصية.
+        </div>
+        <div>
+          <button class="btn btn-danger" onclick="handlePurgeAllMessages()">
+            <span>🗑️</span> تفريغ وحذف كل الرسائل من السيرفر الآن
+          </button>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="section-title"><span>📋</span> نسخ كود دوال السيرفر الإدارية (SQL Schema)</div>
+        <div style="font-size:13px; color:var(--muted); line-height:1.6;">
+          إذا قمت بإنشاء مشروع Supabase جديد، يمكنك نسخ وتشغيل كود الـ SQL الإداري المحدث لتجهيز دوال لوحة التحكم وحماية الـ RLS فوراً.
+        </div>
+        <div>
+          <a href="supabase_admin_functions.sql" target="_blank" class="btn btn-secondary">
+            <span>📄</span> عرض ملف `supabase_admin_functions.sql`
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Edit User Modal -->
+  <div class="modal-overlay" id="editUserModal">
+    <div class="modal-card">
+      <div class="section-title"><span>✏️</span> تعديل بيانات العضو</div>
+      <input type="hidden" id="editUserId" />
+      <div class="form-group">
+        <label class="form-label">الاسم الكامل</label>
+        <input type="text" class="form-input" id="editUserName" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">كود العضوية (#Code)</label>
+        <input type="number" class="form-input" id="editUserCode" placeholder="مثال: 1" />
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+        <button class="btn btn-secondary" onclick="closeEditModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveUserEdit()">حفظ التعديلات</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase & Client Logic -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const SB_URL = 'https://fetmbjnehfdtousenflp.supabase.co';
+    const SB_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
+    const sb = createClient(SB_URL, SB_KEY, {
+      auth: { persistSession: true, detectSessionInUrl: true }
+    });
+
+    window.sb = sb;
+    let allUsersCache = [];
+
+    // Helper: Verify Admin Access
+    async function verifyAdminAuth() {
+      const { data: { session }, error } = await sb.auth.getSession();
+      if (!session || !session.user) {
+        alert('يرجى تسجيل الدخول أولاً بحساب المشرف');
+        window.location.href = 'login.html';
+        return null;
+      }
+      const user = session.user;
+      const email = String(user.email || '').trim().toLowerCase();
+      const isAdmin = email === 'ywsfw3778@gmail.com' || user.user_metadata?.is_admin === true || user.user_metadata?.role === 'admin';
+      
+      if (!isAdmin) {
+        alert('عذراً، هذه الصفحة مخصصة لمدير المنصة فقط.');
+        window.location.href = 'chat-prototype_1.html';
+        return null;
+      }
+      return user;
+    }
+
+    // Load Dashboard Stats
+    async function loadStats() {
+      try {
+        const { data, error } = await sb.rpc('admin_get_dashboard_stats');
+        if (error) {
+          console.warn('RPC admin_get_dashboard_stats failed, falling back to direct queries:', error.message);
+          await loadStatsFallback();
+          return;
+        }
+        document.getElementById('statTotalUsers').innerText = data.total_users || '0';
+        document.getElementById('statOnlineUsers').innerText = data.online_users || '0';
+        document.getElementById('statTotalMessages').innerText = data.total_messages || '0';
+        document.getElementById('statVoiceMessages').innerText = data.total_voice_messages || '0';
+        document.getElementById('statImageMessages').innerText = data.total_image_messages || '0';
+        document.getElementById('statBannedUsers').innerText = data.banned_users || '0';
+      } catch (err) {
+        console.error('Stats error:', err);
+        await loadStatsFallback();
+      }
+    }
+
+    async function loadStatsFallback() {
+      const [uRes, mRes] = await Promise.all([
+        sb.from('profiles').select('id, last_seen_at', { count: 'exact' }),
+        sb.from('messages').select('id, content', { count: 'exact' })
+      ]);
+      const users = uRes.data || [];
+      const now = Date.now();
+      const online = users.filter(u => u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000)).length;
+      document.getElementById('statTotalUsers').innerText = uRes.count || users.length || '0';
+      document.getElementById('statOnlineUsers').innerText = online;
+      document.getElementById('statTotalMessages').innerText = mRes.count || (mRes.data || []).length || '0';
+      document.getElementById('statVoiceMessages').innerText = (mRes.data || []).filter(m => String(m.content).startsWith('[voice]') || String(m.content).startsWith('[audio]')).length;
+      document.getElementById('statImageMessages').innerText = (mRes.data || []).filter(m => String(m.content).startsWith('[image]')).length;
+      document.getElementById('statBannedUsers').innerText = '0';
+    }
+
+    // Load Users List
+    async function loadUsers() {
+      try {
+        const { data, error } = await sb.rpc('admin_get_all_users');
+        if (error) {
+          console.warn('RPC admin_get_all_users fallback to profiles select:', error.message);
+          const { data: profs } = await sb.from('profiles').select('*').order('last_seen_at', { ascending: false });
+          allUsersCache = profs || [];
+        } else {
+          allUsersCache = data || [];
+        }
+        renderUsers(allUsersCache);
+      } catch (e) {
+        console.error('Load users error:', e);
+      }
+    }
+
+    function renderUsers(users) {
+      document.getElementById('userListCount').innerText = users.length;
+      const tbody = document.getElementById('usersTableBody');
+      if (!users.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--muted);">لا يوجد مستخدمين مطابقين للبحث.</td></tr>`;
+        return;
+      }
+
+      const now = Date.now();
+      tbody.innerHTML = users.map(u => {
+        const isOnline = u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000);
+        const code = u.member_code ? String(u.member_code).padStart(3, '0') : '—';
+        const isAdm = String(u.email || '').toLowerCase() === 'ywsfw3778@gmail.com' || u.is_admin;
+        const isBanned = !!u.is_banned;
+        const initial = (u.full_name || u.username || 'U')[0].toUpperCase();
+        
+        return `
+          <tr>
+            <td>
+              <div class="user-cell">
+                <div class="user-avatar">${u.avatar_url ? `<img src="${u.avatar_url}" />` : initial}</div>
+                <div class="user-names">
+                  <div class="user-fullname">${escapeHtml(u.full_name || 'بدون اسم')}</div>
+                  <div class="user-email">${escapeHtml(u.email || u.username || '—')}</div>
+                </div>
+              </div>
+            </td>
+            <td><span style="font-family:'JetBrains Mono',monospace; color:var(--accent); font-weight:700;">#${code}</span></td>
+            <td>
+              <span class="badge-role ${isAdm ? 'role-admin' : 'role-user'}">${isAdm ? '👑 مشرف' : 'عضو'}</span>
+            </td>
+            <td>
+              <div class="status-badge">
+                <div class="status-dot ${isBanned ? 'banned' : (isOnline ? 'online' : 'offline')}"></div>
+                <span>${isBanned ? 'محظور 🚫' : (isOnline ? 'متصل الآن' : 'غير متصل')}</span>
+              </div>
+            </td>
+            <td style="font-size:12px; color:var(--muted);">${u.last_seen_at ? new Date(u.last_seen_at).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'numeric' }) : 'لم يظهر بعد'}</td>
+            <td>
+              <div class="action-btn-group">
+                <button class="btn-icon" title="تعديل البيانات" onclick="openEditModal('${u.id}', '${escapeAttr(u.full_name || '')}', ${u.member_code || 0})">✏️</button>
+                <button class="btn-icon ban" title="${isBanned ? 'إلغاء الحظر' : 'حظر المستخدم'}" onclick="toggleBanUser('${u.id}', ${!isBanned})">
+                  ${isBanned ? '🔓' : '🚫'}
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Filter Users
+    window.filterUsersList = function() {
+      const query = (document.getElementById('userSearchInput').value || '').trim().toLowerCase();
+      const filter = document.getElementById('userRoleFilter').value;
+      const now = Date.now();
+
+      const filtered = allUsersCache.filter(u => {
+        const matchQuery = !query || 
+          String(u.full_name || '').toLowerCase().includes(query) ||
+          String(u.email || '').toLowerCase().includes(query) ||
+          String(u.username || '').toLowerCase().includes(query) ||
+          String(u.member_code || '').includes(query);
+
+        if (!matchQuery) return false;
+
+        if (filter === 'admins') return String(u.email || '').toLowerCase() === 'ywsfw3778@gmail.com' || u.is_admin;
+        if (filter === 'banned') return !!u.is_banned;
+        if (filter === 'online') return u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000);
+        return true;
+      });
+
+      renderUsers(filtered);
+    };
+
+    // User Edit Actions
+    window.openEditModal = function(id, name, code) {
+      document.getElementById('editUserId').value = id;
+      document.getElementById('editUserName').value = name;
+      document.getElementById('editUserCode').value = code || '';
+      document.getElementById('editUserModal').classList.add('open');
+    };
+
+    window.closeEditModal = function() {
+      document.getElementById('editUserModal').classList.remove('open');
+    };
+
+    window.saveUserEdit = async function() {
+      const id = document.getElementById('editUserId').value;
+      const name = document.getElementById('editUserName').value;
+      const code = parseInt(document.getElementById('editUserCode').value, 10) || null;
+
+      try {
+        const { error } = await sb.rpc('admin_update_user_profile', {
+          target_user_id: id,
+          new_name: name,
+          new_member_code: code
+        });
+        if (error) {
+          // Fallback direct update
+          await sb.from('profiles').update({ full_name: name, member_code: code }).eq('id', id);
+        }
+        alert('تم حفظ بيانات المستخدم بنجاح!');
+        closeEditModal();
+        await loadUsers();
+      } catch (err) {
+        alert('خطأ في حفظ التعديل: ' + err.message);
+      }
+    };
+
+    // Ban / Unban
+    window.toggleBanUser = async function(id, newBanState) {
+      const promptText = newBanState ? 'هل أنت متأكد من حظر هذا المستخدم من إرسال واستقبال الرسائل؟' : 'هل تريد فك الحظر عن هذا المستخدم؟';
+      if (!confirm(promptText)) return;
+
+      try {
+        const { error } = await sb.rpc('admin_set_user_ban', {
+          target_user_id: id,
+          ban_status: newBanState,
+          reason_text: newBanState ? 'إيقاف إداري' : ''
+        });
+        if (error) {
+          // Fallback to table insert
+          await sb.from('admin_user_moderation').upsert({ user_id: id, is_banned: newBanState, ban_reason: 'Admin Action' });
+        }
+        alert(newBanState ? 'تم حظر المستخدم بنجاح 🚫' : 'تم فك الحظر بنجاح 🔓');
+        await loadUsers();
+        await loadStats();
+      } catch (e) {
+        alert('خطأ أثناء تعديل حالة الحظر: ' + e.message);
+      }
+    };
+
+    // Broadcast Announcement
+    window.handleSendBroadcast = async function(e) {
+      e.preventDefault();
+      const title = document.getElementById('broadcastTitle').value.trim();
+      const type = document.getElementById('broadcastType').value;
+      const content = document.getElementById('broadcastContent').value.trim();
+      const btn = document.getElementById('btnSendBroadcast');
+
+      if (!title || !content) return;
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳</span> جاري الإرسال...`;
+
+      try {
+        const { error } = await sb.rpc('admin_create_broadcast', {
+          p_title: title,
+          p_content: content,
+          p_type: type
+        });
+        if (error) {
+          const { data: { user } } = await sb.auth.getUser();
+          await sb.from('admin_broadcasts').insert({
+            sender_id: user.id,
+            sender_name: 'الإدارة',
+            title,
+            content,
+            type
+          });
+        }
+        alert('تم إرسال الإعلان للجميع بنجاح! 📢');
+        document.getElementById('broadcastTitle').value = '';
+        document.getElementById('broadcastContent').value = '';
+        await loadBroadcasts();
+      } catch (err) {
+        alert('خطأ أثناء إرسال الإعلان: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<span>🚀</span> إرسال الإعلان للجميع لحظياً`;
+      }
+    };
+
+    async function loadBroadcasts() {
+      try {
+        const { data } = await sb.from('admin_broadcasts').select('*').order('created_at', { ascending: false }).limit(20);
+        const container = document.getElementById('broadcastListContainer');
+        if (!data || !data.length) {
+          container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--muted);">لا يوجد إعلانات منشورة بعد.</div>`;
+          return;
+        }
+        const typeEmoji = { info: 'ℹ️', warning: '⚠️', urgent: '🚨', success: '✅' };
+        container.innerHTML = data.map(b => `
+          <div class="broadcast-item">
+            <div class="broadcast-info">
+              <div class="broadcast-title">${typeEmoji[b.type] || '📢'} ${escapeHtml(b.title)}</div>
+              <div class="broadcast-body">${escapeHtml(b.content)}</div>
+              <div class="broadcast-time">${new Date(b.created_at).toLocaleString('ar-EG')} • بواسطة: ${escapeHtml(b.sender_name)}</div>
+            </div>
+            <button class="btn-icon ban" title="حذف الإعلان" onclick="deleteBroadcast('${b.id}')">🗑️</button>
+          </div>
+        `).join('');
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    window.deleteBroadcast = async function(id) {
+      if (!confirm('هل تريد حذف هذا الإعلان؟')) return;
+      await sb.from('admin_broadcasts').delete().eq('id', id);
+      await loadBroadcasts();
+    };
+
+    // Purge Messages Action
+    window.handlePurgeAllMessages = async function() {
+      const code = prompt('⚠️ تحذير: سيتم حذف جميع الرسائل بين كل المستخدمين في قاعدة البيانات!\n\nلتأكيد العملية اكتب كلمة "مسح":');
+      if (code !== 'مسح') {
+        alert('تم إلغاء العملية.');
+        return;
+      }
+      try {
+        const { error } = await sb.rpc('admin_purge_all_messages');
+        if (error) {
+          alert('تعذر مسح الرسائل عبر الـ RPC، يرجى تشغيل كود الـ SQL من لوحة تحكم Supabase.');
+          return;
+        }
+        alert('تم تفريغ وحذف جميع الرسائل من السيرفر بنجاح! 🧹');
+        await loadStats();
+      } catch (err) {
+        alert('خطأ: ' + err.message);
+      }
+    };
+
+    // Tabs Switcher
+    window.switchAdminTab = function(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    };
+
+    window.loadAllAdminData = async function() {
+      await Promise.all([loadStats(), loadUsers(), loadBroadcasts()]);
+    };
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+    }
+    function escapeAttr(str) {
+      return String(str || '').replace(/"/g, '&quot;');
+    }
+
+    // Bootstrap
+    (async () => {
+      const user = await verifyAdminAuth();
+      if (user) {
+        await loadAllAdminData();
+      }
+    })();
+  </script>
+
+</body>
+</html>

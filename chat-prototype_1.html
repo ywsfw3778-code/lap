@@ -1677,6 +1677,10 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <span id="friendReqBadge" style="display:none; position:absolute; top:-5px; right:-5px; background:red; color:white; border-radius:50%; width:15px; height:15px; font-size:10px; align-items:center; justify-content:center;">0</span>
   </div>
 
+  <a href="admin.html" class="icon-btn admin-panel-btn" id="openAdminBtn" title="لوحة التحكم الإدارية" style="display:none; text-decoration:none; color:var(--accent); font-size:16px;">
+    👑
+  </a>
+
   <div class="icon-btn" id="openSettingsBtn" title="الإعدادات">
     <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;">
       <circle cx="12" cy="12" r="3"></circle>
@@ -1983,6 +1987,13 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
             </div>
             <button onclick="if(window.AndroidBridge && typeof window.AndroidBridge.openBatterySettings === 'function') window.AndroidBridge.openBatterySettings()" class="pbtn" style="padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; white-space: nowrap; height: auto;">ضبط الإعدادات</button>
           </div>
+          <div class="toggle-row" id="adminDashboardRow" style="display: none;">
+            <div>
+              <div class="toggle-label" style="color: var(--accent);">⚡ لوحة التحكم الإدارية</div>
+              <div class="toggle-desc">إحصائيات المنصة، إدارة المستخدمين، البث العام، وصيانة السيرفر</div>
+            </div>
+            <a href="admin.html" class="pbtn" style="padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; height: auto; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">فتح اللوحة 👑</a>
+          </div>
         </div>
       </div>
 
@@ -2250,10 +2261,21 @@ Object.defineProperty(window, 'myAvatarUrl', {
   set: (v) => { myAvatarUrl = v; },
   configurable: true
 });
+function checkAndDisplayAdminControls(user) {
+  const email = String(user?.email || '').trim().toLowerCase();
+  const isAdm = email === 'ywsfw3778@gmail.com' || user?.user_metadata?.is_admin === true || user?.user_metadata?.role === 'admin';
+  const adminBtn = document.getElementById('openAdminBtn');
+  const adminRow = document.getElementById('adminDashboardRow');
+  if (adminBtn) adminBtn.style.display = isAdm ? 'inline-flex' : 'none';
+  if (adminRow) adminRow.style.display = isAdm ? 'flex' : 'none';
+}
+
+checkAndDisplayAdminControls(me);
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
     window.me = nextSession.user;
+    checkAndDisplayAdminControls(nextSession.user);
     if(!window.__labBootstrapStarted){
       window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: nextSession.user } }));
       return;
