@@ -969,6 +969,30 @@
       }
     }
 
+    const adminOnlineUsersSet = new Set();
+
+    function initAdminPresence() {
+      try {
+        const presenceChannel = sb.channel('online-users');
+        presenceChannel
+          .on('presence', { event: 'sync' }, () => {
+            const state = presenceChannel.presenceState();
+            adminOnlineUsersSet.clear();
+            Object.keys(state).forEach(uid => {
+              const p = (state[uid] || [])[0];
+              if (p?.status !== 'invisible') {
+                adminOnlineUsersSet.add(uid);
+              }
+            });
+            document.getElementById('statOnlineUsers').innerText = adminOnlineUsersSet.size;
+            if (allUsersCache.length) renderUsers(allUsersCache);
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('Admin presence sync error:', e);
+      }
+    }
+
     function renderUsers(users) {
       document.getElementById('userListCount').innerText = users.length;
       const tbody = document.getElementById('usersTableBody');
@@ -979,7 +1003,7 @@
 
       const now = Date.now();
       tbody.innerHTML = users.map(u => {
-        const isOnline = u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000);
+        const isOnline = adminOnlineUsersSet.has(u.id) || (u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000));
         const code = u.member_code ? String(u.member_code).padStart(3, '0') : '—';
         const isAdm = String(u.email || '').toLowerCase() === 'ywsfw3778@gmail.com' || u.is_admin;
         const isBanned = !!u.is_banned;
@@ -1037,7 +1061,7 @@
 
         if (filter === 'admins') return String(u.email || '').toLowerCase() === 'ywsfw3778@gmail.com' || u.is_admin;
         if (filter === 'banned') return !!u.is_banned;
-        if (filter === 'online') return u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000);
+        if (filter === 'online') return adminOnlineUsersSet.has(u.id) || (u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000));
         return true;
       });
 
@@ -1344,6 +1368,7 @@
     (async () => {
       const user = await verifyAdminAuth();
       if (user) {
+        initAdminPresence();
         await loadAllAdminData();
       }
     })();

@@ -4196,13 +4196,26 @@ const conversations=window._convos;
 let sidebarSearchResults=[];
 const getSbClient = () => window.sb || null;
 const getCurrentUser = () => window.me || null;
+window.getCurrentUser = getCurrentUser;
 const isAdmin = (u) => {
   if(!u) return false;
   const email = String(u.email || '').trim().toLowerCase();
   return email === 'ywsfw3778@gmail.com' || u.user_metadata?.role === 'admin' || u.user_metadata?.is_admin === true;
 };
 window.isAdmin = isAdmin;
+
 async function getFreshCurrentUser(){
+  if (window.me) return window.me;
+  const sbClient = getSbClient();
+  if (sbClient) {
+    try {
+      const { data: { session } } = await sbClient.auth.getSession();
+      if (session?.user) {
+        window.me = session.user;
+        return session.user;
+      }
+    } catch(_e){}
+  }
   return window.me || null;
 }
 async function callRpcSafe(name, params = {}){
@@ -6037,12 +6050,18 @@ function applyPresenceToContacts(){
 
 async function updateMyLastSeen(force = false){
   const sbClient = getSbClient();
-  const currentUser = getCurrentUser();
+  const currentUser = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
   if(!sbClient || !currentUser) return;
   if(currentUserCustomStatus === 'invisible') return;
   if(document.hidden && !force) return;
   try{
-    await sbClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', currentUser.id);
+    const nowIso = new Date().toISOString();
+    await sbClient.from('profiles').update({ last_seen_at: nowIso }).eq('id', currentUser.id);
+    const myContact = (typeof contacts !== 'undefined' ? contacts : []).find(c => c.id === currentUser.id);
+    if(myContact){
+      myContact.lastSeenAt = nowIso;
+      myContact.online = true;
+    }
   }catch(_e){}
 }
 window.updateMyLastSeen = updateMyLastSeen;
@@ -9294,8 +9313,10 @@ document.addEventListener('visibilitychange', () => {
   }
   if(document.visibilityState === 'visible'){
     if (presenceChannel) {
-      presenceChannel.track({ online_at: new Date().toISOString() }).catch(() => {});
-      updateMyLastSeen();
+      if (typeof window.trackMyPresence === 'function') {
+        window.trackMyPresence();
+      }
+      updateMyLastSeen(true);
     }
     window.refreshFriendRequestBadge?.();
     if(document.getElementById('friendRequestsPanel')?.classList.contains('active')){
@@ -9310,6 +9331,13 @@ document.addEventListener('visibilitychange', () => {
     }
   }
 });
+
+// Periodic heartbeat every 40s to keep last_seen_at fresh in DB
+setInterval(() => {
+  if (typeof updateMyLastSeen === 'function') {
+    updateMyLastSeen();
+  }
+}, 40000);
 
 window.addEventListener('storage', (event) => {
   if(event.key !== 'lm-lang') return;
