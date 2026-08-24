@@ -2149,6 +2149,12 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
           <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
         </svg>
       </div>
+      <div class="icon-btn close-chat-btn" id="closeActiveChatBtn" onclick="window.closeActiveChat()" title="إغلاق المحادثة والعودة للرئيسية" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </div>
       <div class="icon-btn" id="chatMenuBtn" onclick="toggleChatHeaderMenu(event)">⋮</div>
     </div>
     <div class="chat-menu" id="chatHeaderMenu">
@@ -2159,6 +2165,10 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       <button type="button" onclick="openActiveAvatarFromMenu()">
         <span id="chatMenuImageText">عرض الصورة</span>
         <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/framed-picture.webp" alt="image" style="width:16px; height:16px; object-fit:contain;" />
+      </button>
+      <button type="button" onclick="closeChatFromHeaderMenu()" style="color: var(--danger);">
+        <span>إغلاق المحادثة</span>
+        <span style="font-size: 15px; font-weight: bold;">✕</span>
       </button>
     </div>
   </div>
@@ -2923,16 +2933,42 @@ window.openSettingsModal = function() {
   }
 };
 
+window.closeActiveChat = function() {
+  activeContact = null;
+  window.activeContactRef = null;
+  localStorage.removeItem('lm-persistent-active-chat-id');
+  if (typeof updateChatViewVisibility === 'function') {
+    updateChatViewVisibility();
+  }
+  if (typeof syncActiveHeader === 'function') {
+    syncActiveHeader();
+  }
+  if (typeof renderContacts === 'function') {
+    renderContacts();
+  }
+  if (typeof isMobileView === 'function' && isMobileView()) {
+    if (typeof openSidebarMobile === 'function') openSidebarMobile();
+  }
+};
+
+window.closeChatFromHeaderMenu = function() {
+  const menu = document.getElementById('chatHeaderMenu');
+  if (menu) menu.classList.remove('active');
+  window.closeActiveChat();
+};
+
 function updateChatViewVisibility() {
   const emptyView = document.getElementById('welcomeEmptyView');
   const messagesEl = document.getElementById('messages');
   const inputAreaEl = document.querySelector('.input-area');
   const chatHeader = document.querySelector('.chat-header');
+  const closeBtn = document.getElementById('closeActiveChatBtn');
 
   if (!activeContact) {
     if (emptyView) emptyView.style.display = 'flex';
     if (messagesEl) messagesEl.style.display = 'none';
     if (inputAreaEl) inputAreaEl.style.display = 'none';
+    if (closeBtn) closeBtn.style.display = 'none';
     if (chatHeader) {
       chatHeader.style.pointerEvents = 'none';
       chatHeader.style.opacity = '0.7';
@@ -2941,6 +2977,7 @@ function updateChatViewVisibility() {
     if (emptyView) emptyView.style.display = 'none';
     if (messagesEl) messagesEl.style.display = 'flex';
     if (inputAreaEl) inputAreaEl.style.display = 'flex';
+    if (closeBtn) closeBtn.style.display = 'inline-flex';
     if (chatHeader) {
       chatHeader.style.pointerEvents = 'auto';
       chatHeader.style.opacity = '1';
