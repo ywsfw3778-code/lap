@@ -9,7 +9,12 @@
       "**/.git/**",
       "**/*.bat",
       "**/*.md",
-      "**/node_modules/**"
+      "**/*.sql",
+      "**/node_modules/**",
+      "lab-members-android/**",
+      "scratch/**",
+      "*.apk",
+      "**/*.apk"
     ],
     "redirects": [
       {
