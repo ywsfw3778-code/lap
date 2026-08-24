@@ -1639,6 +1639,64 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   gap: 8px;
   width: 100%;
 }
+
+/* Global Admin Broadcast Announcement Banner */
+.admin-broadcast-banner {
+  background: rgba(16, 22, 35, 0.95);
+  border-bottom: 1px solid var(--accent);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 90;
+  animation: slideDown 0.3s ease-out;
+}
+.admin-broadcast-banner.urgent {
+  background: rgba(255, 71, 87, 0.22);
+  border-bottom: 1px solid var(--danger);
+  box-shadow: 0 4px 20px rgba(255, 71, 87, 0.25);
+}
+.admin-broadcast-banner.warning {
+  background: rgba(255, 165, 2, 0.2);
+  border-bottom: 1px solid var(--warning);
+}
+.admin-broadcast-banner.success {
+  background: rgba(46, 213, 115, 0.2);
+  border-bottom: 1px solid var(--online);
+}
+.broadcast-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #fff;
+  flex: 1;
+}
+.broadcast-banner-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.broadcast-banner-text {
+  line-height: 1.4;
+  font-size: 13px;
+}
+.broadcast-banner-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.broadcast-banner-close:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+}
 </style>
 </head>
 <body id="appBody">
@@ -1743,6 +1801,19 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       </button>
     </div>
   </div>
+
+  <!-- Global Admin Broadcast Announcement Banner -->
+  <div class="admin-broadcast-banner" id="adminBroadcastBanner" style="display: none;">
+    <div class="broadcast-banner-content">
+      <span class="broadcast-banner-icon" id="broadcastBannerIcon">📢</span>
+      <div class="broadcast-banner-text">
+        <strong id="broadcastBannerTitle">إعلان إداري</strong>: 
+        <span id="broadcastBannerBody">نص الإعلان</span>
+      </div>
+    </div>
+    <button class="broadcast-banner-close" onclick="window.dismissBroadcastBanner()" title="إغلاق">×</button>
+  </div>
+
   <div class="messages" id="messages"></div>
  <div class="input-area">
     <!-- Glassmorphic Emoji Picker Popover -->
@@ -2270,7 +2341,98 @@ function checkAndDisplayAdminControls(user) {
   if (adminRow) adminRow.style.display = isAdm ? 'flex' : 'none';
 }
 
+let currentBroadcastId = null;
+
+async function checkActiveBroadcasts() {
+  try {
+    const sbClient = getSbClient();
+    if (!sbClient) return;
+    const { data, error } = await sbClient
+      .from('admin_broadcasts')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || !data.length) {
+      hideBroadcastBanner();
+      return;
+    }
+
+    const b = data[0];
+    const dismissed = localStorage.getItem('lm-dismissed-broadcast-' + b.id);
+    if (dismissed && b.type !== 'urgent') {
+      return;
+    }
+
+    showBroadcastBanner(b);
+  } catch (e) {
+    console.error('Broadcast check error:', e);
+  }
+}
+
+function showBroadcastBanner(b) {
+  currentBroadcastId = b.id;
+  const banner = document.getElementById('adminBroadcastBanner');
+  if (!banner) return;
+
+  const typeIcons = { info: '📢', warning: '⚠️', urgent: '🚨', success: '✅' };
+  const iconEl = document.getElementById('broadcastBannerIcon');
+  const titleEl = document.getElementById('broadcastBannerTitle');
+  const bodyEl = document.getElementById('broadcastBannerBody');
+
+  if (iconEl) iconEl.innerText = typeIcons[b.type] || '📢';
+  if (titleEl) titleEl.innerText = b.title || 'إعلان إداري';
+  if (bodyEl) bodyEl.innerText = b.content || '';
+
+  banner.className = 'admin-broadcast-banner ' + (b.type || 'info');
+  banner.style.display = 'flex';
+}
+
+function hideBroadcastBanner() {
+  const banner = document.getElementById('adminBroadcastBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+window.dismissBroadcastBanner = function() {
+  if (currentBroadcastId) {
+    localStorage.setItem('lm-dismissed-broadcast-' + currentBroadcastId, '1');
+  }
+  hideBroadcastBanner();
+};
+
+function subscribeToBroadcasts() {
+  const sbClient = getSbClient();
+  if (!sbClient) return;
+  try {
+    sbClient
+      .channel('public:admin_broadcasts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_broadcasts' }, (payload) => {
+        if (payload.new && payload.new.is_active) {
+          showBroadcastBanner(payload.new);
+          if (typeof window.playNotificationSound === 'function') {
+            window.playNotificationSound();
+          }
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'admin_broadcasts' }, (payload) => {
+        if (payload.new) {
+          if (!payload.new.is_active && currentBroadcastId === payload.new.id) {
+            hideBroadcastBanner();
+          } else if (payload.new.is_active) {
+            showBroadcastBanner(payload.new);
+          }
+        }
+      })
+      .subscribe();
+  } catch (e) {
+    console.error('Broadcast subscribe error:', e);
+  }
+}
+
 checkAndDisplayAdminControls(me);
+checkActiveBroadcasts();
+subscribeToBroadcasts();
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
