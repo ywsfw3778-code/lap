@@ -1697,6 +1697,179 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   color: #fff;
   background: rgba(255,255,255,0.1);
 }
+
+/* Sidebar User Footer Card */
+.sidebar-user-footer {
+  background: var(--sidebar);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.sidebar-user-footer:hover {
+  background: var(--surface2);
+}
+.footer-user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--surface3);
+  border: 1.5px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--accent);
+  position: relative;
+  overflow: visible;
+  flex-shrink: 0;
+}
+.footer-user-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.footer-online-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--online);
+  border-radius: 50%;
+  border: 2px solid var(--sidebar);
+  box-shadow: 0 0 6px var(--online);
+}
+.footer-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.footer-user-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.footer-user-code {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.footer-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.footer-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+.footer-action-btn:hover {
+  color: #fff;
+  background: var(--surface3);
+}
+
+/* Welcome Empty View in Chat Area */
+.welcome-empty-view {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 255, 136, 0.03) 0%, transparent 60%);
+}
+.welcome-card {
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 36px 28px;
+  background: rgba(16, 22, 35, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  animation: fadeIn 0.3s ease-out;
+}
+.welcome-icon-glow {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.05));
+  border: 1px solid var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+.welcome-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+.welcome-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.welcome-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  width: 100%;
+}
+.welcome-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #05140d;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.welcome-btn:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+.welcome-btn.secondary {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border2);
+}
+.welcome-btn.secondary:hover {
+  background: var(--surface3);
+}
 </style>
 </head>
 <body id="appBody">
@@ -1758,6 +1931,23 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
   <div class="section-label">// MEMBERS</div>
   <div class="contacts" id="contacts"></div>
+
+  <!-- User Profile Card At Bottom of Sidebar -->
+  <div class="sidebar-user-footer" id="sidebarUserFooter" onclick="window.openMyProfileModal()">
+    <div class="footer-user-avatar" id="footerMyAvatar">
+      <span id="footerAvatarInitial">U</span>
+      <img id="footerAvatarImg" src="" style="display:none;" />
+      <span class="footer-online-dot"></span>
+    </div>
+    <div class="footer-user-info">
+      <div class="footer-user-name" id="footerMyName">جار التحميل...</div>
+      <div class="footer-user-code" id="footerMyCode">#000 • متصل 🟢</div>
+    </div>
+    <div class="footer-user-actions">
+      <button type="button" class="footer-action-btn" onclick="event.stopPropagation(); window.openMyProfileModal()" title="تعديل البروفايل">👤</button>
+      <button type="button" class="footer-action-btn" onclick="event.stopPropagation(); window.openSettingsModal()" title="الإعدادات">⚙️</button>
+    </div>
+  </div>
 </div>
 
 <!-- CHAT -->
@@ -1814,7 +2004,24 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
     <button class="broadcast-banner-close" onclick="window.dismissBroadcastBanner()" title="إغلاق">×</button>
   </div>
 
-  <div class="messages" id="messages"></div>
+  <!-- Welcome / Empty State View (Shown when no chat is selected) -->
+  <div class="welcome-empty-view" id="welcomeEmptyView" style="display: flex;">
+    <div class="welcome-card">
+      <div class="welcome-icon-glow">⚡</div>
+      <h2 class="welcome-title">Lab Members</h2>
+      <p class="welcome-sub">مرحباً بك في المنصة! اختر محادثة من القائمة الجانبية لبدء التواصل اللحظي مع أعضاء الفريق والمشرفين.</p>
+      <div class="welcome-actions">
+        <button class="welcome-btn" onclick="document.getElementById('openSearchBtn')?.click()">
+          <span>🔍</span> ابحث عن صديق
+        </button>
+        <button class="welcome-btn secondary" onclick="window.openMyProfileModal()">
+          <span>👤</span> ملفك الشخصي
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="messages" id="messages" style="display: none;"></div>
  <div class="input-area">
     <!-- Glassmorphic Emoji Picker Popover -->
     <div class="emoji-picker-popover" id="emojiPickerPopover">
@@ -2430,14 +2637,94 @@ function subscribeToBroadcasts() {
   }
 }
 
+async function updateSidebarUserFooter() {
+  try {
+    const user = (typeof getFreshCurrentUser === 'function' ? await getFreshCurrentUser() : window.me);
+    if (!user) return;
+    const nameEl = document.getElementById('footerMyName');
+    const codeEl = document.getElementById('footerMyCode');
+    const initEl = document.getElementById('footerAvatarInitial');
+    const imgEl = document.getElementById('footerAvatarImg');
+
+    const displayName = window.myName || user.user_metadata?.full_name || user.user_metadata?.name || String(user.email || 'User').split('@')[0];
+    const initial = (displayName || 'U')[0].toUpperCase();
+    const avatarUrl = window.myAvatarUrl || user.user_metadata?.avatar_url || '';
+    const myCode = user.user_metadata?.member_code ? `#${String(user.user_metadata.member_code).padStart(3, '0')}` : '#001';
+
+    if (nameEl) nameEl.innerText = displayName;
+    if (codeEl) codeEl.innerText = `${myCode} • متصل 🟢`;
+    if (initEl) initEl.innerText = initial;
+
+    if (imgEl) {
+      if (avatarUrl) {
+        imgEl.src = avatarUrl;
+        imgEl.style.display = 'block';
+        if (initEl) initEl.style.display = 'none';
+      } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+        if (initEl) initEl.style.display = 'block';
+      }
+    }
+  } catch (e) {
+    console.error('Update footer error:', e);
+  }
+}
+window.updateSidebarUserFooter = updateSidebarUserFooter;
+
+window.openMyProfileModal = function() {
+  if (typeof window.openSettings === 'function') {
+    window.openSettings('profile');
+  } else {
+    document.getElementById('openSettingsBtn')?.click();
+  }
+};
+
+window.openSettingsModal = function() {
+  if (typeof window.openSettings === 'function') {
+    window.openSettings('options');
+  } else {
+    document.getElementById('openSettingsBtn')?.click();
+  }
+};
+
+function updateChatViewVisibility() {
+  const emptyView = document.getElementById('welcomeEmptyView');
+  const messagesEl = document.getElementById('messages');
+  const inputAreaEl = document.querySelector('.input-area');
+  const chatHeader = document.querySelector('.chat-header');
+
+  if (!activeContact) {
+    if (emptyView) emptyView.style.display = 'flex';
+    if (messagesEl) messagesEl.style.display = 'none';
+    if (inputAreaEl) inputAreaEl.style.display = 'none';
+    if (chatHeader) {
+      chatHeader.style.pointerEvents = 'none';
+      chatHeader.style.opacity = '0.7';
+    }
+  } else {
+    if (emptyView) emptyView.style.display = 'none';
+    if (messagesEl) messagesEl.style.display = 'flex';
+    if (inputAreaEl) inputAreaEl.style.display = 'flex';
+    if (chatHeader) {
+      chatHeader.style.pointerEvents = 'auto';
+      chatHeader.style.opacity = '1';
+    }
+  }
+}
+window.updateChatViewVisibility = updateChatViewVisibility;
+
 checkAndDisplayAdminControls(me);
 checkActiveBroadcasts();
 subscribeToBroadcasts();
+updateSidebarUserFooter();
+updateChatViewVisibility();
 window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: me } }));
 sb.auth.onAuthStateChange((_event, nextSession) => {
   if(nextSession?.user){
     window.me = nextSession.user;
     checkAndDisplayAdminControls(nextSession.user);
+    updateSidebarUserFooter();
     if(!window.__labBootstrapStarted){
       window.dispatchEvent(new CustomEvent('lab-auth-ready', { detail: { user: nextSession.user } }));
       return;
@@ -7017,59 +7304,17 @@ async function loadInboxContacts(){
   if(!sbClient || !currentUser) return;
 
   const applyRebuiltContacts = (rebuiltContacts) => {
-    const persistentActiveId = localStorage.getItem('lm-persistent-active-chat-id') || pendingRestoredContactId;
-
-    if (persistentActiveId) {
-      const hasIt = rebuiltContacts.some(x => x.id === persistentActiveId);
-      if (!hasIt) {
-        const inMemory = contacts.find(x => x.id === persistentActiveId);
-        if (inMemory) {
-          rebuiltContacts.unshift(inMemory);
-        } else if (activeContact && activeContact.id === persistentActiveId) {
-          rebuiltContacts.unshift(activeContact);
-        }
-      }
-    }
-
     contacts.splice(0, contacts.length, ...rebuiltContacts);
 
-    if (persistentActiveId) {
-      const restored = contacts.find(x => x.id === persistentActiveId);
-      if (restored) {
-        activeContact = restored;
-        window.activeContactRef = restored;
-        window.hasInitiallySelected = true;
-        if (pendingRestoredContactId === persistentActiveId) {
-          pendingRestoredContactId = null;
-        }
-      } else if (activeContact) {
-        const refreshedActive = contacts.find((x) => x.id === activeContact.id);
-        if (refreshedActive) {
-          activeContact = refreshedActive;
-          window.activeContactRef = refreshedActive;
-          window.hasInitiallySelected = true;
-        } else {
-          activeContact = null;
-          window.activeContactRef = null;
-        }
-      } else {
-        activeContact = null;
-        window.activeContactRef = null;
-      }
-    } else if (activeContact) {
+    if (activeContact) {
       const refreshedActive = contacts.find((x) => x.id === activeContact.id);
       if (refreshedActive) {
         activeContact = refreshedActive;
         window.activeContactRef = refreshedActive;
-        window.hasInitiallySelected = true;
       } else {
         activeContact = null;
         window.activeContactRef = null;
       }
-    } else if (contacts.length && !isMobileView() && !window.hasInitiallySelected) {
-      activeContact = contacts[0];
-      window.activeContactRef = activeContact;
-      window.hasInitiallySelected = true;
     }
 
     if (isMobileView()) {
@@ -7084,14 +7329,17 @@ async function loadInboxContacts(){
 
     saveLocalChatState();
     renderContacts();
+    if (typeof window.updateSidebarUserFooter === 'function') {
+      window.updateSidebarUserFooter();
+    }
     if (typeof window.updateTabTitleWithUnreadCount === 'function') {
       window.updateTabTitleWithUnreadCount();
     }
+    if (typeof window.updateChatViewVisibility === 'function') {
+      window.updateChatViewVisibility();
+    }
+    syncActiveHeader();
     if (activeContact) {
-      syncActiveHeader();
-      renderMessages();
-    } else {
-      syncActiveHeader();
       renderMessages();
     }
   };
@@ -7469,6 +7717,9 @@ async function selectContact(id, options = {}){
   found.unread = 0;
   
   syncActiveHeader();
+  if (typeof window.updateChatViewVisibility === 'function') {
+    window.updateChatViewVisibility();
+  }
   renderContacts();
   if (typeof window.updateTabTitleWithUnreadCount === 'function') {
     window.updateTabTitleWithUnreadCount();
