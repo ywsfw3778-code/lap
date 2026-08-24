@@ -212,11 +212,12 @@ begin
 end;
 $$;
 
--- 7. دالة تحديث كود العضوية والاسم للمستخدم من قبل الإدارة (Update Member Profile)
+-- 7. دالة تحديث كود العضوية والاسم والصورة للمستخدم من قبل الإدارة (Update Member Profile)
 CREATE OR REPLACE FUNCTION public.admin_update_user_profile(
   target_user_id UUID,
   new_name TEXT,
-  new_member_code INTEGER
+  new_member_code INTEGER,
+  new_avatar_url TEXT DEFAULT NULL
 )
 RETURNS boolean
 LANGUAGE plpgsql
@@ -230,7 +231,12 @@ begin
 
   UPDATE public.profiles
   SET full_name = coalesce(nullif(trim(new_name), ''), full_name),
-      member_code = coalesce(new_member_code, member_code)
+      member_code = coalesce(new_member_code, member_code),
+      avatar_url = CASE 
+        WHEN new_avatar_url = '__REMOVE__' THEN NULL
+        WHEN new_avatar_url IS NOT NULL THEN new_avatar_url
+        ELSE avatar_url
+      END
   WHERE id = target_user_id;
 
   RETURN true;
@@ -287,7 +293,7 @@ GRANT EXECUTE ON FUNCTION public.assert_admin_caller() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_get_dashboard_stats() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_get_all_users() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_ban(UUID, BOOLEAN, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_update_user_profile(UUID, TEXT, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_user_profile(UUID, TEXT, INTEGER, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_create_broadcast(TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_purge_all_messages() TO authenticated;
 
