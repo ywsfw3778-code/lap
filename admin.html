@@ -534,22 +534,76 @@
 
     .form-input, .form-textarea, .form-select {
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border2);
       border-radius: var(--radius-sm);
       padding: 12px 14px;
       color: #fff;
       font-size: 13px;
       outline: none;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
+      font-family: inherit;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .form-select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: left 14px center;
+      padding-left: 38px;
+    }
+
+    .form-select option {
+      background: #0d0e17;
+      color: #fff;
+      padding: 10px;
     }
 
     .form-input:focus, .form-textarea:focus, .form-select:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
     }
 
     .form-textarea {
       resize: vertical;
-      min-height: 100px;
+      min-height: 120px;
+      line-height: 1.5;
+    }
+
+    /* Template Chips */
+    .template-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .template-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .template-chip:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
+
+    .template-chip.active {
+      background: rgba(91, 106, 240, 0.2);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 12px var(--accent-glow);
     }
 
     /* Broadcast Items List */
@@ -841,41 +895,44 @@
 
         <form id="adminEmailForm" onsubmit="handleSendAdminEmail(event)">
           <div class="form-group">
-            <label class="form-label">اختيار المستلم أو كتابة بريد Gmail باليد</label>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <select class="form-select" id="emailRecipientSelect" style="flex:1; min-width:200px;" onchange="handleRecipientSelectChange(this.value)">
-                <option value="">-- اختر مستخدم من المسجلين --</option>
-              </select>
-              <input type="email" class="form-input" id="emailRecipientCustom" placeholder="أو اكتب example@gmail.com" style="flex:1; min-width:200px;" required />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">نوع الرسالة / القالب الجاهز</label>
-            <select class="form-select" id="emailTemplateType" onchange="applyEmailTemplate(this.value)">
-              <option value="custom">✉️ رسالة مخصصة وحرة</option>
-              <option value="password_reset">🔑 رابط استعادة وتعيين الباسورد (Password Reset)</option>
-              <option value="device_alert">🚨 تنبيه أمان: دخول من جهاز جديد (Security Alert)</option>
-              <option value="admin_notice">📢 تنبيه إداري رسمي من إدارة المعمل</option>
-              <option value="welcome">🧪 ترحيب بعضو جديد في Lab Members</option>
+            <label class="form-label">1. اختيار المستلم من الأعضاء المسجلين</label>
+            <select class="form-select" id="emailRecipientSelect" onchange="handleRecipientSelectChange(this.value)">
+              <option value="">-- اضغط لاختيار عضو مسجل --</option>
             </select>
           </div>
 
           <div class="form-group">
-            <label class="form-label">عنوان الرسالة (Subject)</label>
+            <label class="form-label">أو كتابة بريد Gmail باليد (Custom Recipient)</label>
+            <input type="email" class="form-input" id="emailRecipientCustom" placeholder="مثال: example@gmail.com" required style="direction:ltr; text-align:left;" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">2. اختر نوع الرسالة / القالب السريع</label>
+            <div class="template-chips" id="templateChipsContainer">
+              <div class="template-chip active" data-type="password_reset" onclick="selectTemplateChip('password_reset')">🔑 رابط استعادة الباسورد</div>
+              <div class="template-chip" data-type="device_alert" onclick="selectTemplateChip('device_alert')">🚨 تنبيه أمان جهاز جديد</div>
+              <div class="template-chip" data-type="admin_notice" onclick="selectTemplateChip('admin_notice')">📢 إشعار إداري رسمي</div>
+              <div class="template-chip" data-type="welcome" onclick="selectTemplateChip('welcome')">🧪 ترحيب بعضو جديد</div>
+              <div class="template-chip" data-type="custom" onclick="selectTemplateChip('custom')">✉️ رسالة حرة مخصصة</div>
+            </div>
+            <input type="hidden" id="emailTemplateType" value="password_reset" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">3. عنوان الرسالة (Subject)</label>
             <input type="text" class="form-input" id="emailSubject" placeholder="عنوان الرسالة التي ستصل على الجيميل..." required />
           </div>
 
           <div class="form-group">
-            <label class="form-label">محتوى الرسالة (Message Body)</label>
-            <textarea class="form-textarea" id="emailBody" style="min-height:140px;" placeholder="اكتب محتوى الرسالة هنا..." required></textarea>
+            <label class="form-label">4. نص ومحتوى الرسالة (Message Body)</label>
+            <textarea class="form-textarea" id="emailBody" placeholder="اكتب محتوى الرسالة هنا..." required></textarea>
           </div>
 
-          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-            <button type="submit" class="btn btn-primary" id="btnSendAdminEmail">
+          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+            <button type="submit" class="btn btn-primary" id="btnSendAdminEmail" style="padding:12px 24px; font-size:14px; font-weight:700;">
               <span>🚀</span> إرسال الرسالة إلى الجيميل الآن
             </button>
-            <button type="button" class="btn btn-secondary" onclick="openNativeMailClient()">
+            <button type="button" class="btn btn-secondary" onclick="openNativeMailClient()" style="padding:12px 20px; font-size:13px;">
               <span>✉️</span> فتح في تطبيق Gmail المباشر
             </button>
           </div>
@@ -1635,8 +1692,17 @@
       document.getElementById('emailRecipientCustom').value = email;
       const select = document.getElementById('emailRecipientSelect');
       if (select) select.value = email;
-      window.applyEmailTemplate('password_reset');
+      window.selectTemplateChip('password_reset');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.selectTemplateChip = function(type) {
+      document.querySelectorAll('#templateChipsContainer .template-chip').forEach(c => {
+        if (c.dataset.type === type) c.classList.add('active');
+        else c.classList.remove('active');
+      });
+      document.getElementById('emailTemplateType').value = type;
+      window.applyEmailTemplate(type);
     };
 
     window.applyEmailTemplate = function(type) {
@@ -1646,7 +1712,7 @@
 
       if (type === 'password_reset') {
         subjEl.value = '🔐 رابط استعادة وتعيين كلمة المرور - Lab Members';
-        bodyEl.value = `مرحباً بك،\n\nتلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في منصة Lab Members.\n\nرابط تعيين الباسورد الجديد:\n${origin}login.html?type=recovery\n\nإذا لم تكن أنت صاحب هذا الطلب، يمكنك تجاهل هذه الرسالة وأمان حسابك في أمان.\n\nمع تحيات،\nإدارة Lab Members 🧪`;
+        bodyEl.value = `مرحباً بك،\n\nتلقينا طلباً لإعادة تعيين كلمة المرور الخاصة بحسابك في منصة Lab Members.\n\nرابط تعيين الباسورد الجديد:\n${origin}login.html?type=recovery\n\nإذا لم تكن أنت صاحب هذا الطلب، يمكنك تجاهل هذه الرسالة وحسابك في أمان.\n\nمع تحيات،\nإدارة Lab Members 🧪`;
       } else if (type === 'device_alert') {
         subjEl.value = '🚨 تنبيه أمان: تسجيل دخول لحسابك من جهاز جديد';
         bodyEl.value = `تنبيه أمان هام،\n\nتم رصد تسجيل دخول جديد إلى حسابك في Lab Members.\nالوقت: ${new Date().toLocaleString('ar-EG')}\n\nإذا كنت أنت صاحب هذا الدخول، يمكنك تجاهل هذه الرسالة.\nإذا لم تكن أنت، يرجى تغيير كلمة المرور فوراً من الرابط:\n${origin}login.html?type=recovery\n\nمع تحيات،\nفريق الأمان - Lab Members 🛡️`;
@@ -1701,7 +1767,6 @@
       btn.disabled = true;
       btn.innerHTML = `<span>⏳</span> جاري الإرسال...`;
 
-      let deliverySuccess = false;
       let note = 'تم الإرسال بنجاح ✅';
 
       // 1. If Password Reset Template -> Call Supabase resetPasswordForEmail directly
@@ -1712,13 +1777,12 @@
             redirectTo: origin + 'login.html?type=recovery'
           });
           if (!error) {
-            deliverySuccess = true;
             note = 'تم إرسال رابط الباسورد الرسمي بنجاح ✅';
           }
         } catch(_e){}
       }
 
-      // 2. Dispatch via Email Relay / Webhook
+      // 2. Dispatch via Direct FormSubmit Relay to recipient
       try {
         await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail)}`, {
           method: 'POST',
@@ -1728,11 +1792,12 @@
           },
           body: JSON.stringify({
             _subject: subject,
-            sender: 'Lab Members Admin <ywsfw3778@gmail.com>',
-            message: body
+            _template: 'table',
+            _captcha: 'false',
+            message: body,
+            platform: 'Lab Members Web Communication Platform'
           })
         }).catch(() => {});
-        deliverySuccess = true;
       } catch(_e){}
 
       btn.disabled = false;
