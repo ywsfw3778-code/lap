@@ -458,7 +458,10 @@
       height: 8px;
       border-radius: 50%;
     }
-    .status-dot.online { background: var(--online); box-shadow: 0 0 8px var(--online); }
+    .status-dot.online { background: #23a55a; box-shadow: 0 0 8px #23a55a; }
+    .status-dot.idle { background: #f0b232; box-shadow: 0 0 8px #f0b232; }
+    .status-dot.dnd { background: #f23f43; box-shadow: 0 0 8px #f23f43; }
+    .status-dot.invisible { background: #80848e; box-shadow: 0 0 8px #80848e; }
     .status-dot.offline { background: var(--offline); }
     .status-dot.banned { background: var(--danger); }
 
@@ -970,6 +973,7 @@
     }
 
     const adminOnlineUsersSet = new Set();
+    const adminUserStatusMap = new Map(); // uid -> 'online' | 'idle' | 'dnd' | 'invisible'
 
     function initAdminPresence() {
       try {
@@ -979,21 +983,30 @@
             if (!payload || !payload.userId) return;
             const uid = String(payload.userId);
             const st = payload.status || 'online';
-            if (st === 'invisible') {
-              adminOnlineUsersSet.delete(uid);
-            } else {
-              adminOnlineUsersSet.add(uid);
-            }
+            adminUserStatusMap.set(uid, st);
+            adminOnlineUsersSet.add(uid);
             document.getElementById('statOnlineUsers').innerText = adminOnlineUsersSet.size;
             if (allUsersCache.length) renderUsers(allUsersCache);
           })
           .on('presence', { event: 'sync' }, () => {
             const state = presenceChannel.presenceState();
             adminOnlineUsersSet.clear();
+            adminUserStatusMap.clear();
             Object.keys(state).forEach(uid => {
               const p = (state[uid] || [])[0];
-              if (p?.status !== 'invisible') {
-                adminOnlineUsersSet.add(uid);
+              const st = p?.status || 'online';
+              adminOnlineUsersSet.add(uid);
+              adminUserStatusMap.set(uid, st);
+            });
+            document.getElementById('statOnlineUsers').innerText = adminOnlineUsersSet.size;
+            if (allUsersCache.length) renderUsers(allUsersCache);
+          })
+          .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+            (leftPresences || []).forEach(p => {
+              const uid = p.key;
+              if (uid) {
+                adminOnlineUsersSet.delete(uid);
+                adminUserStatusMap.delete(uid);
               }
             });
             document.getElementById('statOnlineUsers').innerText = adminOnlineUsersSet.size;
@@ -1015,11 +1028,47 @@
 
       const now = Date.now();
       tbody.innerHTML = users.map(u => {
-        const isOnline = adminOnlineUsersSet.has(u.id) || (u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000));
         const code = u.member_code ? String(u.member_code).padStart(3, '0') : '—';
         const isAdm = String(u.email || '').toLowerCase() === 'ywsfw3778@gmail.com' || u.is_admin;
         const isBanned = !!u.is_banned;
         const initial = (u.full_name || u.username || 'U')[0].toUpperCase();
+        
+        let statusDotClass = 'offline';
+        let statusLabel = 'غير متصل';
+        let statusColor = 'var(--muted)';
+        
+        if (isBanned) {
+          statusDotClass = 'banned';
+          statusLabel = 'محظور 🚫';
+          statusColor = 'var(--danger)';
+        } else {
+          const liveStatus = adminUserStatusMap.get(u.id);
+          if (liveStatus === 'online') {
+            statusDotClass = 'online';
+            statusLabel = 'متصل 🟢';
+            statusColor = '#23a55a';
+          } else if (liveStatus === 'idle') {
+            statusDotClass = 'idle';
+            statusLabel = 'خامل 🌙';
+            statusColor = '#f0b232';
+          } else if (liveStatus === 'dnd') {
+            statusDotClass = 'dnd';
+            statusLabel = 'عدم إزعاج ⛔';
+            statusColor = '#f23f43';
+          } else if (liveStatus === 'invisible') {
+            statusDotClass = 'invisible';
+            statusLabel = 'مخفي 🔘 (نشط)';
+            statusColor = '#80848e';
+          } else if (adminOnlineUsersSet.has(u.id)) {
+            statusDotClass = 'online';
+            statusLabel = 'متصل 🟢';
+            statusColor = '#23a55a';
+          } else if (u.last_seen_at && (now - new Date(u.last_seen_at).getTime() < 5 * 60 * 1000)) {
+            statusDotClass = 'online';
+            statusLabel = 'متصل 🟢';
+            statusColor = '#23a55a';
+          }
+        }
         
         return `
           <tr>
@@ -1038,8 +1087,8 @@
             </td>
             <td>
               <div class="status-badge">
-                <div class="status-dot ${isBanned ? 'banned' : (isOnline ? 'online' : 'offline')}"></div>
-                <span>${isBanned ? 'محظور 🚫' : (isOnline ? 'متصل الآن' : 'غير متصل')}</span>
+                <div class="status-dot ${statusDotClass}"></div>
+                <span style="color:${statusColor}; font-weight:600;">${statusLabel}</span>
               </div>
             </td>
             <td style="font-size:12px; color:var(--muted);">${u.last_seen_at ? new Date(u.last_seen_at).toLocaleTimeString('ar-EG', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'numeric' }) : 'لم يظهر بعد'}</td>

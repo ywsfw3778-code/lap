@@ -6268,12 +6268,11 @@ function initPresence(){
       if (!payload || !payload.userId) return;
       const uid = String(payload.userId);
       const st = payload.status || 'online';
+      userPresenceStatusMap.set(uid, st);
       if (st === 'invisible') {
         onlineUserIds.delete(uid);
-        userPresenceStatusMap.delete(uid);
       } else {
         onlineUserIds.add(uid);
-        userPresenceStatusMap.set(uid, st);
       }
       applyPresenceToContacts();
     })
@@ -6286,9 +6285,9 @@ function initPresence(){
         if(presences.length) {
           const p = presences[0];
           const st = p.status || 'online';
+          userPresenceStatusMap.set(uid, st);
           if(st !== 'invisible') {
             onlineUserIds.add(uid);
-            userPresenceStatusMap.set(uid, st);
           }
         }
       });
