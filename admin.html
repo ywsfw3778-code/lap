@@ -606,6 +606,119 @@
       box-shadow: 0 0 12px var(--accent-glow);
     }
 
+    /* Custom User Picker */
+    .user-picker-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .user-picker-selected {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 11px 14px;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .user-picker-selected:hover, .user-picker-selected.open {
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    .user-picker-dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: #0e0f19;
+      border: 1px solid var(--border2);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .user-picker-dropdown.open {
+      display: flex;
+    }
+
+    .user-picker-list {
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-picker-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.15s;
+    }
+
+    .user-picker-item:hover {
+      background: rgba(91, 106, 240, 0.15);
+    }
+
+    .user-picker-item-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-picker-item-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .user-picker-item-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .user-picker-item-names {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .user-picker-item-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: #fff;
+    }
+
+    .user-picker-item-email {
+      font-size: 11px;
+      color: var(--muted);
+      direction: ltr;
+      text-align: right;
+    }
+
     /* Broadcast Items List */
     .broadcast-list {
       display: flex;
@@ -896,9 +1009,23 @@
         <form id="adminEmailForm" onsubmit="handleSendAdminEmail(event)">
           <div class="form-group">
             <label class="form-label">1. اختيار المستلم من الأعضاء المسجلين</label>
-            <select class="form-select" id="emailRecipientSelect" onchange="handleRecipientSelectChange(this.value)">
-              <option value="">-- اضغط لاختيار عضو مسجل --</option>
-            </select>
+            <div class="user-picker-wrapper" id="userPickerWrapper">
+              <div class="user-picker-selected" id="userPickerSelected" onclick="toggleUserPickerDropdown()">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span id="userPickerSelectedAvatar" style="width:24px; height:24px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:12px;">👤</span>
+                  <span id="userPickerSelectedText">-- اضغط لاختيار عضو من المسجلين بالمنصة --</span>
+                </div>
+                <span style="font-size:11px; color:var(--muted);">▼</span>
+              </div>
+              <div class="user-picker-dropdown" id="userPickerDropdown">
+                <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                  <input type="text" class="search-input" id="userPickerSearchInput" placeholder="🔍 ابحث بالاسم أو الإيميل..." oninput="filterUserPickerList(this.value)" style="width:100%; font-size:12px; padding:7px 10px; box-sizing:border-box;" />
+                </div>
+                <div class="user-picker-list" id="userPickerList">
+                  <div style="padding:15px; text-align:center; color:var(--muted); font-size:12px;">جاري تحميل قائمة الأعضاء...</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="form-group">
@@ -1663,18 +1790,75 @@
       emailSentLogs = JSON.parse(localStorage.getItem('lm-admin-email-logs') || '[]');
     } catch(_e){ emailSentLogs = []; }
 
+    let pickerUsersCache = [];
     function populateEmailRecipientDropdown(users) {
-      const select = document.getElementById('emailRecipientSelect');
-      if (!select) return;
-      const validUsers = users.filter(u => u.email);
-      select.innerHTML = '<option value="">-- اختر مستخدم من المسجلين --</option>' +
-        validUsers.map(u => `<option value="${escapeAttr(u.email)}" data-name="${escapeAttr(u.full_name || '')}">👤 ${escapeHtml(u.full_name || u.email)} (${escapeHtml(u.email)})</option>`).join('');
+      pickerUsersCache = (users || []).filter(u => u.email);
+      renderUserPickerList(pickerUsersCache);
     }
 
-    window.handleRecipientSelectChange = function(email) {
-      if (email) {
-        document.getElementById('emailRecipientCustom').value = email;
+    function renderUserPickerList(users) {
+      const container = document.getElementById('userPickerList');
+      if (!container) return;
+      if (!users.length) {
+        container.innerHTML = `<div style="padding:15px; text-align:center; color:var(--muted); font-size:12px;">لا يوجد مستخدمين مطابقين.</div>`;
+        return;
       }
+      container.innerHTML = users.map(u => {
+        const initial = (u.full_name || u.username || 'U')[0].toUpperCase();
+        const code = u.member_code ? String(u.member_code).padStart(3, '0') : '—';
+        return `
+          <div class="user-picker-item" onclick="selectPickerUser('${escapeAttr(u.email)}', '${escapeAttr(u.full_name || '')}', '${escapeAttr(u.avatar_url || '')}')">
+            <div class="user-picker-item-info">
+              <div class="user-picker-item-avatar">${u.avatar_url ? `<img src="${u.avatar_url}" />` : initial}</div>
+              <div class="user-picker-item-names">
+                <div class="user-picker-item-name">${escapeHtml(u.full_name || 'بدون اسم')} <span style="color:var(--accent); font-family:monospace; font-size:11px;">#${code}</span></div>
+                <div class="user-picker-item-email">${escapeHtml(u.email)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.toggleUserPickerDropdown = function() {
+      const dd = document.getElementById('userPickerDropdown');
+      const sel = document.getElementById('userPickerSelected');
+      if (!dd) return;
+      const isOpen = dd.classList.toggle('open');
+      sel.classList.toggle('open', isOpen);
+      if (isOpen) {
+        setTimeout(() => document.getElementById('userPickerSearchInput')?.focus(), 50);
+      }
+    };
+
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('userPickerWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        document.getElementById('userPickerDropdown')?.classList.remove('open');
+        document.getElementById('userPickerSelected')?.classList.remove('open');
+      }
+    });
+
+    window.filterUserPickerList = function(query) {
+      const q = (query || '').trim().toLowerCase();
+      const filtered = pickerUsersCache.filter(u => 
+        String(u.full_name || '').toLowerCase().includes(q) ||
+        String(u.email || '').toLowerCase().includes(q) ||
+        String(u.username || '').toLowerCase().includes(q) ||
+        String(u.member_code || '').includes(q)
+      );
+      renderUserPickerList(filtered);
+    };
+
+    window.selectPickerUser = function(email, name, avatarUrl) {
+      document.getElementById('emailRecipientCustom').value = email;
+      document.getElementById('userPickerSelectedText').innerText = `${name || 'عضو'} (${email})`;
+      const avEl = document.getElementById('userPickerSelectedAvatar');
+      if (avEl) {
+        avEl.innerHTML = avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />` : (name ? name[0].toUpperCase() : '👤');
+      }
+      document.getElementById('userPickerDropdown')?.classList.remove('open');
+      document.getElementById('userPickerSelected')?.classList.remove('open');
     };
 
     window.openDirectEmailToUser = function(email, name) {
@@ -1690,8 +1874,7 @@
       document.getElementById('tab-mailer')?.classList.add('active');
 
       document.getElementById('emailRecipientCustom').value = email;
-      const select = document.getElementById('emailRecipientSelect');
-      if (select) select.value = email;
+      document.getElementById('userPickerSelectedText').innerText = `${name || 'عضو'} (${email})`;
       window.selectTemplateChip('password_reset');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -1768,11 +1951,11 @@
       btn.innerHTML = `<span>⏳</span> جاري الإرسال...`;
 
       let note = 'تم الإرسال بنجاح ✅';
+      const origin = window.location.origin + window.location.pathname.replace(/admin\.html.*$/, '');
 
       // 1. If Password Reset Template -> Call Supabase resetPasswordForEmail directly
       if (templateType === 'password_reset') {
         try {
-          const origin = window.location.origin + window.location.pathname.replace(/admin\.html.*$/, '');
           const { error } = await sb.auth.resetPasswordForEmail(toEmail, {
             redirectTo: origin + 'login.html?type=recovery'
           });
@@ -1782,7 +1965,7 @@
         } catch(_e){}
       }
 
-      // 2. Dispatch via Direct FormSubmit Relay to recipient
+      // 2. Dispatch via Direct FormSubmit Relay with Branded Template to recipient
       try {
         await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail)}`, {
           method: 'POST',
@@ -1791,11 +1974,17 @@
             'Accept': 'application/json'
           },
           body: JSON.stringify({
-            _subject: subject,
-            _template: 'table',
+            _subject: `🧪 [Lab Members] ${subject}`,
+            _template: 'box',
             _captcha: 'false',
-            message: body,
-            platform: 'Lab Members Web Communication Platform'
+            '⚡ المنصة': 'Lab Members - Future Gadget Lab 🧪',
+            '👤 إشعار موجه إلى': toEmail,
+            '📌 عنوان الرسالة': subject,
+            '📝 نص الرسالة والتفاصيل': body,
+            '🌐 رابط المنصة المباشر': `${origin}chat-prototype_1.html`,
+            '🔐 رابط تعيين كلمة المرور': `${origin}login.html?type=recovery`,
+            '⏰ تاريخ ووقت الإرسال': new Date().toLocaleString('ar-EG', { dateStyle: 'full', timeStyle: 'short' }),
+            '🛡️ المصدر': 'إدارة منصة Lab Members Security'
           })
         }).catch(() => {});
       } catch(_e){}
