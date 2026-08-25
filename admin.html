@@ -491,9 +491,26 @@
       border-color: var(--border2);
     }
 
+    .btn-icon.active-admin {
+      background: rgba(88, 101, 242, 0.2);
+      border-color: #5865f2;
+      color: #5865f2;
+    }
+    .btn-icon.active-admin:hover {
+      background: #5865f2;
+      color: #fff;
+    }
+
     .btn-icon.ban:hover {
+      background: #f23f43;
+      color: #fff;
+      border-color: #f23f43;
+    }
+
+    .btn-icon.delete:hover {
       background: var(--danger);
       color: #fff;
+      border-color: var(--danger);
     }
 
     /* Broadcast Form */
@@ -1095,9 +1112,11 @@
             <td>
               <div class="action-btn-group">
                 <button class="btn-icon" title="تعديل البيانات والصورة" onclick="openEditModal('${u.id}', '${escapeAttr(u.full_name || '')}', ${u.member_code || 0}, '${escapeAttr(u.avatar_url || '')}')">✏️</button>
+                <button class="btn-icon ${isAdm ? 'active-admin' : ''}" title="${isAdm ? 'إلغاء رتبة المشرف وتحويله لعضو' : 'ترقية هذا الحساب إلى رتبة مشرف 👑'}" onclick="toggleAdminRole('${u.id}', '${escapeAttr(u.full_name || u.email || '')}', ${!isAdm})">👑</button>
                 <button class="btn-icon ban" title="${isBanned ? 'إلغاء الحظر' : 'حظر المستخدم'}" onclick="toggleBanUser('${u.id}', ${!isBanned})">
                   ${isBanned ? '🔓' : '🚫'}
                 </button>
+                <button class="btn-icon delete" title="حذف حساب هذا المستخدم نهائياً 🗑️" onclick="deleteUserAccount('${u.id}', '${escapeAttr(u.full_name || u.email || '')}')">🗑️</button>
               </div>
             </td>
           </tr>
@@ -1313,6 +1332,107 @@
         }
       } catch (e) {
         alert('خطأ أثناء تعديل حالة الحظر: ' + e.message);
+      }
+    };
+
+    // Promote / Demote Admin Role
+    window.toggleAdminRole = async function(id, name, makeAdmin) {
+      const userObj = allUsersCache.find(u => u.id === id);
+      if (userObj && String(userObj.email || '').toLowerCase() === 'ywsfw3778@gmail.com') {
+        alert('لا يمكن تغيير رتبة مالك المنصة الأساسي.');
+        return;
+      }
+
+      const promptText = makeAdmin
+        ? `هل تريد ترقية "${name || 'المستخدم'}" إلى رتبة مشرف (Admin)؟ 👑\nسيكون بإمكانه الوصول للوحة الإدارة والتحكم في المنصة.`
+        : `هل تريد إلغاء رتبة المشرف عن "${name || 'المستخدم'}" وإعادته لرتبة عضو عادي؟`;
+      
+      if (!confirm(promptText)) return;
+
+      try {
+        let success = false;
+        let errMsg = '';
+        
+        // 1. Try RPC function
+        const { error: rpcErr } = await sb.rpc('admin_set_user_admin', {
+          target_user_id: id,
+          is_admin_status: makeAdmin
+        });
+
+        if (!rpcErr) {
+          success = true;
+        } else {
+          errMsg = rpcErr.message;
+          // 2. Direct profiles update fallback
+          const { error: profErr } = await sb.from('profiles').update({ is_admin: makeAdmin }).eq('id', id);
+          if (!profErr) {
+            success = true;
+          } else {
+            errMsg = profErr.message;
+          }
+        }
+
+        if (success) {
+          alert(makeAdmin ? `تمت ترقية ${name || 'المستخدم'} إلى رتبة مشرف بنجاح! 👑` : `تمت إعادة ${name || 'المستخدم'} إلى رتبة عضو عادي.`);
+          await loadUsers();
+        } else {
+          alert('تعذر تعديل الرتبة: ' + (errMsg || 'يرجى تشغيل كود الصلاحيات في Supabase'));
+        }
+      } catch (e) {
+        alert('حدث خطأ أثناء تعديل الرتبة: ' + e.message);
+      }
+    };
+
+    // Delete User Account Completely
+    window.deleteUserAccount = async function(id, name) {
+      const userObj = allUsersCache.find(u => u.id === id);
+      if (userObj && String(userObj.email || '').toLowerCase() === 'ywsfw3778@gmail.com') {
+        alert('لا يمكن حذف حساب مالك المنصة الأساسي.');
+        return;
+      }
+
+      const promptText = `⚠️ تحذير هام وحاسم:\nهل أنت متأكد من حذف حساب "${name || 'المستخدم'}" نهائياً من المنصة؟\n\nسيتم حذف جميع رسائله وجهات اتصاله وملفه الشخصي بالكامل ولا يمكن التراجع عن هذا الإجراء!`;
+      if (!confirm(promptText)) return;
+
+      try {
+        let success = false;
+        let errMsg = '';
+
+        // 1. Try RPC function
+        const { error: rpcErr } = await sb.rpc('admin_delete_user', {
+          target_user_id: id
+        });
+
+        if (!rpcErr) {
+          success = true;
+        } else {
+          errMsg = rpcErr.message;
+          // 2. Cascade cleanup fallback
+          try {
+            await sb.from('messages').delete().or(`sender_id.eq.${id},receiver_id.eq.${id}`);
+            await sb.from('friend_requests').delete().or(`sender_id.eq.${id},receiver_id.eq.${id}`);
+            await sb.from('admin_user_moderation').delete().eq('user_id', id);
+            await sb.from('user_identities').delete().eq('user_id', id);
+            const { error: profErr } = await sb.from('profiles').delete().eq('id', id);
+            if (!profErr) {
+              success = true;
+            } else {
+              errMsg = profErr.message;
+            }
+          } catch(errFallback) {
+            errMsg = errFallback.message;
+          }
+        }
+
+        if (success) {
+          alert(`تم حذف حساب "${name || 'المستخدم'}" وكافة بياناته نهائياً بنجاح! 🗑️`);
+          await loadUsers();
+          await loadStats();
+        } else {
+          alert('تعذر حذف الحساب: ' + (errMsg || 'تأكد من الصلاحيات'));
+        }
+      } catch (e) {
+        alert('خطأ أثناء حذف الحساب: ' + e.message);
       }
     };
 

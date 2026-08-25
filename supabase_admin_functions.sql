@@ -288,11 +288,102 @@ begin
 end;
 $$;
 
--- 10. منح صلاحيات الاستدعاء للمستخدمين المصادقين (Execute Grants)
+-- 10. دالة تعيين أو إلغاء رتبة المشرف لمستخدم (Set/Unset Admin Role)
+CREATE OR REPLACE FUNCTION public.admin_set_user_admin(
+  target_user_id UUID,
+  is_admin_status BOOLEAN
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_admin text;
+  v_target_email text;
+begin
+  v_admin := public.assert_admin_caller();
+
+  SELECT lower(coalesce(email, '')) INTO v_target_email
+  FROM auth.users
+  WHERE id = target_user_id;
+
+  IF v_target_email = 'ywsfw3778@gmail.com' AND NOT is_admin_status THEN
+    RAISE EXCEPTION 'Cannot demote the primary owner.';
+  END IF;
+
+  UPDATE auth.users
+  SET raw_user_meta_data = jsonb_set(
+    coalesce(raw_user_meta_data, '{}'::jsonb),
+    '{is_admin}',
+    to_jsonb(is_admin_status)
+  )
+  WHERE id = target_user_id;
+
+  BEGIN
+    UPDATE public.profiles
+    SET is_admin = is_admin_status,
+        updated_at = now()
+    WHERE id = target_user_id;
+  EXCEPTION WHEN undefined_column THEN
+    NULL;
+  END;
+
+  RETURN true;
+end;
+$$;
+
+-- 11. دالة حذف حساب مستخدم نهائياً بكافة بياناته (Delete User Completely)
+CREATE OR REPLACE FUNCTION public.admin_delete_user(
+  target_user_id UUID
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_admin text;
+  v_target_email text;
+begin
+  v_admin := public.assert_admin_caller();
+
+  SELECT lower(coalesce(email, '')) INTO v_target_email
+  FROM auth.users
+  WHERE id = target_user_id;
+
+  IF v_target_email = 'ywsfw3778@gmail.com' THEN
+    RAISE EXCEPTION 'Cannot delete the primary owner account.';
+  END IF;
+
+  -- حذف الرسائل المرتبطة
+  DELETE FROM public.messages WHERE sender_id = target_user_id OR receiver_id = target_user_id;
+
+  -- حذف طلبات الصداقة
+  DELETE FROM public.friend_requests WHERE sender_id = target_user_id OR receiver_id = target_user_id;
+
+  -- حذف سجلات الحظر والربط
+  DELETE FROM public.admin_user_moderation WHERE user_id = target_user_id;
+  DELETE FROM public.admin_message_blocks WHERE admin_id = target_user_id OR user_id = target_user_id;
+  DELETE FROM public.user_identities WHERE user_id = target_user_id;
+
+  -- حذف البروفايل
+  DELETE FROM public.profiles WHERE id = target_user_id;
+
+  -- حذف المستخدم من جدول المصادقة الأساسي
+  DELETE FROM auth.users WHERE id = target_user_id;
+
+  RETURN true;
+end;
+$$;
+
+-- 12. منح صلاحيات الاستدعاء للمستخدمين المصادقين (Execute Grants)
 GRANT EXECUTE ON FUNCTION public.assert_admin_caller() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_get_dashboard_stats() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_get_all_users() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_user_ban(UUID, BOOLEAN, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_admin(UUID, BOOLEAN) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_user_profile(UUID, TEXT, INTEGER, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_create_broadcast(TEXT, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_purge_all_messages() TO authenticated;
