@@ -1953,41 +1953,23 @@
       let note = 'تم الإرسال بنجاح ✅';
       const origin = window.location.origin + window.location.pathname.replace(/admin\.html.*$/, '');
 
-      // 1. If Password Reset Template -> Call Supabase resetPasswordForEmail directly
+      // If Password Reset Template -> Call Supabase resetPasswordForEmail directly
       if (templateType === 'password_reset') {
         try {
           const { error } = await sb.auth.resetPasswordForEmail(toEmail, {
-            redirectTo: origin + 'login.html?type=recovery'
+            redirectTo: origin + 'reset-password.html?type=recovery'
           });
-          if (!error) {
+          if (error) {
+            note = 'خطأ: ' + error.message;
+          } else {
             note = 'تم إرسال رابط الباسورد الرسمي بنجاح ✅';
           }
-        } catch(_e){}
+        } catch(err){
+          note = 'خطأ: ' + err.message;
+        }
+      } else {
+        note = 'تم تجهيز الرسالة للإرسال ✉️';
       }
-
-      // 2. Dispatch via Direct FormSubmit Relay with Branded Template to recipient
-      try {
-        await fetch(`https://formsubmit.co/ajax/${encodeURIComponent(toEmail)}`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            _subject: `🧪 [Lab Members] ${subject}`,
-            _template: 'box',
-            _captcha: 'false',
-            '⚡ المنصة': 'Lab Members - Future Gadget Lab 🧪',
-            '👤 إشعار موجه إلى': toEmail,
-            '📌 عنوان الرسالة': subject,
-            '📝 نص الرسالة والتفاصيل': body,
-            '🌐 رابط المنصة المباشر': `${origin}chat-prototype_1.html`,
-            '🔐 رابط تعيين كلمة المرور': `${origin}login.html?type=recovery`,
-            '⏰ تاريخ ووقت الإرسال': new Date().toLocaleString('ar-EG', { dateStyle: 'full', timeStyle: 'short' }),
-            '🛡️ المصدر': 'إدارة منصة Lab Members Security'
-          })
-        }).catch(() => {});
-      } catch(_e){}
 
       btn.disabled = false;
       btn.innerHTML = `<span>🚀</span> إرسال الرسالة إلى الجيميل الآن`;
@@ -2003,7 +1985,15 @@
       try { localStorage.setItem('lm-admin-email-logs', JSON.stringify(emailSentLogs)); } catch(_e){}
       renderEmailLogs();
 
-      alert(`✅ تم إرسال الرسالة بنجاح إلى بريد الجيميل:\n${toEmail}\n\nالعنوان: ${subject}\n\nيمكنك فحص صندوق الوارد (Inbox) أو مجلد البريد غير المرغوب به (Spam).`);
+      if (templateType === 'password_reset') {
+        alert(`✅ تم إرسال رابط استعادة الباسورد المشفر رسمياً من Lab Members إلى:\n${toEmail}\n\nيرجى فحص صندوق الوارد (Inbox) أو الـ Spam.`);
+      } else {
+        // Open Gmail Web Compose for custom messages so it sends with owner's identity
+        const confirmOpen = confirm(`تم تجهيز الرسالة إلى: ${toEmail}\n\nهل تريد فتح نافذة Gmail لإرسالها فوراً من بريدك؟`);
+        if (confirmOpen) {
+          window.openNativeMailClient();
+        }
+      }
     };
 
     window.openNativeMailClient = function() {
