@@ -2953,7 +2953,7 @@ async function updateSidebarUserFooter() {
     const avatarUrl = window.myAvatarUrl || user.user_metadata?.avatar_url || '';
     const myCode = user.user_metadata?.member_code ? `#${String(user.user_metadata.member_code).padStart(3, '0')}` : '#001';
 
-    const statusInfo = statusMeta[currentUserCustomStatus] || statusMeta.online;
+    const statusInfo = statusMeta[window.currentUserCustomStatus] || statusMeta.online;
 
     if (nameEl) nameEl.innerText = displayName;
     if (codeEl) codeEl.innerText = `${myCode} • ${statusInfo.label}`;
@@ -2967,7 +2967,7 @@ async function updateSidebarUserFooter() {
     // Initialize checkmark
     ['online', 'idle', 'dnd', 'invisible'].forEach(s => {
       const checkEl = document.getElementById('check-' + s);
-      if (checkEl) checkEl.style.display = (s === currentUserCustomStatus) ? 'inline-block' : 'none';
+      if (checkEl) checkEl.style.display = (s === window.currentUserCustomStatus) ? 'inline-block' : 'none';
     });
 
     if (imgEl) {
@@ -4375,13 +4375,17 @@ function isUserOnline(contactOrId){
   if (customSt === 'invisible') return false;
   if (customSt === 'online' || customSt === 'idle' || customSt === 'dnd') return true;
 
-  // 2. Direct ID check in onlineUserIds
-  if (id && onlineUserIds.has(String(id))) return true;
-
-  // 3. Email alias identity check
+  // 2. Email alias identity check
   if (email) {
     const normEmail = String(email).trim().toLowerCase();
     const dir = (typeof profilesDirectory !== 'undefined' ? profilesDirectory : []);
+    for (const [uid, st] of userPresenceStatusMap.entries()) {
+      const prof = dir.find(p => p.id === uid);
+      if (prof && String(prof.email || '').trim().toLowerCase() === normEmail) {
+        if (st === 'invisible') return false;
+        return true;
+      }
+    }
     for (const uid of onlineUserIds) {
       const prof = dir.find(p => p.id === uid);
       if (prof && String(prof.email || '').trim().toLowerCase() === normEmail) {
@@ -4390,13 +4394,8 @@ function isUserOnline(contactOrId){
     }
   }
 
-  // 4. Fallback to lastSeenAt within 10 minutes
-  if (lastSeen) {
-    const time = new Date(lastSeen).getTime();
-    if (!Number.isNaN(time) && Date.now() - time < 10 * 60 * 1000) {
-      return true;
-    }
-  }
+  // 3. Direct ID check in onlineUserIds
+  if (id && onlineUserIds.has(String(id))) return true;
 
   return false;
 }
@@ -4436,18 +4435,6 @@ function getUserPresenceStatus(contactOrId){
   }
 
   if(id && onlineUserIds.has(String(id))) return 'online';
-
-  if (!lastSeen && id) {
-    const c = (typeof contacts !== 'undefined' ? contacts : []).find(x => x.id === id);
-    if (c) lastSeen = c.lastSeenAt;
-  }
-
-  if (lastSeen) {
-    const time = new Date(lastSeen).getTime();
-    if (!Number.isNaN(time) && Date.now() - time < 10 * 60 * 1000) {
-      return 'online';
-    }
-  }
 
   return 'offline';
 }
@@ -6146,18 +6133,14 @@ window.updateMyLastSeen = updateMyLastSeen;
 window.trackMyPresence = async function() {
   if (!presenceChannel || !window.me) return;
   const currentSt = window.currentUserCustomStatus || 'online';
-  if (currentSt === 'invisible') {
-    try { await presenceChannel.untrack(); } catch(_e){}
-  } else {
-    try {
-      await presenceChannel.track({
-        online_at: new Date().toISOString(),
-        status: currentSt,
-        userId: window.me.id,
-        email: window.me.email
-      });
-    } catch(_e){}
-  }
+  try {
+    await presenceChannel.track({
+      online_at: new Date().toISOString(),
+      status: currentSt,
+      userId: window.me.id,
+      email: window.me.email
+    });
+  } catch(_e){}
 };
 
 // --- Typing Indicator System ---
