@@ -218,9 +218,13 @@ body.theme-steins .logo{font-size:20px;letter-spacing:1px;}
 .chat-user{display:flex;align-items:center;gap:11px;}
 .chat-user-name{font-size:14px;font-weight:600;}
 .chat-user-status{font-size:11px;color:var(--online);display:flex;align-items:center;gap:4px;}
-.status-pulse{width:6px;height:6px;background:var(--online);border-radius:50%;animation:pulse 2s infinite;transition:background .2s,opacity .2s;}
-.status-pulse.offline{background:var(--muted);animation:none;opacity:.8;}
+.chat-user-status.idle{color:#f0b232 !important;}
+.chat-user-status.dnd{color:#f23f43 !important;}
 .chat-user-status.offline{color:var(--muted);}
+.status-pulse{width:6px;height:6px;background:var(--online);border-radius:50%;animation:pulse 2s infinite;transition:background .2s,opacity .2s;}
+.status-pulse.idle{background:#f0b232 !important;box-shadow:0 0 8px rgba(240,178,50,0.8) !important;animation:none !important;}
+.status-pulse.dnd{background:#f23f43 !important;box-shadow:0 0 8px rgba(242,63,67,0.8) !important;animation:none !important;}
+.status-pulse.offline{background:var(--muted);animation:none;opacity:.8;}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.8);}}
 .chat-actions{display:flex;gap:7px;margin-inline-start:auto;}
 .mobile-back{display:none;align-items:center;justify-content:center;margin-inline-end:10px;flex-shrink:0;cursor:pointer;}
@@ -2855,7 +2859,7 @@ function subscribeToBroadcasts() {
   }
 }
 
-let currentUserCustomStatus = localStorage.getItem('lm-user-custom-status') || 'online';
+window.currentUserCustomStatus = localStorage.getItem('lm-user-custom-status') || 'online';
 
 const statusMeta = {
   online: { label: 'متصل 🟢', dotClass: 'online', color: '#23a55a' },
@@ -2889,7 +2893,7 @@ document.addEventListener('click', (e) => {
 });
 
 window.setUserCustomStatus = function(status) {
-  currentUserCustomStatus = status;
+  window.currentUserCustomStatus = status;
   localStorage.setItem('lm-user-custom-status', status);
 
   // Update checkmarks in popover
@@ -2901,7 +2905,23 @@ window.setUserCustomStatus = function(status) {
   // Mute sounds if DND
   window.suppressNotificationSounds = (status === 'dnd');
 
-  // Immediately broadcast to Supabase Realtime Presence Channel
+  // Immediately broadcast via WebSocket channel so everyone receives it instantly!
+  const ch = window.presenceChannel || (typeof getSbClient === 'function' && getSbClient() ? getSbClient().channel('online-users') : null);
+  if (ch) {
+    try {
+      ch.send({
+        type: 'broadcast',
+        event: 'custom-status-change',
+        payload: {
+          userId: window.me?.id,
+          email: window.me?.email,
+          status: status
+        }
+      });
+    } catch(_e){ console.warn('[Presence] Broadcast error:', _e); }
+  }
+
+  // Update presence track
   if (typeof window.trackMyPresence === 'function') {
     window.trackMyPresence();
   }
@@ -4347,7 +4367,7 @@ function isUserOnline(contactOrId){
 
   const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
   if(me && (String(me.id) === String(id) || (email && String(me.email || '').toLowerCase() === String(email).toLowerCase()))) {
-    return currentUserCustomStatus !== 'invisible';
+    return window.currentUserCustomStatus !== 'invisible';
   }
 
   // 1. Direct ID check in presence status map
@@ -4390,7 +4410,7 @@ function getUserPresenceStatus(contactOrId){
 
   const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
   if(me && (String(me.id) === String(id) || (email && String(me.email || '').toLowerCase() === String(email).toLowerCase()))) {
-    return currentUserCustomStatus || 'online';
+    return window.currentUserCustomStatus || 'online';
   }
 
   let customSt = id ? userPresenceStatusMap.get(String(id)) : null;
@@ -6106,7 +6126,7 @@ async function updateMyLastSeen(force = false){
   const sbClient = getSbClient();
   const currentUser = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
   if(!sbClient || !currentUser) return;
-  if(currentUserCustomStatus === 'invisible') return;
+  if(window.currentUserCustomStatus === 'invisible') return;
   if(document.hidden && !force) return;
   try{
     const nowIso = new Date().toISOString();
@@ -6125,14 +6145,16 @@ window.updateMyLastSeen = updateMyLastSeen;
 
 window.trackMyPresence = async function() {
   if (!presenceChannel || !window.me) return;
-  const currentSt = currentUserCustomStatus || 'online';
+  const currentSt = window.currentUserCustomStatus || 'online';
   if (currentSt === 'invisible') {
     try { await presenceChannel.untrack(); } catch(_e){}
   } else {
     try {
       await presenceChannel.track({
         online_at: new Date().toISOString(),
-        status: currentSt
+        status: currentSt,
+        userId: window.me.id,
+        email: window.me.email
       });
     } catch(_e){}
   }
@@ -6242,6 +6264,19 @@ function initPresence(){
   window.presenceChannel = presenceChannel;
 
   presenceChannel
+    .on('broadcast', { event: 'custom-status-change' }, ({ payload }) => {
+      if (!payload || !payload.userId) return;
+      const uid = String(payload.userId);
+      const st = payload.status || 'online';
+      if (st === 'invisible') {
+        onlineUserIds.delete(uid);
+        userPresenceStatusMap.delete(uid);
+      } else {
+        onlineUserIds.add(uid);
+        userPresenceStatusMap.set(uid, st);
+      }
+      applyPresenceToContacts();
+    })
     .on('presence', { event: 'sync' }, () => {
       const state = presenceChannel.presenceState();
       onlineUserIds.clear();

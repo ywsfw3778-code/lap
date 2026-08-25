@@ -975,6 +975,18 @@
       try {
         const presenceChannel = sb.channel('online-users');
         presenceChannel
+          .on('broadcast', { event: 'custom-status-change' }, ({ payload }) => {
+            if (!payload || !payload.userId) return;
+            const uid = String(payload.userId);
+            const st = payload.status || 'online';
+            if (st === 'invisible') {
+              adminOnlineUsersSet.delete(uid);
+            } else {
+              adminOnlineUsersSet.add(uid);
+            }
+            document.getElementById('statOnlineUsers').innerText = adminOnlineUsersSet.size;
+            if (allUsersCache.length) renderUsers(allUsersCache);
+          })
           .on('presence', { event: 'sync' }, () => {
             const state = presenceChannel.presenceState();
             adminOnlineUsersSet.clear();
