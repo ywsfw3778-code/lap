@@ -155,6 +155,35 @@ CREATE TABLE IF NOT EXISTS public.admin_message_blocks (
   CONSTRAINT admin_message_blocks_no_self CHECK (admin_id <> user_id)
 );
 
+-- 9. جدول الأجهزة المعروفة للمستخدمين (Known Devices)
+CREATE TABLE IF NOT EXISTS public.user_known_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  device_fid TEXT NOT NULL,
+  device_name TEXT NOT NULL,
+  device_type TEXT NOT NULL DEFAULT 'desktop',
+  os_name TEXT,
+  browser_name TEXT,
+  ip_address TEXT,
+  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT user_known_devices_uniq UNIQUE (user_id, device_fid)
+);
+
+-- 10. جدول سجلات تسجيل الدخول الأمنية (Login Security Logs)
+CREATE TABLE IF NOT EXISTS public.user_login_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  device_fid TEXT NOT NULL,
+  device_name TEXT NOT NULL,
+  device_type TEXT NOT NULL DEFAULT 'desktop',
+  os_name TEXT,
+  browser_name TEXT,
+  ip_address TEXT,
+  is_new_device BOOLEAN DEFAULT false,
+  logged_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ==============================================================================
 -- 🔒 دوال الأمان والباك إند (RPC & Stored Procedures)
 -- ==============================================================================
@@ -354,8 +383,70 @@ begin
 end;
 $$;
 
--- دالة مسح وتفريغ جميع الرسائل من السيرفر
-CREATE OR REPLACE FUNCTION public.admin_purge_all_messages()
+-- دالة تسجيل الجهاز وفحص هل هو جهاز جديد لإرسال إشعار الأمان (Device Registration & New Device Check)
+CREATE OR REPLACE FUNCTION public.register_device_and_check_is_new(
+  p_device_fid TEXT,
+  p_device_name TEXT,
+  p_device_type TEXT DEFAULT 'desktop',
+  p_os TEXT DEFAULT '',
+  p_browser TEXT DEFAULT '',
+  p_ip TEXT DEFAULT ''
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_user_id UUID;
+  v_exists boolean;
+begin
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RETURN false;
+  END IF;
+
+  -- فحص هل البصمة مسجلة للمستخدم مسبقاً
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_known_devices
+    WHERE user_id = v_user_id AND device_fid = p_device_fid
+  ) INTO v_exists;
+
+  IF NOT v_exists THEN
+    -- تسجيل الجهاز الجديد لأول مرة
+    INSERT INTO public.user_known_devices (user_id, device_fid, device_name, device_type, os_name, browser_name, ip_address, first_seen_at, last_seen_at)
+    VALUES (v_user_id, p_device_fid, p_device_name, p_device_type, p_os, p_browser, p_ip, now(), now())
+    ON CONFLICT (user_id, device_fid) DO UPDATE
+    SET last_seen_at = now(),
+        device_name = excluded.device_name,
+        ip_address = coalesce(excluded.ip_address, public.user_known_devices.ip_address);
+
+    -- تسجيل سجل دخول جديد
+    INSERT INTO public.user_login_logs (user_id, device_fid, device_name, device_type, os_name, browser_name, ip_address, is_new_device, logged_at)
+    VALUES (v_user_id, p_device_fid, p_device_name, p_device_type, p_os, p_browser, p_ip, true, now());
+
+    RETURN true; -- جهاز جديد لأول مرة -> يتطلب إشعار أمان
+  ELSE
+    -- تحديث وقت آخر ظهور للجهاز
+    UPDATE public.user_known_devices
+    SET last_seen_at = now(),
+        device_name = coalesce(nullif(p_device_name, ''), device_name),
+        ip_address = coalesce(nullif(p_ip, ''), ip_address)
+    WHERE user_id = v_user_id AND device_fid = p_device_fid;
+
+    INSERT INTO public.user_login_logs (user_id, device_fid, device_name, device_type, os_name, browser_name, ip_address, is_new_device, logged_at)
+    VALUES (v_user_id, p_device_fid, p_device_name, p_device_type, p_os, p_browser, p_ip, false, now());
+
+    RETURN false; -- جهاز معروف سابقاً
+  END IF;
+end;
+$$;
+
+-- دالة تعيين أو إلغاء رتبة المشرف لمستخدم (Set/Unset Admin Role)
+CREATE OR REPLACE FUNCTION public.admin_set_user_admin(
+  target_user_id UUID,
+  is_admin_status BOOLEAN
+)
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -363,9 +454,70 @@ SET search_path = public, auth
 AS $$
 declare
   v_admin text;
+  v_target_email text;
 begin
   v_admin := public.assert_admin_caller();
-  TRUNCATE TABLE public.messages RESTART IDENTITY CASCADE;
+
+  SELECT lower(coalesce(email, '')) INTO v_target_email
+  FROM auth.users
+  WHERE id = target_user_id;
+
+  IF v_target_email = 'ywsfw3778@gmail.com' AND NOT is_admin_status THEN
+    RAISE EXCEPTION 'Cannot demote the primary owner.';
+  END IF;
+
+  UPDATE auth.users
+  SET raw_user_meta_data = jsonb_set(
+    coalesce(raw_user_meta_data, '{}'::jsonb),
+    '{is_admin}',
+    to_jsonb(is_admin_status)
+  )
+  WHERE id = target_user_id;
+
+  BEGIN
+    UPDATE public.profiles
+    SET is_admin = is_admin_status,
+        updated_at = now()
+    WHERE id = target_user_id;
+  EXCEPTION WHEN undefined_column THEN
+    NULL;
+  END;
+
+  RETURN true;
+end;
+$$;
+
+-- دالة حذف حساب مستخدم نهائياً بكافة بياناته (Delete User Completely)
+CREATE OR REPLACE FUNCTION public.admin_delete_user(
+  target_user_id UUID
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_admin text;
+  v_target_email text;
+begin
+  v_admin := public.assert_admin_caller();
+
+  SELECT lower(coalesce(email, '')) INTO v_target_email
+  FROM auth.users
+  WHERE id = target_user_id;
+
+  IF v_target_email = 'ywsfw3778@gmail.com' THEN
+    RAISE EXCEPTION 'Cannot delete the primary owner account.';
+  END IF;
+
+  DELETE FROM public.messages WHERE sender_id = target_user_id OR receiver_id = target_user_id;
+  DELETE FROM public.friend_requests WHERE sender_id = target_user_id OR receiver_id = target_user_id;
+  DELETE FROM public.admin_user_moderation WHERE user_id = target_user_id;
+  DELETE FROM public.admin_message_blocks WHERE admin_id = target_user_id OR user_id = target_user_id;
+  DELETE FROM public.user_identities WHERE user_id = target_user_id;
+  DELETE FROM public.profiles WHERE id = target_user_id;
+  DELETE FROM auth.users WHERE id = target_user_id;
+
   RETURN true;
 end;
 $$;
@@ -381,6 +533,20 @@ ALTER TABLE public.user_identities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_user_moderation ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_broadcasts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_message_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_known_devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_login_logs ENABLE ROW LEVEL SECURITY;
+
+-- سياسات الأجهزة المعروفة وسجلات الدخول (User Devices & Logs RLS)
+DROP POLICY IF EXISTS "user_known_devices_self" ON public.user_known_devices;
+CREATE POLICY "user_known_devices_self" ON public.user_known_devices FOR ALL TO authenticated USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "user_login_logs_self" ON public.user_login_logs;
+CREATE POLICY "user_login_logs_self" ON public.user_login_logs FOR SELECT TO authenticated USING (auth.uid() = user_id);
+
+-- منح صلاحيات الاستدعاء
+GRANT EXECUTE ON FUNCTION public.register_device_and_check_is_new(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_admin(UUID, BOOLEAN) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
 
 -- 1. سياسات البروفايلات (Profiles RLS - تسمح للمشرف بتعديل كل الحسابات)
 DROP POLICY IF EXISTS "profiles_select_all" ON public.profiles;

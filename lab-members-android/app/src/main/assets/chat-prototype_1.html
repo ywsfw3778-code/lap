@@ -2135,6 +2135,13 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         </div>
       </div>
 
+      <div class="status-option menu-action" onclick="closeDiscordStatusPopover(); window.sendResetPasswordEmailFromApp();">
+        <span class="menu-action-icon">🔒</span>
+        <div class="status-option-text">
+          <div class="status-option-title">تغيير الباسورد عبر Gmail</div>
+        </div>
+      </div>
+
       <div class="status-option menu-action logout" onclick="closeDiscordStatusPopover(); if(typeof logout === 'function') logout(); else location.reload();">
         <span class="menu-action-icon">🚪</span>
         <div class="status-option-text">
@@ -2224,6 +2231,21 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
       </div>
     </div>
     <button class="broadcast-banner-close" onclick="window.dismissBroadcastBanner()" title="إغلاق">×</button>
+  </div>
+
+  <!-- Security Alert Banner (Shown when a new device login is detected) -->
+  <div id="securityAlertBanner" style="display:none; background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(220, 38, 38, 0.1)); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 10px 16px; margin: 10px 16px; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.12); z-index: 100; animation: slideDown 0.3s ease;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span style="font-size: 20px;">🚨</span>
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: #ff6b6b;" id="securityBannerTitle">تنبيه أمان: تم تسجيل الدخول من جهاز جديد</div>
+        <div style="font-size: 11px; color: var(--text);" id="securityBannerText">تم رصد دخول لحسابك من جهاز جديد. إذا لم تكن أنت، يرجى تغيير الباسورد فوراً.</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; flex-shrink:0;">
+      <button class="pbtn danger" onclick="window.sendResetPasswordEmailFromApp()" style="padding: 5px 12px; font-size: 11px; height:auto; border-radius:8px;">تغيير الباسورد</button>
+      <button class="pbtn" onclick="window.dismissSecurityAlert()" style="padding: 5px 10px; font-size: 11px; background:rgba(255,255,255,0.08); border-color:var(--border); height:auto; border-radius:8px;">إغلاق</button>
+    </div>
   </div>
 
   <!-- Welcome / Empty State View (Shown when no chat is selected) -->
@@ -2385,6 +2407,16 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
               <span style="font-size: 11px; color: var(--muted);" id="lblSettingsCode">كود العضو</span>
               <span style="font-size: 13px; font-weight: 700; color: var(--accent);" id="settingsCodeValue">#001</span>
             </div>
+          </div>
+
+          <div style="background: rgba(91, 106, 240, 0.08); border: 1px solid rgba(91, 106, 240, 0.25); border-radius: 10px; padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div>
+              <div style="font-size: 12px; font-weight: 600; color: var(--text);">🔐 كلمة المرور والأمان</div>
+              <div style="font-size: 11px; color: var(--muted);">أرسل رابط أمان إلى بريدك على Gmail لتغيير الباسورد</div>
+            </div>
+            <button type="button" class="pbtn" onclick="window.sendResetPasswordEmailFromApp()" style="padding: 6px 12px; font-size: 11px; font-weight: 600; white-space: nowrap; height: auto; border-color: var(--accent);">
+              إرسال لـ Gmail 📧
+            </button>
           </div>
         </div>
 
@@ -3001,6 +3033,61 @@ window.openSettingsModal = function() {
   } else {
     document.getElementById('openSettingsBtn')?.click();
   }
+};
+
+window.sendResetPasswordEmailFromApp = async function() {
+  const me = window.me || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
+  const email = me?.email || window.myEmail;
+  if (!email) {
+    alert('تعذر العثور على بريدك الإلكتروني المسجل.');
+    return;
+  }
+
+  const ok = confirm(`هل ترغب في إرسال رابط آمن لتغيير كلمة المرور إلى بريدك على Gmail:\n${email} ؟`);
+  if (!ok) return;
+
+  try {
+    const sb = (typeof getSbClient === 'function' && getSbClient()) || window.supabaseClient;
+    if (!sb) {
+      alert('خدمة الأمان غير متوفرة حالياً.');
+      return;
+    }
+    const redirectUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'login.html?type=recovery';
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl
+    });
+
+    if (error) {
+      alert('❌ فشل إرسال الرابط: ' + error.message);
+      return;
+    }
+
+    alert(`✅ تم إرسال رابط تغيير كلمة المرور بنجاح إلى:\n${email}\n\nيرجى فتح بريد Gmail والضغط على الرابط لتحديد الباسورد الجديد.`);
+  } catch(err) {
+    alert('❌ حدث خطأ: ' + err.message);
+  }
+};
+
+window.dismissSecurityAlert = function() {
+  localStorage.removeItem('lm-pending-security-alert');
+  const banner = document.getElementById('securityAlertBanner');
+  if (banner) banner.style.display = 'none';
+};
+
+window.checkPendingSecurityAlert = function() {
+  try {
+    const raw = localStorage.getItem('lm-pending-security-alert');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    const banner = document.getElementById('securityAlertBanner');
+    const bText = document.getElementById('securityBannerText');
+    if (banner && data) {
+      if (bText) {
+        bText.textContent = `تم تسجيل الدخول إلى حسابك من جهاز جديد [${data.device || 'جهاز غير معروف'}] بتاريخ ${data.time || 'الآن'}. إذا لم تكن أنت، يرجى تغيير الباسورد فوراً.`;
+      }
+      banner.style.display = 'flex';
+    }
+  } catch(_e){}
 };
 
 window.closeActiveChat = function() {
@@ -9352,6 +9439,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.style.display = 'flex';
   }
   if(typeof window.bootstrapLabMembers === 'function') window.bootstrapLabMembers();
+  if(typeof window.checkPendingSecurityAlert === 'function') window.checkPendingSecurityAlert();
 });
 
 window.addEventListener('pageshow', () => {
