@@ -2142,7 +2142,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         </div>
       </div>
 
-      <div class="status-option menu-action logout" onclick="closeDiscordStatusPopover(); if(typeof logout === 'function') logout(); else location.reload();">
+      <div class="status-option menu-action logout" onclick="closeDiscordStatusPopover(); window.handleLogout();">
         <span class="menu-action-icon">🚪</span>
         <div class="status-option-text">
           <div class="status-option-title">تسجيل الخروج</div>
@@ -3669,7 +3669,7 @@ window.handleLogout = async () => {
     if(typeof window.updateMyLastSeen === 'function') window.updateMyLastSeen();
     if(window.messagePollTimer) clearInterval(window.messagePollTimer);
     if(window.friendRequestPollTimer) clearInterval(window.friendRequestPollTimer);
-    const sbClient = window.sb || null;
+    const sbClient = window.sb || (typeof getSbClient === 'function' ? getSbClient() : window.supabaseClient) || null;
     const channel = window.presenceChannel || null;
     const friendChannel = window.friendRequestsChannel || null;
     if(channel && sbClient){
@@ -3689,15 +3689,31 @@ window.handleLogout = async () => {
         window.AndroidBridge.clearAuthSession();
       }
     }catch(_e){}
-    try{
-      await sb.auth.signOut({ scope: 'local' });
-    }catch(_e){
-      try { await sb.auth.signOut(); } catch(_ignore){}
+    if (sbClient) {
+      try{
+        await sbClient.auth.signOut({ scope: 'local' });
+      }catch(_e){
+        try { await sbClient.auth.signOut(); } catch(_ignore){}
+      }
     }
+    // Remove all supabase auth tokens from storage
+    try {
+      Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+          localStorage.removeItem(k);
+        }
+      });
+      Object.keys(sessionStorage).forEach(k => {
+        if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+          sessionStorage.removeItem(k);
+        }
+      });
+    } catch(_e){}
     window.me = null;
   }catch(_e){}
   window.location.replace(`login.html?logout=${Date.now()}`);
 };
+window.logout = window.handleLogout;
 
 function withTimeout(promise, timeoutMs = 12000){
   return Promise.race([
