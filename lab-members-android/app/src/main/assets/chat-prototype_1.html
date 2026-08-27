@@ -2608,20 +2608,43 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   </div>
 </div>
 
-<!-- FRIEND SEARCH OVERLAY -->
+<!-- FRIEND SEARCH & FRIENDS LIST OVERLAY -->
 <div class="overlay" id="searchOverlay" onclick="if(event.target===this)closeSearchPanel()">
-  <div class="panel">
+  <div class="panel" style="max-width: 480px; width: 95vw;">
     <div class="panel-top">
-      <div class="panel-title">🔎 ابحث عن صديق</div>
+      <div class="panel-title" style="display:flex; align-items:center; gap:8px;">
+        <span>👥</span> <span id="friendPanelMainTitle">إدارة الأصدقاء والتواصل</span>
+      </div>
       <div class="panel-close" onclick="closeSearchPanel()">×</div>
     </div>
-    <div class="panel-sub">ابحث بالإيميل أو الاسم</div>
-    <div class="search-input-wrap">
-      <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')window.searchFriends()">
-      <button class="search-go" onclick="window.searchFriends()">بحث</button>
+    
+    <!-- Tabs Header inside Modal -->
+    <div style="display:flex; background:rgba(255,255,255,0.05); padding:4px; border-radius:12px; margin: 12px 0 16px; border:1px solid var(--glass-border); gap:4px;">
+      <button id="tabBtnMyFriends" type="button" onclick="switchFriendPanelTab('friends')" style="flex:1; padding:9px 12px; border-radius:9px; border:none; background:var(--glass-bg); color:var(--accent); font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.2s; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+        <span>👥 أصدقائي</span> <span id="myFriendsCount" style="font-size:11px; background:var(--accent-glow); padding:2px 8px; border-radius:10px; font-weight:800;">0</span>
+      </button>
+      <button id="tabBtnFindFriends" type="button" onclick="switchFriendPanelTab('search')" style="flex:1; padding:9px 12px; border-radius:9px; border:none; background:transparent; color:var(--muted); font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:all 0.2s;">
+        <span>➕ إضافة صديق</span>
+      </button>
     </div>
-    <div class="search-results" id="searchResults">
-      <div class="s-empty">ابدأ البحث 👆</div>
+
+    <!-- Tab 1: My Friends List -->
+    <div id="panelTabFriends" style="display:block;">
+      <div class="friends-list-wrap" id="friendsListContainer" style="max-height: 380px; overflow-y: auto;">
+        <div style="text-align:center; padding:25px; color:var(--accent);">جارِ جلب قائمة الأصدقاء... 👥</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Add New Friend (Search by exact email) -->
+    <div id="panelTabSearch" style="display:none;">
+      <div class="panel-sub" style="margin-bottom:10px; font-size:12px; color:var(--muted);">اكتب بريد Gmail بالكامل لإرسال طلب صداقة:</div>
+      <div class="search-input-wrap">
+        <input type="text" id="friendInput" placeholder="example@gmail.com" onkeydown="if(event.key==='Enter')window.searchFriends()">
+        <button class="search-go" onclick="window.searchFriends()">بحث</button>
+      </div>
+      <div class="search-results" id="searchResults" style="max-height: 320px; overflow-y: auto;">
+        <div class="s-empty">اكتب بريد Gmail واضغط بحث 👆</div>
+      </div>
     </div>
   </div>
 </div>
@@ -4324,6 +4347,9 @@ window.unfriendUser = async function(targetId, btnElement) {
     if (profileOverlay?.classList.contains('open') && profileOverlay?.dataset?.userId === targetId) {
       window.openUserProfile(targetId).catch(() => {});
     }
+    if (typeof window.loadAcceptedFriends === 'function') {
+      window.loadAcceptedFriends().catch(() => {});
+    }
   } catch(err) {
     console.error("Unfriend Error:", err);
     alert('فشل إلغاء الصداقة:\n' + (err?.message || String(err)));
@@ -4334,7 +4360,141 @@ window.unfriendUser = async function(targetId, btnElement) {
   }
 };
 
+window.switchFriendPanelTab = function(tab) {
+  const btnFriends = document.getElementById('tabBtnMyFriends');
+  const btnSearch = document.getElementById('tabBtnFindFriends');
+  const tabFriends = document.getElementById('panelTabFriends');
+  const tabSearch = document.getElementById('panelTabSearch');
+  
+  if (tab === 'friends') {
+    if (btnFriends) {
+      btnFriends.style.background = 'var(--glass-bg)';
+      btnFriends.style.color = 'var(--accent)';
+      btnFriends.style.fontWeight = '700';
+      btnFriends.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    }
+    if (btnSearch) {
+      btnSearch.style.background = 'transparent';
+      btnSearch.style.color = 'var(--muted)';
+      btnSearch.style.fontWeight = '600';
+      btnSearch.style.boxShadow = 'none';
+    }
+    if (tabFriends) tabFriends.style.display = 'block';
+    if (tabSearch) tabSearch.style.display = 'none';
+    window.loadAcceptedFriends?.();
+  } else {
+    if (btnFriends) {
+      btnFriends.style.background = 'transparent';
+      btnFriends.style.color = 'var(--muted)';
+      btnFriends.style.fontWeight = '600';
+      btnFriends.style.boxShadow = 'none';
+    }
+    if (btnSearch) {
+      btnSearch.style.background = 'var(--glass-bg)';
+      btnSearch.style.color = 'var(--accent)';
+      btnSearch.style.fontWeight = '700';
+      btnSearch.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+    }
+    if (tabFriends) tabFriends.style.display = 'none';
+    if (tabSearch) tabSearch.style.display = 'block';
+    setTimeout(() => document.getElementById('friendInput')?.focus(), 50);
+  }
+};
 
+window.loadAcceptedFriends = async function() {
+  const container = document.getElementById('friendsListContainer');
+  if (!container) return;
+  
+  try {
+    const currentUser = await getFreshCurrentUser();
+    if (!currentUser) {
+      container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">يرجى تسجيل الدخول أولاً</div>';
+      return;
+    }
+    
+    container.innerHTML = '<div style="text-align:center; padding:25px; color:var(--accent);">جارِ جلب قائمة الأصدقاء... 👥</div>';
+    
+    const identityIds = await getCurrentIdentityIds();
+    const currentEmailLower = String(currentUser.email || '').trim().toLowerCase();
+    
+    const { data, error } = await sb
+      .from('friend_requests')
+      .select('*')
+      .eq('status', 'accepted')
+      .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
+      
+    let requests = data || [];
+    
+    const friendUserIds = new Set();
+    requests.forEach(r => {
+      if (idBelongsToCurrentUser(r.sender_id, identityIds, currentUser) || String(r.sender_email || '').toLowerCase() === currentEmailLower) {
+        if (r.receiver_id && !idBelongsToCurrentUser(r.receiver_id, identityIds, currentUser)) {
+          friendUserIds.add(r.receiver_id);
+        }
+      } else {
+        if (r.sender_id && !idBelongsToCurrentUser(r.sender_id, identityIds, currentUser)) {
+          friendUserIds.add(r.sender_id);
+        }
+      }
+    });
+    
+    const countEl = document.getElementById('myFriendsCount');
+    if (countEl) countEl.textContent = friendUserIds.size;
+    
+    if (friendUserIds.size === 0) {
+      container.innerHTML = `
+        <div style="text-align:center; padding:30px 15px; color:var(--muted); font-size:13px;">
+          <div style="font-size:36px; margin-bottom:10px;">👥</div>
+          <div style="color:var(--text); font-weight:600; margin-bottom:4px;">لا يوجد أصدقاء مضافين حالياً</div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:16px;">اضغط على "إضافة صديق" وابحث بإيميل زميلك لإرسال طلب صداقة!</div>
+          <button type="button" onclick="switchFriendPanelTab('search')" style="padding:8px 18px; border-radius:8px; border:1px solid var(--accent); background:var(--accent-glow); color:var(--accent); font-size:12px; font-weight:700; cursor:pointer;">
+            ➕ ابحث وأضف صديق الآن
+          </button>
+        </div>
+      `;
+      return;
+    }
+    
+    const profiles = await queryProfilesByIds(Array.from(friendUserIds));
+    if (countEl) countEl.textContent = profiles.length;
+    
+    container.innerHTML = profiles.map(u => {
+      const safeId = escapeAttr(u.id);
+      const safeName = escapeHtml(u.full_name || u.name || u.username || 'عضو');
+      const safeCode = escapeHtml(u.member_code ? String(u.member_code).padStart(3, '0') : (window.getLabCode ? window.getLabCode(u.id) : '000'));
+      const safeSubtitle = u.username ? `@${escapeHtml(u.username)}` : 'عضو في المعمل';
+      const isOnline = isUserOnline(u.id || u);
+      const initial = (safeName || 'U')[0].toUpperCase();
+      const avatarUrl = u.avatar_url || u.avatar || '';
+      
+      return `
+      <div class="result-row friend-card-row" onclick="window.openUserProfile('${safeId}')" style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid var(--glass-border); cursor:pointer; transition: all 0.25s ease; border-radius:12px; margin: 4px 8px; background: rgba(255,255,255,0.02);" onmouseover="this.style.background='var(--glass-bg)'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='rgba(255,255,255,0.02)'; this.style.transform='none';">
+        <div class="avatar" style="position:relative; background:var(--surface2); width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:var(--accent); flex-shrink:0; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+          ${window.avatarMarkup ? window.avatarMarkup(initial, avatarUrl, isOnline ? 'dot-online' : 'dot-offline') : (avatarUrl ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : initial)}
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-weight:600; font-size:14px; color:var(--text); display:flex; align-items:center; gap:6px;">
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safeName}</span>
+            <span class="member-code" style="font-size:10px; background:var(--accent-glow); color:var(--accent); padding:2px 6px; border-radius:4px; font-weight:normal;">#${safeCode}</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px;">${safeSubtitle}</div>
+        </div>
+        <div onclick="event.stopPropagation();" style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+          <button type="button" class="chat-btn" onclick="window.directMessageUser('${safeId}')" style="padding:6px 12px; border-radius:8px; border:1px solid var(--accent); background:var(--accent-glow); color:var(--accent); font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;" title="بدء محادثة">
+            <span>💬</span> مراسلة
+          </button>
+          <button type="button" class="unfriend-btn" onclick="window.unfriendUser('${safeId}', this)" style="padding:6px 10px; border-radius:8px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.04); color:var(--muted); font-size:11px; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--danger)'; this.style.color='var(--danger)'; this.style.background='rgba(255,71,87,0.1)';" onmouseout="this.style.borderColor='var(--glass-border)'; this.style.color='var(--muted)'; this.style.background='rgba(255,255,255,0.04)';" title="إلغاء الصداقة">
+            <span>❌</span>
+          </button>
+        </div>
+      </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('loadAcceptedFriends error:', e);
+    container.innerHTML = `<div style="text-align:center; padding:15px; color:var(--danger); font-size:12px;">تعذر تحميل الأصدقاء: ${escapeHtml(e.message)}</div>`;
+  }
+};
 </script>
 
 <script>
@@ -5512,7 +5672,12 @@ window.closeProfile = function(){
   document.getElementById('profileOverlay').classList.remove('open');
   document.body.classList.remove('profile-overlay-open');
 };
-window.openSearchPanel = function(){document.getElementById('searchOverlay').classList.add('open');};
+window.openSearchPanel = function(){
+  document.getElementById('searchOverlay').classList.add('open');
+  if (typeof window.switchFriendPanelTab === 'function') {
+    window.switchFriendPanelTab('friends');
+  }
+};
 window.closeSearchPanel = function(){document.getElementById('searchOverlay').classList.remove('open');};
 function closeChatHeaderMenu(){document.getElementById('chatHeaderMenu')?.classList.remove('open');}
 window.toggleChatHeaderMenu = function(event){
@@ -10267,6 +10432,9 @@ window.respondRequest = async function(requestId, newStatus) {
       await loadInboxContacts();
       if(typeof window.refreshProfilesDirectory === 'function'){
         window.refreshProfilesDirectory().catch(() => {});
+      }
+      if(typeof window.loadAcceptedFriends === 'function'){
+        window.loadAcceptedFriends().catch(() => {});
       }
     }
     window.refreshFriendRequestBadge?.();
