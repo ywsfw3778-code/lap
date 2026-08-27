@@ -556,7 +556,7 @@ window.setLang = function(lang){
   const t = i18n[currentLang];
   document.title = t.title;
   document.documentElement.lang = currentLang;
-  document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.dir = 'rtl';
 
   document.querySelector('.logo-icon').textContent = '🧪';
   document.querySelector('.logo-sub').textContent = t.logoSub;

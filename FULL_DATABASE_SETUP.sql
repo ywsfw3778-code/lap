@@ -57,7 +57,7 @@ begin
 
   INSERT INTO public.user_identities (user_id, email)
   VALUES (new.id, lower(new.email))
-  ON CONFLICT (user_id) DO UPDATE SET email = excluded.email;
+  ON CONFLICT DO NOTHING;
 
   RETURN new;
 end;
@@ -590,6 +590,19 @@ WITH CHECK (
 DROP POLICY IF EXISTS "messages_delete_owner_or_admin" ON public.messages;
 CREATE POLICY "messages_delete_owner_or_admin" ON public.messages FOR DELETE TO authenticated
 USING (
+  auth.uid() = sender_id 
+  OR auth.uid() = receiver_id
+  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
+);
+
+DROP POLICY IF EXISTS "messages_update_owner_or_admin" ON public.messages;
+CREATE POLICY "messages_update_owner_or_admin" ON public.messages FOR UPDATE TO authenticated
+USING (
+  auth.uid() = sender_id 
+  OR auth.uid() = receiver_id
+  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
+)
+WITH CHECK (
   auth.uid() = sender_id 
   OR auth.uid() = receiver_id
   OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
