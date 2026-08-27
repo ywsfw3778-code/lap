@@ -1225,6 +1225,18 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   direction: inherit !important;
   text-align: start !important;
   resize: none !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: pre-wrap !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.input-wrap textarea::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 .emoji-btn, .attach-btn {
   flex-shrink: 0 !important;
@@ -2300,7 +2312,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
                   <line x1="15" y1="9" x2="15.01" y2="9"></line>
                 </svg>
             </button>
-            <textarea id="msgInput" placeholder="اكتب رسالة..." rows="1" dir="auto" onkeydown="handleKey(event)" oninput="handleTypingInput()" style="resize: none; overflow-y: auto; max-height: 120px; line-height: 1.5; padding-top: 8px; padding-bottom: 8px;"></textarea>
+            <textarea id="msgInput" placeholder="اكتب رسالة..." rows="1" dir="auto" onkeydown="handleKey(event)" oninput="handleTypingInput()" style="resize: none; overflow: hidden; max-height: 120px; line-height: 1.5; padding-top: 8px; padding-bottom: 8px;"></textarea>
             <button class="attach-btn" onclick="document.getElementById('fileInput').click()" type="button" title="إرفاق ملف">
                 <svg class="handdrawn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
