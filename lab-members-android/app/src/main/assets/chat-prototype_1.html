@@ -3745,10 +3745,9 @@ function normalizeSearchValue(value){
 
 function profileMatchesQuery(profile, query){
   const q = normalizeSearchValue(query);
-  const username = normalizeSearchValue(profile?.username);
-  const fullName = normalizeSearchValue(profile?.full_name);
+  if(!q || !q.includes('@')) return false;
   const email = normalizeSearchValue(profile?.email);
-  return username.includes(q) || fullName.includes(q) || email.includes(q);
+  return email && email === q;
 }
 
 async function refreshProfilesDirectory(limit = 300){
@@ -3834,8 +3833,10 @@ window.refreshProfilesDirectory = refreshProfilesDirectory;
 window.queryProfilesByIds = queryProfilesByIds;
 
 window.searchProfiles = async (q, limit = 8) => {
-  const query = (q || '').trim();
+  const query = (q || '').trim().toLowerCase();
   if(!query) return [];
+  // Only search when full email is typed (must contain @)
+  if(!query.includes('@')) return [];
 
   const data = await queryProfilesForSearch(query, limit);
   window.profilesDirectory = window.profilesDirectory || [];
@@ -3847,7 +3848,13 @@ window.searchProfiles = async (q, limit = 8) => {
     {bg:'#001525',t:'#38bdf8'}
   ];
 
-  return (data || []).map((u,i) => {
+  // Only return profiles where email exactly matches the query
+  const filtered = (data || []).filter(u => {
+    const email = (u.email || '').trim().toLowerCase();
+    return email && email === query;
+  });
+
+  return filtered.map((u,i) => {
     const c = colors[i % colors.length];
     const uname = (u.username || '').trim();
     const fullName = (u.full_name || '').trim();
@@ -8538,14 +8545,11 @@ async function filterContacts(q){
   const lowerQuery = query.toLowerCase();
 
   // Keep local contacts first, then add remote users not already in list.
-  const localMatches = contacts.filter(c => {
-    const name = String(c.name || '').toLowerCase();
-    const username = String(c.username || '').toLowerCase();
+  // Only match local contacts by exact full email
+  const localMatches = query.includes('@') ? contacts.filter(c => {
     const email = String(c.email || '').toLowerCase();
-    const preview = String(c.preview || '').toLowerCase();
-    const id = String(c.id || '').toLowerCase();
-    return name.includes(lowerQuery) || username.includes(lowerQuery) || email.includes(lowerQuery) || preview.includes(lowerQuery) || id.includes(lowerQuery);
-  });
+    return email && email === lowerQuery;
+  }) : [];
   const localIds = new Set(localMatches.map(c => c.id));
   const mergedRemote = remote.filter(u => !localIds.has(u.id));
 
