@@ -3859,7 +3859,7 @@ window.searchProfiles = async (q, limit = 8) => {
       name,
       email,
       username: uname,
-      secondary: email || (uname ? '@' + uname : ''),
+      secondary: uname ? '@' + uname : '',
       memberCode: Number.isFinite(Number(u.member_code)) ? String(Number(u.member_code)).padStart(3, '0') : '',
       color: c.bg,
       text: c.t,
@@ -4055,7 +4055,7 @@ window.searchFriends = async function() {
     const relations = await getFriendRelationsForUsers(filtered.map((u) => u.id));
 
     resDiv.innerHTML = filtered.map(u => {
-      const subtitle = u.email || (u.username ? `@${u.username}` : '—');
+      const subtitle = u.username ? `@${u.username}` : '—';
       const safeId = escapeAttr(u.id);
       const safeName = escapeHtml(u.name || 'User');
       const safeSubtitle = escapeHtml(subtitle);
@@ -8505,7 +8505,7 @@ function renderSidebarSearchResults(results){
     const safeText = escapeAttr(u.text || 'var(--accent)');
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
-    const safePreview = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    const safePreview = escapeHtml(u.secondary || (u.username ? '@' + u.username : ''));
     const userIsOnline = isUserOnline(u);
     return `
     <div class="contact" onclick="startChatFromSidebar('${safeId}')">
@@ -8551,7 +8551,7 @@ async function filterContacts(q){
 
   if(localMatches.length){
     const enriched = localMatches.concat(mergedRemote.map(u => ({
-      id:u.id,name:u.name,init:u.init,color:u.color,text:u.text,avatar:u.avatar || '',online:false,preview:u.email,time:'',unread:0
+      id:u.id,name:u.name,init:u.init,color:u.color,text:u.text,avatar:u.avatar || '',online:false,preview:u.username ? '@' + u.username : '',time:'',unread:0
     })));
     sidebarSearchResults = mergedRemote;
     renderContacts(enriched);
@@ -8604,7 +8604,7 @@ window.searchFromMainArea = async function(){
     const safeText = escapeAttr(u.text || 'var(--accent)');
     const safeName = escapeHtml(u.name || 'User');
     const safeCode = escapeHtml(window.getLabCode ? window.getLabCode(u.id) : '000');
-    const safeEmail = escapeHtml(u.secondary || u.email || (u.username ? '@' + u.username : ''));
+    const safeEmail = escapeHtml(u.secondary || (u.username ? '@' + u.username : ''));
     return `
     <div class="result-row" style="margin:0;" onclick="window.startChatFromMain('${safeId}')">
       <div class="avatar" style="background:${safeColor};color:${safeText};width:36px;height:36px;font-size:13px;" onclick="event.stopPropagation();openUserAvatarOrProfile('${safeId}')">${window.avatarMarkup(u.init, u.avatar)}</div>
