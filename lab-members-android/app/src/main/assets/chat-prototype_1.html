@@ -1191,7 +1191,7 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
 .bubble{backdrop-filter:blur(12px) saturate(1.2);-webkit-backdrop-filter:blur(12px) saturate(1.2);}
 .msg-group.out .bubble{background:rgba(var(--msg-out-rgb),.65);border-color:rgba(var(--accent-rgb),.2);}
 .msg-group.in .bubble{background:rgba(var(--msg-in-rgb),.6);border-color:var(--glass-border);}
-.input-area{padding:10px 14px 14px;border-top:1px solid var(--glass-border);gap:8px;background:transparent;}
+.input-area{padding:12px 24px 16px !important;border-top:1px solid var(--glass-border);gap:10px;background:transparent;box-sizing:border-box !important;}
 .input-wrap {
   display: flex !important;
   align-items: center !important;
@@ -1200,11 +1200,12 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   background: var(--glass-bg) !important;
   border: 1px solid var(--glass-border) !important;
   border-radius: 999px !important;
-  padding: 6px 12px !important;
+  padding: 6px 14px !important;
   gap: 8px !important;
   position: relative !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
+  box-sizing: border-box !important;
 }
 .input-wrap:focus-within {
   border-color: var(--accent) !important;
@@ -1640,13 +1641,16 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 8px !important;
+  gap: 10px !important;
+  padding: 12px 24px 16px !important;
+  box-sizing: border-box !important;
 }
 .input-main-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 /* Global Admin Broadcast Announcement Banner */
@@ -6870,11 +6874,6 @@ window.replyMessageFromMenu = function() {
 };
 
 function closeMessageMenu(event){
-  if (event && (event.type === 'click' || event.type === 'scroll')) {
-    if (Date.now() - (window.messageMenuOpenedTime || 0) < 400) {
-      return;
-    }
-  }
   const menu = document.getElementById('messageMenu');
   if(menu){
     menu.classList.remove('open');
@@ -8626,7 +8625,6 @@ function appendNewMessagesOnly(container, allMessages) {
 }
 
 function renderMessages(forceScrollToBottom = false){
-  closeMessageMenu();
   const el = document.getElementById('messages');
   
   if(!activeContact){
@@ -9635,25 +9633,28 @@ window.addEventListener('storage', (event) => {
     renderMessages();
   }
 });
-document.addEventListener('click', (event) => {
+document.addEventListener('pointerdown', (event) => {
   const menu = document.getElementById('messageMenu');
-  if(menu && menu.classList.contains('open') && !menu.contains(event.target)) closeMessageMenu(event);
+  if(menu && menu.classList.contains('open') && !menu.contains(event.target)) {
+    if (!event.target.closest('.msg-tool-btn')) {
+      closeMessageMenu(event);
+    }
+  }
   const chatMenu = document.getElementById('chatHeaderMenu');
   const chatBtn = document.getElementById('chatMenuBtn');
   if(chatMenu && chatMenu.classList.contains('open') && !chatMenu.contains(event.target) && !chatBtn?.contains(event.target)) closeChatHeaderMenu();
   const contactMenu = document.getElementById('contactContextMenu');
   if(contactMenu && contactMenu.classList.contains('open') && !contactMenu.contains(event.target)) closeContactContextMenu(event);
 });
-document.getElementById('messageMenu')?.addEventListener('click', (event) => {
+document.getElementById('messageMenu')?.addEventListener('pointerdown', (event) => {
   event.stopPropagation();
 });
-document.getElementById('chatHeaderMenu')?.addEventListener('click', (event) => {
+document.getElementById('chatHeaderMenu')?.addEventListener('pointerdown', (event) => {
   event.stopPropagation();
 });
-document.getElementById('contactContextMenu')?.addEventListener('click', (event) => {
+document.getElementById('contactContextMenu')?.addEventListener('pointerdown', (event) => {
   event.stopPropagation();
 });
-window.addEventListener('scroll', closeMessageMenu, true);
 let lastWindowWidth = window.innerWidth;
 let lastWindowHeight = window.innerHeight;
 window.addEventListener('resize', () => {
