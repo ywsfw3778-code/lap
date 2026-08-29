@@ -1,10 +1,18 @@
--- ==============================================================================
--- 🚀 LAB MEMBERS - COMPLETE DATABASE SETUP & ADMIN SCHEMA (100% All-in-One)
+﻿-- ==============================================================================
+-- 🚀 LAB MEMBERS - PRODUCTION-HARDENED DATABASE SETUP & SECURITY POLICIES
 -- ==============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1. جدول الحسابات والملفات الشخصية (Profiles Table)
+-- 1. جدول الأدوار الإدارية المحمية (Secure Admin Roles Table - لا يمكن للمستخدمين التعديل عليه)
+CREATE TABLE IF NOT EXISTS public.admin_roles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('superadmin', 'admin', 'moderator')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_by UUID REFERENCES auth.users(id)
+);
+
+-- 2. جدول الحسابات والملفات الشخصية (Profiles Table)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT UNIQUE,
@@ -21,78 +29,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE SEQUENCE IF NOT EXISTS public.member_code_seq START WITH 1 INCREMENT BY 1;
 SELECT setval('public.member_code_seq', greatest(1, coalesce((SELECT max(member_code) FROM public.profiles), 0) + 1), false);
 
--- 2. تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد (Auto Profile on Signup)
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, auth
-AS $$
-declare
-  v_next_code integer;
-  v_name text;
-begin
-  v_next_code := nextval('public.member_code_seq');
-  v_name := coalesce(
-    new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'name',
-    split_part(coalesce(new.email, ''), '@', 1),
-    'Lab Member'
-  );
-
-  INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
-  VALUES (
-    new.id,
-    lower(split_part(coalesce(new.email, new.id::text), '@', 1)),
-    v_name,
-    lower(new.email),
-    coalesce(new.raw_user_meta_data->>'avatar_url', ''),
-    v_next_code,
-    now()
-  )
-  ON CONFLICT (id) DO UPDATE
-  SET email = excluded.email,
-      full_name = coalesce(public.profiles.full_name, excluded.full_name),
-      updated_at = now();
-
-  INSERT INTO public.user_identities (user_id, email)
-  VALUES (new.id, lower(new.email))
-  ON CONFLICT DO NOTHING;
-
-  RETURN new;
-end;
-$$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
--- إدخال المستخدمين الجدد فقط إذا لم يكونوا موجودين مسبقاً
-INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
-SELECT 
-  u.id,
-  lower(split_part(coalesce(u.email, u.id::text), '@', 1)),
-  coalesce(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', split_part(coalesce(u.email, ''), '@', 1), 'User'),
-  lower(u.email),
-  coalesce(u.raw_user_meta_data->>'avatar_url', ''),
-  (coalesce((SELECT max(member_code) FROM public.profiles), 0) + row_number() over ()),
-  now()
-FROM auth.users u
-WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
-
--- تحديث تسلسل أكواد العضوية
-SELECT setval('public.member_code_seq', greatest(1, coalesce((SELECT max(member_code) FROM public.profiles), 0) + 1), false);
-
 -- 3. جدول هويات المستخدمين (User Identities)
 CREATE TABLE IF NOT EXISTS public.user_identities (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL
 );
-
-INSERT INTO public.user_identities (user_id, email)
-SELECT id, lower(email) FROM auth.users WHERE email IS NOT NULL
-ON CONFLICT (user_id) DO UPDATE SET email = excluded.email;
 
 -- 4. جدول الرسائل والمحادثات (Messages Table)
 CREATE TABLE IF NOT EXISTS public.messages (
@@ -148,47 +89,149 @@ CREATE TABLE IF NOT EXISTS public.admin_broadcasts (
 
 -- 8. جدول حظر رسائل المشرفين (Admin Message Blocks)
 CREATE TABLE IF NOT EXISTS public.admin_message_blocks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (admin_id, user_id),
-  CONSTRAINT admin_message_blocks_no_self CHECK (admin_id <> user_id)
+  UNIQUE (admin_id, user_id)
 );
 
--- 9. جدول الأجهزة المعروفة للمستخدمين (Known Devices)
+-- 9. جدول الأجهزة المعروفة (Known Devices)
 CREATE TABLE IF NOT EXISTS public.user_known_devices (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  device_fid TEXT NOT NULL,
-  device_name TEXT NOT NULL,
-  device_type TEXT NOT NULL DEFAULT 'desktop',
-  os_name TEXT,
+  device_fingerprint TEXT NOT NULL,
   browser_name TEXT,
+  os_name TEXT,
   ip_address TEXT,
   first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT user_known_devices_uniq UNIQUE (user_id, device_fid)
+  is_trusted BOOLEAN NOT NULL DEFAULT true,
+  UNIQUE(user_id, device_fingerprint)
 );
 
--- 10. جدول سجلات تسجيل الدخول الأمنية (Login Security Logs)
+-- 10. جدول سجلات الدخول (Login Logs)
 CREATE TABLE IF NOT EXISTS public.user_login_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  device_fid TEXT NOT NULL,
-  device_name TEXT NOT NULL,
-  device_type TEXT NOT NULL DEFAULT 'desktop',
-  os_name TEXT,
+  device_fingerprint TEXT,
   browser_name TEXT,
+  os_name TEXT,
   ip_address TEXT,
-  is_new_device BOOLEAN DEFAULT false,
+  country TEXT,
+  city TEXT,
+  is_new_device BOOLEAN NOT NULL DEFAULT false,
   logged_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_next_code integer;
+  v_name text;
+begin
+  v_next_code := nextval('public.member_code_seq');
+  v_name := coalesce(
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'name',
+    split_part(coalesce(new.email, ''), '@', 1),
+    'Lab Member'
+  );
+
+  INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
+  VALUES (
+    new.id,
+    lower(split_part(coalesce(new.email, new.id::text), '@', 1)),
+    v_name,
+    lower(new.email),
+    coalesce(new.raw_user_meta_data->>'avatar_url', ''),
+    v_next_code,
+    now()
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET email = excluded.email,
+      full_name = coalesce(public.profiles.full_name, excluded.full_name),
+      updated_at = now();
+
+  INSERT INTO public.user_identities (user_id, email)
+  VALUES (new.id, lower(new.email))
+  ON CONFLICT (user_id) DO UPDATE SET email = excluded.email;
+
+  -- إعطاء رتبة المشرف الرئيسي تلقائياً عند تسجيل المالك
+  IF lower(trim(coalesce(new.email, ''))) = 'ywsfw3778@gmail.com' THEN
+    INSERT INTO public.admin_roles (user_id, role)
+    VALUES (new.id, 'superadmin')
+    ON CONFLICT (user_id) DO NOTHING;
+  END IF;
+
+  RETURN new;
+end;
+$$;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+AFTER INSERT ON auth.users
+FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- إدخال المستخدمين الحاليين في profiles و user_identities و admin_roles
+INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
+SELECT 
+  u.id,
+  lower(split_part(coalesce(u.email, u.id::text), '@', 1)),
+  coalesce(u.raw_user_meta_data->>'full_name', u.raw_user_meta_data->>'name', split_part(coalesce(u.email, ''), '@', 1), 'User'),
+  lower(u.email),
+  coalesce(u.raw_user_meta_data->>'avatar_url', ''),
+  (coalesce((SELECT max(member_code) FROM public.profiles), 0) + row_number() over ()),
+  now()
+FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = u.id);
+
+INSERT INTO public.user_identities (user_id, email)
+SELECT id, lower(email) FROM auth.users WHERE email IS NOT NULL
+ON CONFLICT (user_id) DO UPDATE SET email = excluded.email;
+
+INSERT INTO public.admin_roles (user_id, role)
+SELECT id, 'superadmin' FROM auth.users WHERE lower(email) = 'ywsfw3778@gmail.com'
+ON CONFLICT (user_id) DO NOTHING;
+
 -- ==============================================================================
--- 🔒 دوال الأمان والباك إند (RPC & Stored Procedures)
+-- 🛡️ دوال التحقق من المشرفين والأمان (Secure Verification Functions)
 -- ==============================================================================
 
--- دالة التحقق من أن المستدعي هو المشرف
+CREATE OR REPLACE FUNCTION public.is_admin_caller()
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  caller_email text;
+  caller_id uuid;
+begin
+  caller_id := auth.uid();
+  caller_email := lower(trim(coalesce(auth.jwt()->>'email', '')));
+  
+  -- 1. المالك الأساسي دائم الصلاحية
+  IF caller_email = 'ywsfw3778@gmail.com' THEN
+    RETURN true;
+  END IF;
+  
+  -- 2. التحقق من جدول المشرفين المحمي في قاعدة البيانات (وليس من metadata العميل)
+  IF caller_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.admin_roles WHERE user_id = caller_id
+  ) THEN
+    RETURN true;
+  END IF;
+  
+  RETURN false;
+end;
+$$;
+
 CREATE OR REPLACE FUNCTION public.assert_admin_caller()
 RETURNS text
 LANGUAGE plpgsql
@@ -197,79 +240,19 @@ SET search_path = public, auth
 AS $$
 declare
   caller_email text;
-  is_admin_flag boolean;
 begin
-  caller_email := lower(trim(coalesce(auth.jwt()->>'email', '')));
-  is_admin_flag := coalesce((auth.jwt()->'user_metadata'->>'is_admin')::boolean, false);
-
-  IF caller_email <> 'ywsfw3778@gmail.com' AND NOT is_admin_flag THEN
+  IF NOT public.is_admin_caller() THEN
     RAISE EXCEPTION 'Unauthorized: Only platform administrators can execute this function.';
   END IF;
-  return caller_email;
+  caller_email := lower(trim(coalesce(auth.jwt()->>'email', '')));
+  RETURN caller_email;
 end;
 $$;
 
--- دالة تحديث بيانات وصورة المستخدم بواسطة الإدارة
-CREATE OR REPLACE FUNCTION public.admin_update_user_profile(
-  target_user_id UUID,
-  new_name TEXT,
-  new_member_code INTEGER,
-  new_avatar_url TEXT DEFAULT NULL
-)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, auth
-AS $$
-declare
-  v_admin text;
-begin
-  v_admin := public.assert_admin_caller();
+-- ==============================================================================
+-- 📊 دوال الإدارة ولوحة التحكم (Admin RPCs)
+-- ==============================================================================
 
-  UPDATE public.profiles
-  SET full_name = coalesce(nullif(trim(new_name), ''), full_name),
-      member_code = coalesce(new_member_code, member_code),
-      avatar_url = CASE 
-        WHEN new_avatar_url = '__REMOVE__' THEN NULL
-        WHEN new_avatar_url IS NOT NULL THEN new_avatar_url
-        ELSE avatar_url
-      END,
-      updated_at = now()
-  WHERE id = target_user_id;
-
-  RETURN true;
-end;
-$$;
-
--- دالة حظر / فك حظر مستخدم
-CREATE OR REPLACE FUNCTION public.admin_set_user_ban(
-  target_user_id UUID,
-  ban_status BOOLEAN,
-  reason_text TEXT DEFAULT ''
-)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, auth
-AS $$
-declare
-  v_admin text;
-begin
-  v_admin := public.assert_admin_caller();
-
-  INSERT INTO public.admin_user_moderation (user_id, is_banned, ban_reason, banned_by, banned_at, updated_at)
-  VALUES (target_user_id, ban_status, reason_text, auth.uid(), now(), now())
-  ON CONFLICT (user_id) DO UPDATE
-  SET is_banned = excluded.is_banned,
-      ban_reason = excluded.ban_reason,
-      banned_by = auth.uid(),
-      updated_at = now();
-
-  RETURN true;
-end;
-$$;
-
--- دالة إحصائيات لوحة التحكم الشاملة
 CREATE OR REPLACE FUNCTION public.admin_get_dashboard_stats()
 RETURNS json
 LANGUAGE plpgsql
@@ -285,18 +268,29 @@ declare
   v_total_voice_messages integer;
   v_total_image_messages integer;
   v_banned_users integer;
+  v_stats json;
 begin
   v_admin := public.assert_admin_caller();
 
   SELECT count(*) INTO v_total_users FROM public.profiles;
-  SELECT count(*) INTO v_online_users FROM public.profiles WHERE last_seen_at >= (now() - interval '5 minutes');
-  SELECT count(*) INTO v_total_messages FROM public.messages;
-  SELECT count(*) INTO v_total_voice_messages FROM public.messages WHERE content LIKE '[voice]%' OR content LIKE '[audio]%';
-  SELECT count(*) INTO v_total_image_messages FROM public.messages WHERE content LIKE '[image]%';
-  SELECT count(*) INTO v_total_friend_requests FROM public.friend_requests;
-  SELECT count(*) INTO v_banned_users FROM public.admin_user_moderation WHERE is_banned = true;
 
-  RETURN json_build_object(
+  SELECT count(*) INTO v_online_users FROM public.profiles 
+  WHERE last_seen_at >= (now() - interval '5 minutes');
+
+  SELECT count(*) INTO v_total_messages FROM public.messages;
+
+  SELECT count(*) INTO v_total_voice_messages FROM public.messages 
+  WHERE content LIKE '[voice]%' OR content LIKE '[audio]%';
+
+  SELECT count(*) INTO v_total_image_messages FROM public.messages 
+  WHERE content LIKE '[image]%';
+
+  SELECT count(*) INTO v_total_friend_requests FROM public.friend_requests;
+
+  SELECT count(*) INTO v_banned_users FROM public.admin_user_moderation 
+  WHERE is_banned = true;
+
+  v_stats := json_build_object(
     'total_users', coalesce(v_total_users, 0),
     'online_users', coalesce(v_online_users, 0),
     'total_messages', coalesce(v_total_messages, 0),
@@ -306,10 +300,11 @@ begin
     'banned_users', coalesce(v_banned_users, 0),
     'server_time', now()
   );
+
+  return v_stats;
 end;
 $$;
 
--- دالة جلب قائمة كل المستخدمين للإدارة
 CREATE OR REPLACE FUNCTION public.admin_get_all_users()
 RETURNS TABLE (
   id UUID,
@@ -344,7 +339,7 @@ begin
     p.last_seen_at,
     u.created_at,
     (lower(coalesce(p.email, u.email, '')) = 'ywsfw3778@gmail.com' 
-     OR coalesce((u.raw_user_meta_data->>'is_admin')::boolean, false) = true) as is_admin,
+     OR EXISTS (SELECT 1 FROM public.admin_roles ar WHERE ar.user_id = u.id)) as is_admin,
     coalesce(m.is_banned, false) as is_banned,
     coalesce(m.ban_reason, '') as ban_reason
   FROM auth.users u
@@ -354,7 +349,104 @@ begin
 end;
 $$;
 
--- دالة إنشاء إعلان جماعي
+CREATE OR REPLACE FUNCTION public.admin_set_user_ban(
+  target_user_id UUID,
+  ban_status BOOLEAN,
+  reason_text TEXT DEFAULT ''
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_admin text;
+  v_target_email text;
+begin
+  v_admin := public.assert_admin_caller();
+
+  SELECT lower(coalesce(email, '')) INTO v_target_email FROM auth.users WHERE id = target_user_id;
+  IF v_target_email = 'ywsfw3778@gmail.com' THEN
+    RAISE EXCEPTION 'Cannot ban the primary platform owner.';
+  END IF;
+
+  INSERT INTO public.admin_user_moderation (user_id, is_banned, ban_reason, banned_by, banned_at, updated_at)
+  VALUES (target_user_id, ban_status, reason_text, auth.uid(), now(), now())
+  ON CONFLICT (user_id) DO UPDATE
+  SET is_banned = excluded.is_banned,
+      ban_reason = excluded.ban_reason,
+      banned_by = auth.uid(),
+      updated_at = now();
+
+  RETURN true;
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_set_user_admin(
+  target_user_id UUID,
+  is_admin_status BOOLEAN
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_admin text;
+  v_target_email text;
+begin
+  v_admin := public.assert_admin_caller();
+
+  SELECT lower(coalesce(email, '')) INTO v_target_email
+  FROM auth.users
+  WHERE id = target_user_id;
+
+  IF v_target_email = 'ywsfw3778@gmail.com' AND NOT is_admin_status THEN
+    RAISE EXCEPTION 'Cannot demote the primary owner.';
+  END IF;
+
+  IF is_admin_status THEN
+    INSERT INTO public.admin_roles (user_id, role, created_by)
+    VALUES (target_user_id, 'admin', auth.uid())
+    ON CONFLICT (user_id) DO NOTHING;
+  ELSE
+    DELETE FROM public.admin_roles WHERE user_id = target_user_id;
+  END IF;
+
+  RETURN true;
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_update_user_profile(
+  target_user_id UUID,
+  new_name TEXT,
+  new_member_code INTEGER,
+  new_avatar_url TEXT DEFAULT NULL
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_admin text;
+begin
+  v_admin := public.assert_admin_caller();
+
+  UPDATE public.profiles
+  SET full_name = coalesce(nullif(trim(new_name), ''), full_name),
+      member_code = coalesce(new_member_code, member_code),
+      avatar_url = CASE 
+        WHEN new_avatar_url = '__REMOVE__' THEN NULL
+        WHEN new_avatar_url IS NOT NULL THEN new_avatar_url
+        ELSE avatar_url
+      END
+  WHERE id = target_user_id;
+
+  RETURN true;
+end;
+$$;
+
 CREATE OR REPLACE FUNCTION public.admin_create_broadcast(
   p_title TEXT,
   p_content TEXT,
@@ -383,70 +475,7 @@ begin
 end;
 $$;
 
--- دالة تسجيل الجهاز وفحص هل هو جهاز جديد لإرسال إشعار الأمان (Device Registration & New Device Check)
-CREATE OR REPLACE FUNCTION public.register_device_and_check_is_new(
-  p_device_fid TEXT,
-  p_device_name TEXT,
-  p_device_type TEXT DEFAULT 'desktop',
-  p_os TEXT DEFAULT '',
-  p_browser TEXT DEFAULT '',
-  p_ip TEXT DEFAULT ''
-)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, auth
-AS $$
-declare
-  v_user_id UUID;
-  v_exists boolean;
-begin
-  v_user_id := auth.uid();
-  IF v_user_id IS NULL THEN
-    RETURN false;
-  END IF;
-
-  -- فحص هل البصمة مسجلة للمستخدم مسبقاً
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_known_devices
-    WHERE user_id = v_user_id AND device_fid = p_device_fid
-  ) INTO v_exists;
-
-  IF NOT v_exists THEN
-    -- تسجيل الجهاز الجديد لأول مرة
-    INSERT INTO public.user_known_devices (user_id, device_fid, device_name, device_type, os_name, browser_name, ip_address, first_seen_at, last_seen_at)
-    VALUES (v_user_id, p_device_fid, p_device_name, p_device_type, p_os, p_browser, p_ip, now(), now())
-    ON CONFLICT (user_id, device_fid) DO UPDATE
-    SET last_seen_at = now(),
-        device_name = excluded.device_name,
-        ip_address = coalesce(excluded.ip_address, public.user_known_devices.ip_address);
-
-    -- تسجيل سجل دخول جديد
-    INSERT INTO public.user_login_logs (user_id, device_fid, device_name, device_type, os_name, browser_name, ip_address, is_new_device, logged_at)
-    VALUES (v_user_id, p_device_fid, p_device_name, p_device_type, p_os, p_browser, p_ip, true, now());
-
-    RETURN true; -- جهاز جديد لأول مرة -> يتطلب إشعار أمان
-  ELSE
-    -- تحديث وقت آخر ظهور للجهاز
-    UPDATE public.user_known_devices
-    SET last_seen_at = now(),
-        device_name = coalesce(nullif(p_device_name, ''), device_name),
-        ip_address = coalesce(nullif(p_ip, ''), ip_address)
-    WHERE user_id = v_user_id AND device_fid = p_device_fid;
-
-    INSERT INTO public.user_login_logs (user_id, device_fid, device_name, device_type, os_name, browser_name, ip_address, is_new_device, logged_at)
-    VALUES (v_user_id, p_device_fid, p_device_name, p_device_type, p_os, p_browser, p_ip, false, now());
-
-    RETURN false; -- جهاز معروف سابقاً
-  END IF;
-end;
-$$;
-
--- دالة تعيين أو إلغاء رتبة المشرف لمستخدم (Set/Unset Admin Role)
-CREATE OR REPLACE FUNCTION public.admin_set_user_admin(
-  target_user_id UUID,
-  is_admin_status BOOLEAN
-)
+CREATE OR REPLACE FUNCTION public.admin_purge_all_messages()
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -454,40 +483,13 @@ SET search_path = public, auth
 AS $$
 declare
   v_admin text;
-  v_target_email text;
 begin
   v_admin := public.assert_admin_caller();
-
-  SELECT lower(coalesce(email, '')) INTO v_target_email
-  FROM auth.users
-  WHERE id = target_user_id;
-
-  IF v_target_email = 'ywsfw3778@gmail.com' AND NOT is_admin_status THEN
-    RAISE EXCEPTION 'Cannot demote the primary owner.';
-  END IF;
-
-  UPDATE auth.users
-  SET raw_user_meta_data = jsonb_set(
-    coalesce(raw_user_meta_data, '{}'::jsonb),
-    '{is_admin}',
-    to_jsonb(is_admin_status)
-  )
-  WHERE id = target_user_id;
-
-  BEGIN
-    UPDATE public.profiles
-    SET is_admin = is_admin_status,
-        updated_at = now()
-    WHERE id = target_user_id;
-  EXCEPTION WHEN undefined_column THEN
-    NULL;
-  END;
-
+  TRUNCATE TABLE public.messages RESTART IDENTITY CASCADE;
   RETURN true;
 end;
 $$;
 
--- دالة حذف حساب مستخدم نهائياً بكافة بياناته (Delete User Completely)
 CREATE OR REPLACE FUNCTION public.admin_delete_user(
   target_user_id UUID
 )
@@ -514,6 +516,7 @@ begin
   DELETE FROM public.friend_requests WHERE sender_id = target_user_id OR receiver_id = target_user_id;
   DELETE FROM public.admin_user_moderation WHERE user_id = target_user_id;
   DELETE FROM public.admin_message_blocks WHERE admin_id = target_user_id OR user_id = target_user_id;
+  DELETE FROM public.admin_roles WHERE user_id = target_user_id;
   DELETE FROM public.user_identities WHERE user_id = target_user_id;
   DELETE FROM public.profiles WHERE id = target_user_id;
   DELETE FROM auth.users WHERE id = target_user_id;
@@ -522,10 +525,164 @@ begin
 end;
 $$;
 
+-- دالة تسجيل الأجهزة
+CREATE OR REPLACE FUNCTION public.register_device_and_check_is_new(
+  p_device_fingerprint TEXT,
+  p_browser_name TEXT DEFAULT NULL,
+  p_os_name TEXT DEFAULT NULL,
+  p_ip_address TEXT DEFAULT NULL,
+  p_country TEXT DEFAULT NULL,
+  p_city TEXT DEFAULT NULL
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_user_id UUID;
+  v_is_new BOOLEAN := false;
+  v_existing_id UUID;
+begin
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Not authenticated');
+  END IF;
+
+  SELECT id INTO v_existing_id
+  FROM public.user_known_devices
+  WHERE user_id = v_user_id AND device_fingerprint = p_device_fingerprint;
+
+  IF v_existing_id IS NULL THEN
+    v_is_new := true;
+    INSERT INTO public.user_known_devices (user_id, device_fingerprint, browser_name, os_name, ip_address, first_seen_at, last_seen_at)
+    VALUES (v_user_id, p_device_fingerprint, p_browser_name, p_os_name, p_ip_address, now(), now());
+  ELSE
+    UPDATE public.user_known_devices
+    SET last_seen_at = now(),
+        browser_name = coalesce(p_browser_name, browser_name),
+        os_name = coalesce(p_os_name, os_name),
+        ip_address = coalesce(p_ip_address, ip_address)
+    WHERE id = v_existing_id;
+  END IF;
+
+  INSERT INTO public.user_login_logs (user_id, device_fingerprint, browser_name, os_name, ip_address, country, city, is_new_device, logged_at)
+  VALUES (v_user_id, p_device_fingerprint, p_browser_name, p_os_name, p_ip_address, p_country, p_city, v_is_new, now());
+
+  RETURN json_build_object(
+    'success', true,
+    'is_new_device', v_is_new,
+    'user_id', v_user_id
+  );
+end;
+$$;
+
+-- دوال المحادثات وقائمة جهات الاتصال
+CREATE OR REPLACE FUNCTION public.get_chat_messages(
+  partner_user_id UUID,
+  result_limit INT DEFAULT 500
+)
+RETURNS TABLE (
+  id BIGINT,
+  sender_id UUID,
+  receiver_id UUID,
+  content TEXT,
+  created_at TIMESTAMPTZ,
+  read_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_me UUID;
+begin
+  v_me := auth.uid();
+  IF v_me IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  RETURN QUERY
+  SELECT m.id, m.sender_id, m.receiver_id, m.content, m.created_at, m.read_at
+  FROM public.messages m
+  WHERE (m.sender_id = v_me AND m.receiver_id = partner_user_id)
+     OR (m.sender_id = partner_user_id AND m.receiver_id = v_me)
+  ORDER BY m.created_at ASC
+  LIMIT coalesce(result_limit, 500);
+end;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_inbox_contacts()
+RETURNS TABLE (
+  partner_id UUID,
+  name TEXT,
+  username TEXT,
+  email TEXT,
+  avatar_url TEXT,
+  member_code INTEGER,
+  last_seen_at TIMESTAMPTZ,
+  last_content TEXT,
+  last_created_at TIMESTAMPTZ,
+  unread_count BIGINT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+declare
+  v_me UUID;
+begin
+  v_me := auth.uid();
+  IF v_me IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+
+  RETURN QUERY
+  WITH partner_msgs AS (
+    SELECT 
+      CASE WHEN m.sender_id = v_me THEN m.receiver_id ELSE m.sender_id END as pid,
+      m.content,
+      m.created_at,
+      m.read_at,
+      m.sender_id,
+      ROW_NUMBER() OVER (PARTITION BY (CASE WHEN m.sender_id = v_me THEN m.receiver_id ELSE m.sender_id END) ORDER BY m.created_at DESC) as rn
+    FROM public.messages m
+    WHERE m.sender_id = v_me OR m.receiver_id = v_me
+  ),
+  latest_per_partner AS (
+    SELECT pm.pid, pm.content, pm.created_at
+    FROM partner_msgs pm
+    WHERE pm.rn = 1
+  ),
+  unread_per_partner AS (
+    SELECT m.sender_id as pid, count(*) as unreads
+    FROM public.messages m
+    WHERE m.receiver_id = v_me AND m.read_at IS NULL
+    GROUP BY m.sender_id
+  )
+  SELECT 
+    l.pid as partner_id,
+    coalesce(p.full_name, p.username, 'User') as name,
+    p.username,
+    p.email,
+    p.avatar_url,
+    p.member_code,
+    p.last_seen_at,
+    l.content as last_content,
+    l.created_at as last_created_at,
+    coalesce(u.unreads, 0)::BIGINT as unread_count
+  FROM latest_per_partner l
+  LEFT JOIN public.profiles p ON p.id = l.pid
+  LEFT JOIN unread_per_partner u ON u.pid = l.pid
+  ORDER BY l.created_at DESC;
+end;
+$$;
+
 -- ==============================================================================
--- 🔐 سياسات الحماية (Row Level Security - RLS)
+-- 🔐 سياسات الحماية المشددة (Row Level Security - RLS)
 -- ==============================================================================
 
+ALTER TABLE public.admin_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
@@ -536,19 +693,17 @@ ALTER TABLE public.admin_message_blocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_known_devices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_login_logs ENABLE ROW LEVEL SECURITY;
 
--- سياسات الأجهزة المعروفة وسجلات الدخول (User Devices & Logs RLS)
-DROP POLICY IF EXISTS "user_known_devices_self" ON public.user_known_devices;
-CREATE POLICY "user_known_devices_self" ON public.user_known_devices FOR ALL TO authenticated USING (auth.uid() = user_id);
+-- 1. سياسات رتب الأدمن (Admin Roles RLS)
+DROP POLICY IF EXISTS "admin_roles_read" ON public.admin_roles;
+CREATE POLICY "admin_roles_read" ON public.admin_roles FOR SELECT TO authenticated
+USING (auth.uid() = user_id OR public.is_admin_caller());
 
-DROP POLICY IF EXISTS "user_login_logs_self" ON public.user_login_logs;
-CREATE POLICY "user_login_logs_self" ON public.user_login_logs FOR SELECT TO authenticated USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "admin_roles_modify" ON public.admin_roles;
+CREATE POLICY "admin_roles_modify" ON public.admin_roles FOR ALL TO authenticated
+USING (public.is_admin_caller())
+WITH CHECK (public.is_admin_caller());
 
--- منح صلاحيات الاستدعاء
-GRANT EXECUTE ON FUNCTION public.register_device_and_check_is_new(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_set_user_admin(UUID, BOOLEAN) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
-
--- 1. سياسات البروفايلات (Profiles RLS - تسمح للمشرف بتعديل كل الحسابات)
+-- 2. سياسات البروفايلات (Profiles RLS)
 DROP POLICY IF EXISTS "profiles_select_all" ON public.profiles;
 CREATE POLICY "profiles_select_all" ON public.profiles FOR SELECT TO authenticated USING (true);
 
@@ -557,24 +712,16 @@ CREATE POLICY "profiles_insert_self" ON public.profiles FOR INSERT TO authentica
 
 DROP POLICY IF EXISTS "profiles_update_admin_or_self" ON public.profiles;
 CREATE POLICY "profiles_update_admin_or_self" ON public.profiles FOR UPDATE TO authenticated
-USING (
-  auth.uid() = id
-  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
-  OR coalesce((auth.jwt()->'user_metadata'->>'is_admin')::boolean, false) = true
-)
-WITH CHECK (
-  auth.uid() = id
-  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
-  OR coalesce((auth.jwt()->'user_metadata'->>'is_admin')::boolean, false) = true
-);
+USING (auth.uid() = id OR public.is_admin_caller())
+WITH CHECK (auth.uid() = id OR public.is_admin_caller());
 
--- 2. سياسات الرسائل (Messages RLS)
+-- 3. سياسات الرسائل (Messages RLS)
 DROP POLICY IF EXISTS "messages_select_all_related" ON public.messages;
 CREATE POLICY "messages_select_all_related" ON public.messages FOR SELECT TO authenticated
 USING (
   auth.uid() = sender_id 
   OR auth.uid() = receiver_id
-  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
+  OR public.is_admin_caller()
 );
 
 DROP POLICY IF EXISTS "messages_insert_user" ON public.messages;
@@ -592,7 +739,7 @@ CREATE POLICY "messages_delete_owner_or_admin" ON public.messages FOR DELETE TO 
 USING (
   auth.uid() = sender_id 
   OR auth.uid() = receiver_id
-  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
+  OR public.is_admin_caller()
 );
 
 DROP POLICY IF EXISTS "messages_update_owner_or_admin" ON public.messages;
@@ -600,53 +747,186 @@ CREATE POLICY "messages_update_owner_or_admin" ON public.messages FOR UPDATE TO 
 USING (
   auth.uid() = sender_id 
   OR auth.uid() = receiver_id
-  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
+  OR public.is_admin_caller()
 )
 WITH CHECK (
   auth.uid() = sender_id 
   OR auth.uid() = receiver_id
-  OR lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com'
+  OR public.is_admin_caller()
 );
 
--- 3. سياسات الحظر والتعميمات
+-- 4. سياسات طلبات الصداقة (Friend Requests RLS)
+DROP POLICY IF EXISTS "friend_requests_select" ON public.friend_requests;
+CREATE POLICY "friend_requests_select" ON public.friend_requests FOR SELECT TO authenticated
+USING (
+  auth.uid() = sender_id 
+  OR auth.uid() = receiver_id
+  OR public.is_admin_caller()
+);
+
+DROP POLICY IF EXISTS "friend_requests_insert" ON public.friend_requests;
+CREATE POLICY "friend_requests_insert" ON public.friend_requests FOR INSERT TO authenticated
+WITH CHECK (auth.uid() = sender_id);
+
+DROP POLICY IF EXISTS "friend_requests_update" ON public.friend_requests;
+CREATE POLICY "friend_requests_update" ON public.friend_requests FOR UPDATE TO authenticated
+USING (auth.uid() = sender_id OR auth.uid() = receiver_id OR public.is_admin_caller())
+WITH CHECK (auth.uid() = sender_id OR auth.uid() = receiver_id OR public.is_admin_caller());
+
+DROP POLICY IF EXISTS "friend_requests_delete" ON public.friend_requests;
+CREATE POLICY "friend_requests_delete" ON public.friend_requests FOR DELETE TO authenticated
+USING (auth.uid() = sender_id OR auth.uid() = receiver_id OR public.is_admin_caller());
+
+-- 5. سياسات هويات المستخدمين (User Identities RLS - محمية)
+DROP POLICY IF EXISTS "user_identities_policy" ON public.user_identities;
+CREATE POLICY "user_identities_policy" ON public.user_identities FOR SELECT TO authenticated
+USING (auth.uid() = user_id OR public.is_admin_caller());
+
+-- 6. سياسات الحظر الإداري (Moderation RLS)
 DROP POLICY IF EXISTS "admin_user_moderation_read" ON public.admin_user_moderation;
-CREATE POLICY "admin_user_moderation_read" ON public.admin_user_moderation FOR SELECT TO authenticated USING (true);
+CREATE POLICY "admin_user_moderation_read" ON public.admin_user_moderation FOR SELECT TO authenticated
+USING (auth.uid() = user_id OR public.is_admin_caller());
 
 DROP POLICY IF EXISTS "admin_user_moderation_admin" ON public.admin_user_moderation;
 CREATE POLICY "admin_user_moderation_admin" ON public.admin_user_moderation FOR ALL TO authenticated
-USING (lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com');
+USING (public.is_admin_caller())
+WITH CHECK (public.is_admin_caller());
 
+-- 7. سياسات الإعلانات العامة (Broadcasts RLS)
 DROP POLICY IF EXISTS "admin_broadcasts_select" ON public.admin_broadcasts;
-CREATE POLICY "admin_broadcasts_select" ON public.admin_broadcasts FOR SELECT TO authenticated USING (true);
+CREATE POLICY "admin_broadcasts_select" ON public.admin_broadcasts FOR SELECT TO authenticated
+USING (is_active = true OR public.is_admin_caller());
 
 DROP POLICY IF EXISTS "admin_broadcasts_admin" ON public.admin_broadcasts;
 CREATE POLICY "admin_broadcasts_admin" ON public.admin_broadcasts FOR ALL TO authenticated
-USING (lower(coalesce(auth.jwt()->>'email', '')) = 'ywsfw3778@gmail.com');
+USING (public.is_admin_caller())
+WITH CHECK (public.is_admin_caller());
 
-DROP POLICY IF EXISTS "user_identities_all" ON public.user_identities;
-CREATE POLICY "user_identities_all" ON public.user_identities FOR SELECT TO authenticated USING (true);
+-- 8. سياسات الأجهزة وسجلات الدخول (Devices & Logs RLS)
+DROP POLICY IF EXISTS "user_known_devices_self" ON public.user_known_devices;
+CREATE POLICY "user_known_devices_self" ON public.user_known_devices FOR ALL TO authenticated
+USING (auth.uid() = user_id OR public.is_admin_caller());
 
--- 4. إعطاء الصلاحيات لجميع الدوال والجداول (Grants)
+DROP POLICY IF EXISTS "user_login_logs_self" ON public.user_login_logs;
+CREATE POLICY "user_login_logs_self" ON public.user_login_logs FOR SELECT TO authenticated
+USING (auth.uid() = user_id OR public.is_admin_caller());
+
+-- ==============================================================================
+-- 🔒 ضبط الصلاحيات الدقيقة (Least Privilege Grants - إزالة GRANT ALL الخطيرة)
+-- ==============================================================================
+
+-- 1. إلغاء أي صلاحيات عامة واسعة وغير آمنة
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon;
+REVOKE ALL ON ALL ROUTINES IN SCHEMA public FROM anon;
+
+-- 2. إعطاء الصلاحيات المحددة فقط
 GRANT USAGE ON SCHEMA public TO authenticated, anon;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated, anon;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated, anon;
-GRANT ALL ON ALL ROUTINES IN SCHEMA public TO authenticated, anon;
+
+GRANT SELECT, INSERT, UPDATE ON public.profiles TO authenticated;
+GRANT SELECT ON public.profiles TO anon;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.messages TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.friend_requests TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.user_identities TO authenticated;
+GRANT SELECT ON public.admin_broadcasts TO authenticated;
+GRANT SELECT ON public.admin_user_moderation TO authenticated;
+GRANT SELECT ON public.admin_roles TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.user_known_devices TO authenticated;
+GRANT SELECT, INSERT ON public.user_login_logs TO authenticated;
+
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.is_admin_caller() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_chat_messages(UUID, INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_inbox_contacts() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_get_dashboard_stats() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_get_all_users() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_ban(UUID, BOOLEAN, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_user_profile(UUID, TEXT, INTEGER, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_create_broadcast(TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_purge_all_messages() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_admin(UUID, BOOLEAN) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_user(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.register_device_and_check_is_new(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
 
 -- ==============================================================================
--- 📁 مجلدات التخزين السحابي (Storage Buckets for Avatars & Voices)
+-- 📁 مجلدات التخزين السحابي المحمية (Storage Buckets for Avatars & Voices)
 -- ==============================================================================
+
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true), ('voices', 'voices', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
+-- 1. Avatars: القراءة عامة، والرفع مقيد فقط بمسار المستخدم (auth.uid()/...)
+DROP POLICY IF EXISTS "avatars_select_public" ON storage.objects;
 DROP POLICY IF EXISTS "avatars_public_select" ON storage.objects;
-CREATE POLICY "avatars_public_select" ON storage.objects FOR SELECT TO authenticated, anon
-USING (bucket_id = 'avatars' OR bucket_id = 'voices');
+CREATE POLICY "avatars_select_public" ON storage.objects FOR SELECT TO authenticated, anon
+USING (bucket_id = 'avatars');
 
+DROP POLICY IF EXISTS "avatars_insert_own" ON storage.objects;
 DROP POLICY IF EXISTS "avatars_authenticated_insert" ON storage.objects;
-CREATE POLICY "avatars_authenticated_insert" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'avatars' OR bucket_id = 'voices');
+CREATE POLICY "avatars_insert_own" ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars' 
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR name LIKE (auth.uid()::text || '/%')
+    OR name LIKE (auth.uid()::text || '_%')
+    OR public.is_admin_caller()
+  )
+);
 
+DROP POLICY IF EXISTS "avatars_update_own" ON storage.objects;
 DROP POLICY IF EXISTS "avatars_authenticated_update" ON storage.objects;
-CREATE POLICY "avatars_authenticated_update" ON storage.objects FOR UPDATE TO authenticated
-USING (bucket_id = 'avatars' OR bucket_id = 'voices');
+CREATE POLICY "avatars_update_own" ON storage.objects FOR UPDATE TO authenticated
+USING (
+  bucket_id = 'avatars' 
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR name LIKE (auth.uid()::text || '/%')
+    OR name LIKE (auth.uid()::text || '_%')
+    OR public.is_admin_caller()
+  )
+);
+
+DROP POLICY IF EXISTS "avatars_delete_own" ON storage.objects;
+CREATE POLICY "avatars_delete_own" ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'avatars' 
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR name LIKE (auth.uid()::text || '/%')
+    OR name LIKE (auth.uid()::text || '_%')
+    OR public.is_admin_caller()
+  )
+);
+
+-- 2. Voices: الصوتيات مقيدة بالقراءة للمصرح لهم، والرفع فقط في مسار صاحب التسجيل
+DROP POLICY IF EXISTS "voices_select_authenticated" ON storage.objects;
+CREATE POLICY "voices_select_authenticated" ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'voices');
+
+DROP POLICY IF EXISTS "voices_insert_own" ON storage.objects;
+CREATE POLICY "voices_insert_own" ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'voices' 
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR name LIKE (auth.uid()::text || '/%')
+    OR name LIKE (auth.uid()::text || '_%')
+    OR public.is_admin_caller()
+  )
+);
+
+DROP POLICY IF EXISTS "voices_delete_own" ON storage.objects;
+CREATE POLICY "voices_delete_own" ON storage.objects FOR DELETE TO authenticated
+USING (
+  bucket_id = 'voices' 
+  AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR name LIKE (auth.uid()::text || '/%')
+    OR name LIKE (auth.uid()::text || '_%')
+    OR public.is_admin_caller()
+  )
+);
