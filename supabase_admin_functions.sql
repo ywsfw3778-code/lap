@@ -123,6 +123,24 @@ CREATE TABLE IF NOT EXISTS public.user_login_logs (
   logged_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- حذف الدوال القديمة لتفادي أخطاء تغيير أنواع المخرجات (DROP OLD FUNCTIONS)
+DROP FUNCTION IF EXISTS public.get_chat_messages(UUID, INT) CASCADE;
+DROP FUNCTION IF EXISTS public.get_chat_messages(UUID, INTEGER) CASCADE;
+DROP FUNCTION IF EXISTS public.get_chat_messages(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.get_chat_messages_for_email(TEXT, UUID, INT) CASCADE;
+DROP FUNCTION IF EXISTS public.get_chat_messages_for_email(TEXT, UUID, INTEGER) CASCADE;
+DROP FUNCTION IF EXISTS public.get_inbox_contacts() CASCADE;
+DROP FUNCTION IF EXISTS public.get_inbox_contacts_for_email(TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_get_all_users() CASCADE;
+DROP FUNCTION IF EXISTS public.admin_get_dashboard_stats() CASCADE;
+DROP FUNCTION IF EXISTS public.admin_set_user_admin(UUID, BOOLEAN) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_set_user_ban(UUID, BOOLEAN, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_update_user_profile(UUID, TEXT, INTEGER, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_create_broadcast(TEXT, TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.admin_purge_all_messages() CASCADE;
+DROP FUNCTION IF EXISTS public.admin_delete_user(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.register_device_and_check_is_new(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
+
 -- تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -377,7 +395,10 @@ declare
 begin
   v_admin := public.assert_admin_caller();
 
-  SELECT lower(coalesce(email, '')) INTO v_target_email FROM auth.users WHERE id = target_user_id;
+  SELECT lower(coalesce(email, '')) INTO v_target_email
+  FROM auth.users
+  WHERE id = target_user_id;
+
   IF v_target_email = 'ywsfw3778@gmail.com' AND NOT is_admin_status THEN
     RAISE EXCEPTION 'Cannot demote the primary owner.';
   END IF;
