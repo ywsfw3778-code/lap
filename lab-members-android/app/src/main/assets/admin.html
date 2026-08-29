@@ -12,35 +12,54 @@
   <style>
     :root {
       --bg: #07090e;
-      --bg-alt: #0d111a;
-      --sidebar: #101623;
-      --surface: #141c2c;
-      --surface2: #1b263b;
-      --surface3: #223049;
-      --border: rgba(255, 255, 255, 0.08);
-      --border2: rgba(255, 255, 255, 0.14);
+      --bg-surface: #0c1019;
+      --sidebar-bg: #090d16;
+      --card-bg: rgba(15, 21, 34, 0.75);
+      --card-bg-hover: rgba(22, 30, 48, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-hover: rgba(0, 255, 136, 0.35);
+      --surface-elevated: #151d2c;
+      --surface-input: #101623;
+      
       --accent: #00ff88;
+      --accent-rgb: 0, 255, 136;
       --accent-hover: #00e078;
-      --accent-glow: rgba(0, 255, 136, 0.18);
+      --accent-glow: rgba(0, 255, 136, 0.22);
+      --accent-glow-strong: rgba(0, 255, 136, 0.45);
+      
+      --primary-blue: #3b82f6;
+      --primary-purple: #8b5cf6;
+      --primary-cyan: #06b6d4;
+      
       --danger: #ff4757;
-      --danger-glow: rgba(255, 71, 87, 0.2);
+      --danger-glow: rgba(255, 71, 87, 0.25);
       --warning: #ffa502;
-      --warning-glow: rgba(255, 165, 2, 0.2);
-      --info: #2ed573;
-      --urgent: #ff4757;
-      --text: #f1f2f6;
-      --muted: #8b9bb4;
+      --warning-glow: rgba(255, 165, 2, 0.25);
+      --success: #2ed573;
       --online: #2ed573;
-      --offline: #747d8c;
-      --radius: 16px;
-      --radius-sm: 10px;
+      --offline: #64748b;
+      
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      
+      --radius-xl: 20px;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --radius-full: 9999px;
+      
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+      --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 25px var(--accent-glow);
     }
 
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: 'Alexandria', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Alexandria', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -52,243 +71,411 @@
       flex-direction: column;
       overflow-x: hidden;
       background-image: 
-        radial-gradient(circle at 10% 20%, rgba(0, 255, 136, 0.03) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(30, 144, 255, 0.03) 0%, transparent 40%);
+        radial-gradient(circle at 5% 10%, rgba(0, 255, 136, 0.04) 0%, transparent 45%),
+        radial-gradient(circle at 95% 85%, rgba(59, 130, 246, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.02) 0%, transparent 60%);
+      background-attachment: fixed;
     }
 
-    /* Top Navigation Bar */
-    header {
-      background: rgba(16, 22, 35, 0.85);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent);
+    }
+
+    /* App Shell Container */
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    /* Sidebar Navigation */
+    .admin-sidebar {
+      width: 280px;
+      background: var(--sidebar-bg);
+      border-left: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
       position: sticky;
       top: 0;
+      height: 100vh;
       z-index: 100;
-      padding: 14px 24px;
+      padding: 20px 16px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px 24px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 20px;
+    }
+
+    .brand-icon-wrap {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(6, 182, 212, 0.1));
+      border: 1px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+
+    .brand-text-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-name {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-tag {
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: transparent;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      width: 100%;
+      text-align: right;
+      position: relative;
+    }
+
+    .nav-item:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+      transform: translateX(-3px);
+    }
+
+    .nav-item.active {
+      color: #041009;
+      background: var(--accent);
+      font-weight: 700;
+      border-color: var(--accent);
+      box-shadow: 0 4px 20px var(--accent-glow-strong);
+    }
+
+    .nav-item.active .nav-icon {
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+
+    .nav-icon {
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      padding-top: 16px;
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Main Content Area */
+    .admin-main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    /* Top Bar */
+    .admin-topbar {
+      position: sticky;
+      top: 0;
+      z-index: 90;
+      background: rgba(8, 11, 17, 0.85);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 20px;
     }
 
-    .brand-section {
+    .topbar-title-section {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
     }
 
-    .brand-badge {
-      background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.05));
-      border: 1px solid var(--accent);
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 700;
-      padding: 4px 10px;
-      border-radius: 20px;
-      letter-spacing: 0.5px;
-      display: flex;
+    .mobile-menu-btn {
+      display: none;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-elevated);
+      border: 1px solid var(--card-border);
+      color: var(--text);
       align-items: center;
-      gap: 6px;
-    }
-
-    .brand-title {
+      justify-content: center;
       font-size: 18px;
-      font-weight: 800;
-      color: #fff;
-      display: flex;
+      cursor: pointer;
+    }
+
+    .live-status-pill {
+      display: inline-flex;
       align-items: center;
       gap: 8px;
+      background: rgba(46, 213, 115, 0.1);
+      border: 1px solid rgba(46, 213, 115, 0.3);
+      padding: 5px 12px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      color: var(--online);
+      font-weight: 600;
     }
 
-    .header-actions {
+    .live-pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--online);
+      box-shadow: 0 0 10px var(--online);
+      animation: pulseAnimation 2s infinite;
+    }
+
+    @keyframes pulseAnimation {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(46, 213, 115, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(46, 213, 115, 0); }
+    }
+
+    .topbar-actions {
       display: flex;
       align-items: center;
       gap: 12px;
     }
 
+    /* Buttons */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 9px 16px;
-      border-radius: var(--radius-sm);
+      padding: 10px 18px;
+      border-radius: var(--radius-md);
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      border: none;
-      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       text-decoration: none;
+      font-family: inherit;
     }
 
     .btn-primary {
       background: var(--accent);
-      color: #05140d;
+      color: #041409;
+      font-weight: 700;
     }
     .btn-primary:hover {
       background: var(--accent-hover);
-      box-shadow: 0 0 16px var(--accent-glow);
+      box-shadow: var(--shadow-glow);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
     }
 
     .btn-secondary {
-      background: var(--surface2);
+      background: var(--surface-elevated);
       color: var(--text);
-      border: 1px solid var(--border2);
+      border-color: var(--card-border);
     }
     .btn-secondary:hover {
-      background: var(--surface3);
+      background: var(--card-bg-hover);
+      border-color: rgba(255, 255, 255, 0.18);
+      color: #fff;
     }
 
     .btn-danger {
-      background: rgba(255, 71, 87, 0.15);
+      background: rgba(255, 71, 87, 0.12);
       color: var(--danger);
-      border: 1px solid rgba(255, 71, 87, 0.3);
+      border-color: rgba(255, 71, 87, 0.28);
     }
     .btn-danger:hover {
       background: var(--danger);
       color: #fff;
-      box-shadow: 0 0 16px var(--danger-glow);
+      box-shadow: 0 0 18px var(--danger-glow);
     }
 
-    /* Main Container */
-    main {
-      flex: 1;
-      max-width: 1300px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 24px;
+    /* Content Area */
+    .admin-content-body {
+      padding: 32px;
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 28px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
     }
 
-    /* Tabs Navigation */
-    .tabs-nav {
-      display: flex;
-      gap: 8px;
-      background: var(--sidebar);
-      padding: 6px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      overflow-x: auto;
-    }
-
-    .tab-btn {
-      flex: 1;
-      min-width: 140px;
-      padding: 10px 16px;
-      border-radius: var(--radius-sm);
-      border: none;
-      background: transparent;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .tab-btn:hover {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .tab-btn.active {
-      background: var(--surface2);
-      color: var(--accent);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    }
-
-    /* Tab Content Panels */
+    /* Tab Panes */
     .tab-content {
       display: none;
       flex-direction: column;
-      gap: 20px;
-      animation: fadeIn 0.25s ease-out;
+      gap: 24px;
+      animation: tabFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .tab-content.active {
       display: flex;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
+    @keyframes tabFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Metrics Grid */
+    /* Stat Cards Grid */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 18px;
     }
 
     .metric-card {
-      background: var(--sidebar);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xl);
+      padding: 22px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       position: relative;
       overflow: hidden;
-      transition: transform 0.2s, border-color 0.2s;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transition: all 0.25s ease;
+      box-shadow: var(--shadow-sm);
     }
 
     .metric-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--border2);
+      transform: translateY(-3px);
+      border-color: var(--card-border-hover);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 136, 0.08);
+      background: var(--card-bg-hover);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+      opacity: 0.5;
     }
 
     .metric-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      color: var(--muted);
+      color: var(--text-muted);
       font-size: 13px;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .metric-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      background: var(--surface2);
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-md);
+      background: var(--surface-elevated);
+      border: 1px solid var(--card-border);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
     .metric-value {
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 800;
       color: #fff;
       font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.5px;
     }
 
     .metric-sub {
-      font-size: 11px;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+      font-weight: 500;
     }
 
-    /* User Management Section */
+    /* Section Cards */
     .section-card {
-      background: var(--sidebar);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 22px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-xl);
+      padding: 26px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 20px;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--shadow-sm);
     }
 
     .section-header {
@@ -296,57 +483,72 @@
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 14px;
+      gap: 16px;
     }
 
     .section-title {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      color: #fff;
     }
 
+    /* Filter & Search Bar */
     .filter-bar {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       flex-wrap: wrap;
       width: 100%;
     }
 
-    .search-input {
+    .search-input-wrap {
       flex: 1;
-      min-width: 240px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
+      min-width: 260px;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--surface-input);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
       color: #fff;
       font-size: 13px;
       outline: none;
-      transition: border-color 0.2s;
+      transition: all 0.2s ease;
+      font-family: inherit;
     }
     .search-input:focus {
       border-color: var(--accent);
+      box-shadow: 0 0 16px var(--accent-glow);
     }
 
     .filter-select {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 10px 14px;
+      background: var(--surface-input);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
       color: #fff;
       font-size: 13px;
       outline: none;
       cursor: pointer;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .filter-select:focus {
+      border-color: var(--accent);
     }
 
-    /* Users Table */
+    /* Table Container */
     .table-container {
       overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      background: rgba(10, 14, 22, 0.4);
     }
 
     table {
@@ -357,17 +559,19 @@
     }
 
     th {
-      background: var(--surface);
-      color: var(--muted);
-      padding: 12px 16px;
+      background: rgba(18, 25, 38, 0.85);
+      color: var(--text-muted);
+      padding: 14px 18px;
       font-weight: 600;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--card-border);
       white-space: nowrap;
+      font-size: 12px;
+      letter-spacing: 0.2px;
     }
 
     td {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
+      padding: 15px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
       vertical-align: middle;
     }
 
@@ -386,18 +590,19 @@
     }
 
     .user-avatar {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      background: var(--surface2);
+      background: var(--surface-elevated);
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
       color: var(--accent);
-      border: 1px solid var(--border2);
+      border: 1px solid var(--card-border);
       overflow: hidden;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
 
     .user-avatar img {
@@ -409,17 +614,18 @@
     .user-names {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
     }
 
     .user-fullname {
       font-weight: 600;
       color: #fff;
+      font-size: 14px;
     }
 
     .user-email {
       font-size: 11px;
-      color: var(--muted);
+      color: var(--text-muted);
       direction: ltr;
       text-align: right;
     }
@@ -428,8 +634,8 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      padding: 3px 8px;
-      border-radius: 12px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
       font-size: 11px;
       font-weight: 700;
     }
@@ -437,12 +643,13 @@
     .role-admin {
       background: rgba(0, 255, 136, 0.15);
       color: var(--accent);
-      border: 1px solid rgba(0, 255, 136, 0.3);
+      border: 1px solid rgba(0, 255, 136, 0.35);
     }
 
     .role-user {
-      background: var(--surface2);
-      color: var(--muted);
+      background: var(--surface-elevated);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
     }
 
     .status-badge {
@@ -450,20 +657,20 @@
       align-items: center;
       gap: 6px;
       font-size: 12px;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .status-dot {
-      width: 8px;
-      height: 8px;
+      width: 9px;
+      height: 9px;
       border-radius: 50%;
     }
-    .status-dot.online { background: #23a55a; box-shadow: 0 0 8px #23a55a; }
-    .status-dot.idle { background: #f0b232; box-shadow: 0 0 8px #f0b232; }
-    .status-dot.dnd { background: #f23f43; box-shadow: 0 0 8px #f23f43; }
-    .status-dot.invisible { background: #80848e; box-shadow: 0 0 8px #80848e; }
+    .status-dot.online { background: #2ed573; box-shadow: 0 0 10px #2ed573; }
+    .status-dot.idle { background: #ffa502; box-shadow: 0 0 10px #ffa502; }
+    .status-dot.dnd { background: #ff4757; box-shadow: 0 0 10px #ff4757; }
+    .status-dot.invisible { background: #94a3b8; box-shadow: 0 0 6px #94a3b8; }
     .status-dot.offline { background: var(--offline); }
-    .status-dot.banned { background: var(--danger); }
+    .status-dot.banned { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
 
     .action-btn-group {
       display: flex;
@@ -472,39 +679,40 @@
     }
 
     .btn-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-elevated);
+      border: 1px solid var(--card-border);
       color: var(--text);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s;
-      font-size: 13px;
+      transition: all 0.2s ease;
+      font-size: 14px;
     }
 
     .btn-icon:hover {
-      background: var(--surface3);
-      border-color: var(--border2);
+      background: var(--card-bg-hover);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
     }
 
     .btn-icon.active-admin {
-      background: rgba(88, 101, 242, 0.2);
-      border-color: #5865f2;
-      color: #5865f2;
+      background: rgba(139, 92, 246, 0.2);
+      border-color: #8b5cf6;
+      color: #a78bfa;
     }
     .btn-icon.active-admin:hover {
-      background: #5865f2;
+      background: #8b5cf6;
       color: #fff;
     }
 
     .btn-icon.ban:hover {
-      background: #f23f43;
+      background: var(--danger);
       color: #fff;
-      border-color: #f23f43;
+      border-color: var(--danger);
     }
 
     .btn-icon.delete:hover {
@@ -513,17 +721,17 @@
       border-color: var(--danger);
     }
 
-    /* Broadcast Form */
+    /* Forms */
     .broadcast-form {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
     }
 
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 7px;
     }
 
     .form-label {
@@ -533,10 +741,10 @@
     }
 
     .form-input, .form-textarea, .form-select {
-      background: var(--surface);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
+      background: var(--surface-input);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
       color: #fff;
       font-size: 13px;
       outline: none;
@@ -549,27 +757,27 @@
     .form-select {
       cursor: pointer;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300ff88' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: left 14px center;
-      padding-left: 38px;
+      background-position: left 16px center;
+      padding-left: 42px;
     }
 
     .form-select option {
-      background: #0d0e17;
+      background: #0d111a;
       color: #fff;
       padding: 10px;
     }
 
     .form-input:focus, .form-textarea:focus, .form-select:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
+      box-shadow: 0 0 16px var(--accent-glow);
     }
 
     .form-textarea {
       resize: vertical;
       min-height: 120px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     /* Template Chips */
@@ -581,11 +789,11 @@
     }
 
     .template-chip {
-      background: var(--surface2);
-      border: 1px solid var(--border2);
-      color: var(--muted);
-      padding: 8px 14px;
-      border-radius: 20px;
+      background: var(--surface-elevated);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
@@ -600,10 +808,10 @@
     }
 
     .template-chip.active {
-      background: rgba(91, 106, 240, 0.2);
+      background: rgba(0, 255, 136, 0.15);
       border-color: var(--accent);
-      color: #fff;
-      box-shadow: 0 0 12px var(--accent-glow);
+      color: var(--accent);
+      box-shadow: 0 0 14px var(--accent-glow);
     }
 
     /* Custom User Picker */
@@ -613,10 +821,10 @@
     }
 
     .user-picker-selected {
-      background: var(--surface);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius-sm);
-      padding: 11px 14px;
+      background: var(--surface-input);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
       color: #fff;
       font-size: 13px;
       cursor: pointer;
@@ -629,22 +837,22 @@
 
     .user-picker-selected:hover, .user-picker-selected.open {
       border-color: var(--accent);
-      box-shadow: 0 0 12px var(--accent-glow);
+      box-shadow: 0 0 14px var(--accent-glow);
     }
 
     .user-picker-dropdown {
       position: absolute;
-      top: calc(100% + 6px);
+      top: calc(100% + 8px);
       left: 0;
       right: 0;
-      background: #0e0f19;
-      border: 1px solid var(--border2);
-      border-radius: var(--radius-sm);
-      box-shadow: 0 16px 36px rgba(0,0,0,0.6);
+      background: #0f1523;
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-lg);
       z-index: 200;
       display: none;
       flex-direction: column;
-      animation: fadeIn 0.15s ease-out;
+      animation: tabFadeIn 0.15s ease-out;
     }
 
     .user-picker-dropdown.open {
@@ -662,28 +870,28 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 14px;
+      padding: 10px 16px;
       cursor: pointer;
       border-bottom: 1px solid rgba(255,255,255,0.03);
       transition: background 0.15s;
     }
 
     .user-picker-item:hover {
-      background: rgba(91, 106, 240, 0.15);
+      background: rgba(0, 255, 136, 0.1);
     }
 
     .user-picker-item-info {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .user-picker-item-avatar {
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      background: var(--surface2);
-      border: 1px solid var(--border2);
+      background: var(--surface-elevated);
+      border: 1px solid var(--card-border);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -703,7 +911,7 @@
     .user-picker-item-names {
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 2px;
     }
 
     .user-picker-item-name {
@@ -714,12 +922,12 @@
 
     .user-picker-item-email {
       font-size: 11px;
-      color: var(--muted);
+      color: var(--text-muted);
       direction: ltr;
       text-align: right;
     }
 
-    /* Broadcast Items List */
+    /* Broadcast List */
     .broadcast-list {
       display: flex;
       flex-direction: column;
@@ -727,48 +935,55 @@
     }
 
     .broadcast-item {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 16px;
+      background: rgba(14, 20, 32, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 14px;
+      gap: 16px;
+      transition: border-color 0.2s;
+    }
+
+    .broadcast-item:hover {
+      border-color: rgba(255, 255, 255, 0.16);
     }
 
     .broadcast-info {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 6px;
     }
 
     .broadcast-title {
       font-weight: 700;
-      font-size: 14px;
+      font-size: 15px;
       display: flex;
       align-items: center;
       gap: 8px;
+      color: #fff;
     }
 
     .broadcast-body {
       font-size: 13px;
-      color: var(--muted);
-      line-height: 1.5;
+      color: var(--text-muted);
+      line-height: 1.6;
     }
 
     .broadcast-time {
       font-size: 11px;
-      color: var(--offline);
+      color: var(--text-dim);
       margin-top: 4px;
     }
 
-    /* Modal Styling */
+    /* Modal Overlay */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -781,339 +996,426 @@
     }
 
     .modal-card {
-      background: var(--sidebar);
-      border: 1px solid var(--border2);
-      border-radius: var(--radius);
-      padding: 24px;
+      background: #0f1524;
+      border: 1px solid var(--card-border-hover);
+      border-radius: var(--radius-xl);
+      padding: 28px;
       width: 100%;
-      max-width: 480px;
+      max-width: 500px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
-      box-shadow: 0 20px 48px rgba(0,0,0,0.5);
-      animation: modalPop 0.2s ease-out;
+      gap: 20px;
+      box-shadow: var(--shadow-lg), 0 0 40px rgba(0, 255, 136, 0.1);
+      animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes modalPop {
-      from { transform: scale(0.95); opacity: 0; }
+      from { transform: scale(0.94); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
 
+    /* Mobile Drawer */
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 99;
+    }
+
     /* Responsive */
-    @media (max-width: 768px) {
-      header { padding: 12px 16px; }
-      main { padding: 16px; }
-      .metrics-grid { grid-template-columns: 1fr; }
+    @media (max-width: 900px) {
+      .admin-sidebar {
+        position: fixed;
+        right: -290px;
+        top: 0;
+        bottom: 0;
+        transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: var(--shadow-lg);
+      }
+      .admin-sidebar.open {
+        right: 0;
+      }
+      .mobile-overlay.open {
+        display: block;
+      }
+      .mobile-menu-btn {
+        display: flex;
+      }
+      .admin-topbar {
+        padding: 12px 18px;
+      }
+      .admin-content-body {
+        padding: 20px 16px;
+      }
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
-  <header>
-    <div class="brand-section">
-      <div class="brand-title">
-        <span>⚡</span> Lab Members Admin
-      </div>
-      <div class="brand-badge" id="adminBadge">
-        <span>🛡️</span> مشرف معتمد
-      </div>
-    </div>
-    <div class="header-actions">
-      <button class="btn btn-secondary" onclick="loadAllAdminData()" title="تحديث البيانات">
-        <span>🔄</span> تحديث
-      </button>
-      <a href="chat-prototype_1.html" class="btn btn-primary">
-        <span>💬</span> العودة للشات
-      </a>
-    </div>
-  </header>
+  <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
 
-  <!-- Main Dashboard -->
-  <main>
-
-    <!-- Navigation Tabs -->
-    <div class="tabs-nav">
-      <button class="tab-btn active" onclick="switchAdminTab('metrics')">
-        <span>📊</span> الإحصائيات العامة
-      </button>
-      <button class="tab-btn" onclick="switchAdminTab('users')">
-        <span>👥</span> إدارة المستخدمين
-      </button>
-      <button class="tab-btn" onclick="switchAdminTab('broadcast')">
-        <span>📢</span> التعميمات والإعلانات
-      </button>
-      <button class="tab-btn" onclick="switchAdminTab('mailer')">
-        <span>📧</span> مركز مراسلة الجيميل
-      </button>
-      <button class="tab-btn" onclick="switchAdminTab('maintenance')">
-        <span>🛠️</span> الصيانة وقاعدة البيانات
-      </button>
-    </div>
-
-    <!-- Tab 1: Metrics Overview -->
-    <div class="tab-content active" id="tab-metrics">
-      <div class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-header">
-            <span>إجمالي الأعضاء</span>
-            <div class="metric-icon">👥</div>
-          </div>
-          <div class="metric-value" id="statTotalUsers">—</div>
-          <div class="metric-sub">الحسابات المسجلة في المنصة</div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-header">
-            <span>المتصلين حالياً</span>
-            <div class="metric-icon" style="color:var(--online)">🟢</div>
-          </div>
-          <div class="metric-value" id="statOnlineUsers" style="color:var(--online)">—</div>
-          <div class="metric-sub">نشطين خلال آخر 5 دقائق</div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-header">
-            <span>إجمالي الرسائل</span>
-            <div class="metric-icon">💬</div>
-          </div>
-          <div class="metric-value" id="statTotalMessages">—</div>
-          <div class="metric-sub">الرسائل المتبادلة في قاعدة البيانات</div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-header">
-            <span>المحادثات الصوتية</span>
-            <div class="metric-icon">🎙️</div>
-          </div>
-          <div class="metric-value" id="statVoiceMessages">—</div>
-          <div class="metric-sub">تسجيلات صوتية مرسلة</div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-header">
-            <span>الصور المرفوعة</span>
-            <div class="metric-icon">🖼️</div>
-          </div>
-          <div class="metric-value" id="statImageMessages">—</div>
-          <div class="metric-sub">صور مرفوعة للمحادثات</div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-header">
-            <span>المستخدمين المحظورين</span>
-            <div class="metric-icon" style="color:var(--danger)">🚫</div>
-          </div>
-          <div class="metric-value" id="statBannedUsers" style="color:var(--danger)">—</div>
-          <div class="metric-sub">حسابات موقوفة عن الإرسال</div>
+  <div class="app-shell">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="admin-sidebar" id="adminSidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon-wrap">⚡</div>
+        <div class="brand-text-wrap">
+          <span class="brand-name">Lab Members</span>
+          <span class="brand-tag"><span>🛡️</span> لوحة المشرف</span>
         </div>
       </div>
 
-      <!-- Quick Server Info Banner -->
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title"><span>📡</span> حالة خوادم المنصة وقاعدة البيانات</div>
-          <span class="badge-role role-admin" style="font-size:12px;">✅ الاتصال السحابي سليم 100%</span>
-        </div>
-        <div style="font-size: 13px; color: var(--muted); line-height: 1.6;">
-          المنصة متصلة بسيرفر <strong>Supabase PostgreSQL</strong> اللحظي عبر WebSocket، مع تفعيل حماية سياسات RLS، ودعم مصادقة Google OAuth والتسجيل المباشر.
-        </div>
+      <nav class="nav-list">
+        <button class="nav-item tab-btn active" onclick="switchAdminTab('metrics')">
+          <span class="nav-icon">📊</span>
+          <span>الإحصائيات العامة</span>
+        </button>
+        <button class="nav-item tab-btn" onclick="switchAdminTab('users')">
+          <span class="nav-icon">👥</span>
+          <span>إدارة المستخدمين</span>
+        </button>
+        <button class="nav-item tab-btn" onclick="switchAdminTab('broadcast')">
+          <span class="nav-icon">📢</span>
+          <span>التعميمات والإعلانات</span>
+        </button>
+        <button class="nav-item tab-btn" onclick="switchAdminTab('mailer')">
+          <span class="nav-icon">📧</span>
+          <span>مركز مراسلة الجيميل</span>
+        </button>
+        <button class="nav-item tab-btn" onclick="switchAdminTab('maintenance')">
+          <span class="nav-icon">🛠️</span>
+          <span>الصيانة وقاعدة البيانات</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="btn btn-secondary" style="width:100%;" onclick="loadAllAdminData()" title="تحديث كل البيانات">
+          <span>🔄</span> تحديث البيانات
+        </button>
+        <a href="chat-prototype_1.html" class="btn btn-primary" style="width:100%;">
+          <span>💬</span> العودة للشات
+        </a>
       </div>
-    </div>
+    </aside>
 
-    <!-- Tab 2: User Management -->
-    <div class="tab-content" id="tab-users">
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title">
-            <span>👥</span> سجل المستخدمين والأعضاء (<span id="userListCount">0</span>)
+    <!-- Main Dashboard Area -->
+    <div class="admin-main">
+
+      <!-- Topbar -->
+      <header class="admin-topbar">
+        <div class="topbar-title-section">
+          <button class="mobile-menu-btn" onclick="toggleMobileSidebar()">☰</button>
+          <div class="live-status-pill">
+            <div class="live-pulse-dot"></div>
+            <span>السيرفر متصل لحظياً</span>
           </div>
         </div>
 
-        <div class="filter-bar">
-          <input type="text" class="search-input" id="userSearchInput" placeholder="بحث بالاسم، الإيميل، أو كود العضوية..." oninput="filterUsersList()" />
-          <select class="filter-select" id="userRoleFilter" onchange="filterUsersList()">
-            <option value="all">كل الرتب والحالات</option>
-            <option value="admins">المشرفين فقط</option>
-            <option value="banned">المحظورين فقط</option>
-            <option value="online">المتصلين الآن</option>
-          </select>
-        </div>
-
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>المستخدم</th>
-                <th>كود العضوية</th>
-                <th>الرتبة</th>
-                <th>الحالة</th>
-                <th>آخر نشاط</th>
-                <th>الإجراءات</th>
-              </tr>
-            </thead>
-            <tbody id="usersTableBody">
-              <tr>
-                <td colspan="6" style="text-align:center; padding:30px; color:var(--muted);">جاري تحميل قائمة المستخدمين...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab 3: Broadcasts -->
-    <div class="tab-content" id="tab-broadcast">
-      <div class="section-card">
-        <div class="section-title"><span>📢</span> إرسال تعميم / إعلان جماعي لجميع الأعضاء</div>
-        <form class="broadcast-form" onsubmit="handleSendBroadcast(event)">
-          <div class="form-group">
-            <label class="form-label">عنوان الإعلان</label>
-            <input type="text" class="form-input" id="broadcastTitle" placeholder="مثال: تحديث أمني هام في النظام" required />
+        <div class="topbar-actions">
+          <div class="badge-role role-admin" id="adminBadge" style="font-size:12px; padding:6px 12px;">
+            <span>🛡️</span> مشرف معتمد
           </div>
-          <div class="form-group">
-            <label class="form-label">نوع الإعلان</label>
-            <select class="form-select" id="broadcastType">
-              <option value="info">ℹ️ إشعار عام عادي (Info)</option>
-              <option value="warning">⚠️ تنبيه هام (Warning)</option>
-              <option value="urgent">🚨 عاجل وفوري (Urgent)</option>
-              <option value="success">✅ تحديث ناجح (Success)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">محتوى الرسالة</label>
-            <textarea class="form-textarea" id="broadcastContent" placeholder="اكتب نص الإشعار الذي سيظهر لجميع مستخدمي المنصة..." required></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary" id="btnSendBroadcast">
-            <span>🚀</span> إرسال الإعلان للجميع لحظياً
+          <button class="btn btn-secondary" onclick="loadAllAdminData()" title="تحديث">
+            <span>🔄</span>
           </button>
-        </form>
-      </div>
-
-      <div class="section-card">
-        <div class="section-title"><span>📜</span> سجل الإعلانات السابقة</div>
-        <div class="broadcast-list" id="broadcastListContainer">
-          <div style="text-align:center; padding:20px; color:var(--muted);">جاري جلب سجل الإعلانات...</div>
         </div>
-      </div>
-    </div>
+      </header>
 
-    <!-- Tab 5: Gmail Mailer & Notifications Center -->
-    <div class="tab-content" id="tab-mailer">
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title"><span>📧</span> إرسال رسالة بريد إلكتروني فورية (Gmail Direct Dispatch)</div>
-          <span class="badge-role role-admin">🚀 إرسال فوري ومباشر</span>
-        </div>
+      <!-- Content Container -->
+      <main class="admin-content-body">
 
-        <form id="adminEmailForm" onsubmit="handleSendAdminEmail(event)">
-          <div class="form-group">
-            <label class="form-label">1. اختيار المستلم من الأعضاء المسجلين</label>
-            <div class="user-picker-wrapper" id="userPickerWrapper">
-              <div class="user-picker-selected" id="userPickerSelected" onclick="toggleUserPickerDropdown()">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span id="userPickerSelectedAvatar" style="width:24px; height:24px; border-radius:50%; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:12px;">👤</span>
-                  <span id="userPickerSelectedText">-- اضغط لاختيار عضو من المسجلين بالمنصة --</span>
-                </div>
-                <span style="font-size:11px; color:var(--muted);">▼</span>
+        <!-- Tab 1: Metrics Overview -->
+        <div class="tab-content active" id="tab-metrics">
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-header">
+                <span>إجمالي الأعضاء</span>
+                <div class="metric-icon">👥</div>
               </div>
-              <div class="user-picker-dropdown" id="userPickerDropdown">
-                <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
-                  <input type="text" class="search-input" id="userPickerSearchInput" placeholder="🔍 ابحث بالاسم أو الإيميل..." oninput="filterUserPickerList(this.value)" style="width:100%; font-size:12px; padding:7px 10px; box-sizing:border-box;" />
-                </div>
-                <div class="user-picker-list" id="userPickerList">
-                  <div style="padding:15px; text-align:center; color:var(--muted); font-size:12px;">جاري تحميل قائمة الأعضاء...</div>
-                </div>
+              <div class="metric-value" id="statTotalUsers">—</div>
+              <div class="metric-sub">الحسابات المسجلة في المنصة</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span>المتصلين حالياً</span>
+                <div class="metric-icon" style="color:var(--online)">🟢</div>
               </div>
+              <div class="metric-value" id="statOnlineUsers" style="color:var(--online)">—</div>
+              <div class="metric-sub">نشطين خلال آخر 5 دقائق</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span>إجمالي الرسائل</span>
+                <div class="metric-icon">💬</div>
+              </div>
+              <div class="metric-value" id="statTotalMessages">—</div>
+              <div class="metric-sub">الرسائل المتبادلة في قاعدة البيانات</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span>المحادثات الصوتية</span>
+                <div class="metric-icon">🎙️</div>
+              </div>
+              <div class="metric-value" id="statVoiceMessages">—</div>
+              <div class="metric-sub">تسجيلات صوتية مرسلة</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span>الصور المرفوعة</span>
+                <div class="metric-icon">🖼️</div>
+              </div>
+              <div class="metric-value" id="statImageMessages">—</div>
+              <div class="metric-sub">صور مرفوعة للمحادثات</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-header">
+                <span>المستخدمين المحظورين</span>
+                <div class="metric-icon" style="color:var(--danger)">🚫</div>
+              </div>
+              <div class="metric-value" id="statBannedUsers" style="color:var(--danger)">—</div>
+              <div class="metric-sub">حسابات موقوفة عن الإرسال</div>
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">أو كتابة بريد Gmail باليد (Custom Recipient)</label>
-            <input type="email" class="form-input" id="emailRecipientCustom" placeholder="مثال: example@gmail.com" required style="direction:ltr; text-align:left;" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">2. اختر نوع الرسالة / القالب السريع</label>
-            <div class="template-chips" id="templateChipsContainer">
-              <div class="template-chip active" data-type="password_reset" onclick="selectTemplateChip('password_reset')">🔑 رابط استعادة الباسورد</div>
-              <div class="template-chip" data-type="device_alert" onclick="selectTemplateChip('device_alert')">🚨 تنبيه أمان جهاز جديد</div>
-              <div class="template-chip" data-type="admin_notice" onclick="selectTemplateChip('admin_notice')">📢 إشعار إداري رسمي</div>
-              <div class="template-chip" data-type="welcome" onclick="selectTemplateChip('welcome')">🧪 ترحيب بعضو جديد</div>
-              <div class="template-chip" data-type="custom" onclick="selectTemplateChip('custom')">✉️ رسالة حرة مخصصة</div>
+          <!-- Quick Server Info Banner -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title"><span>📡</span> حالة خوادم المنصة وقاعدة البيانات</div>
+              <span class="badge-role role-admin" style="font-size:12px;">✅ الاتصال السحابي سليم 100%</span>
             </div>
-            <input type="hidden" id="emailTemplateType" value="password_reset" />
+            <div style="font-size: 13px; color: var(--text-muted); line-height: 1.7;">
+              المنصة متصلة بسيرفر <strong>Supabase PostgreSQL</strong> اللحظي عبر WebSocket، مع تفعيل حماية سياسات RLS، ودعم مصادقة Google OAuth والتسجيل المباشر.
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: User Management -->
+        <div class="tab-content" id="tab-users">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title">
+                <span>👥</span> سجل المستخدمين والأعضاء (<span id="userListCount">0</span>)
+              </div>
+            </div>
+
+            <div class="filter-bar">
+              <div class="search-input-wrap">
+                <input type="text" class="search-input" id="userSearchInput" placeholder="🔍 بحث بالاسم، الإيميل، أو كود العضوية..." oninput="filterUsersList()" />
+              </div>
+              <select class="filter-select" id="userRoleFilter" onchange="filterUsersList()">
+                <option value="all">كل الرتب والحالات</option>
+                <option value="admins">المشرفين فقط 👑</option>
+                <option value="banned">المحظورين فقط 🚫</option>
+                <option value="online">المتصلين الآن 🟢</option>
+              </select>
+            </div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>المستخدم</th>
+                    <th>كود العضوية</th>
+                    <th>الرتبة</th>
+                    <th>الحالة</th>
+                    <th>آخر نشاط</th>
+                    <th>الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                  <tr>
+                    <td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">جاري تحميل قائمة المستخدمين...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Broadcasts -->
+        <div class="tab-content" id="tab-broadcast">
+          <div class="section-card">
+            <div class="section-title"><span>📢</span> إرسال تعميم / إعلان جماعي لجميع الأعضاء</div>
+            <form class="broadcast-form" onsubmit="handleSendBroadcast(event)">
+              <div class="form-group">
+                <label class="form-label">عنوان الإعلان</label>
+                <input type="text" class="form-input" id="broadcastTitle" placeholder="مثال: تحديث أمني هام في النظام" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">نوع الإعلان</label>
+                <select class="form-select" id="broadcastType">
+                  <option value="info">ℹ️ إشعار عام عادي (Info)</option>
+                  <option value="warning">⚠️ تنبيه هام (Warning)</option>
+                  <option value="urgent">🚨 عاجل وفوري (Urgent)</option>
+                  <option value="success">✅ تحديث ناجح (Success)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">محتوى الرسالة</label>
+                <textarea class="form-textarea" id="broadcastContent" placeholder="اكتب نص الإشعار الذي سيظهر لجميع مستخدمي المنصة..." required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" id="btnSendBroadcast">
+                <span>🚀</span> إرسال الإعلان للجميع لحظياً
+              </button>
+            </form>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">3. عنوان الرسالة (Subject)</label>
-            <input type="text" class="form-input" id="emailSubject" placeholder="عنوان الرسالة التي ستصل على الجيميل..." required />
+          <div class="section-card">
+            <div class="section-title"><span>📜</span> سجل الإعلانات السابقة</div>
+            <div class="broadcast-list" id="broadcastListContainer">
+              <div style="text-align:center; padding:20px; color:var(--text-muted);">جاري جلب سجل الإعلانات...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Gmail Mailer & Notifications Center -->
+        <div class="tab-content" id="tab-mailer">
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title"><span>📧</span> إرسال رسالة بريد إلكتروني فورية (Gmail Direct Dispatch)</div>
+              <span class="badge-role role-admin">🚀 إرسال فوري ومباشر</span>
+            </div>
+
+            <form id="adminEmailForm" onsubmit="handleSendAdminEmail(event)">
+              <div class="form-group">
+                <label class="form-label">1. اختيار المستلم من الأعضاء المسجلين</label>
+                <div class="user-picker-wrapper" id="userPickerWrapper">
+                  <div class="user-picker-selected" id="userPickerSelected" onclick="toggleUserPickerDropdown()">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span id="userPickerSelectedAvatar" style="width:24px; height:24px; border-radius:50%; background:var(--surface-elevated); display:flex; align-items:center; justify-content:center; font-size:12px;">👤</span>
+                      <span id="userPickerSelectedText">-- اضغط لاختيار عضو من المسجلين بالمنصة --</span>
+                    </div>
+                    <span style="font-size:11px; color:var(--text-muted);">▼</span>
+                  </div>
+                  <div class="user-picker-dropdown" id="userPickerDropdown">
+                    <div style="padding:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
+                      <input type="text" class="search-input" id="userPickerSearchInput" placeholder="🔍 ابحث بالاسم أو الإيميل..." oninput="filterUserPickerList(this.value)" style="width:100%; font-size:12px; padding:7px 10px; box-sizing:border-box;" />
+                    </div>
+                    <div class="user-picker-list" id="userPickerList">
+                      <div style="padding:15px; text-align:center; color:var(--text-muted); font-size:12px;">جاري تحميل قائمة الأعضاء...</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">أو كتابة بريد Gmail باليد (Custom Recipient)</label>
+                <input type="email" class="form-input" id="emailRecipientCustom" placeholder="مثال: example@gmail.com" required style="direction:ltr; text-align:left;" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">2. اختر نوع الرسالة / القالب السريع</label>
+                <div class="template-chips" id="templateChipsContainer">
+                  <div class="template-chip active" data-type="password_reset" onclick="selectTemplateChip('password_reset')">🔑 رابط استعادة الباسورد</div>
+                  <div class="template-chip" data-type="device_alert" onclick="selectTemplateChip('device_alert')">🚨 تنبيه أمان جهاز جديد</div>
+                  <div class="template-chip" data-type="admin_notice" onclick="selectTemplateChip('admin_notice')">📢 إشعار إداري رسمي</div>
+                  <div class="template-chip" data-type="welcome" onclick="selectTemplateChip('welcome')">🧪 ترحيب بعضو جديد</div>
+                  <div class="template-chip" data-type="custom" onclick="selectTemplateChip('custom')">✉️ رسالة حرة مخصصة</div>
+                </div>
+                <input type="hidden" id="emailTemplateType" value="password_reset" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">3. عنوان الرسالة (Subject)</label>
+                <input type="text" class="form-input" id="emailSubject" placeholder="عنوان الرسالة التي ستصل على الجيميل..." required />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">4. نص ومحتوى الرسالة (Message Body)</label>
+                <textarea class="form-textarea" id="emailBody" placeholder="اكتب محتوى الرسالة هنا..." required></textarea>
+              </div>
+
+              <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                <button type="submit" class="btn btn-primary" id="btnSendAdminEmail" style="padding:12px 24px; font-size:14px; font-weight:700;">
+                  <span>🚀</span> إرسال الرسالة إلى الجيميل الآن
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="openNativeMailClient()" style="padding:12px 20px; font-size:13px;">
+                  <span>✉️</span> فتح في تطبيق Gmail المباشر
+                </button>
+              </div>
+            </form>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">4. نص ومحتوى الرسالة (Message Body)</label>
-            <textarea class="form-textarea" id="emailBody" placeholder="اكتب محتوى الرسالة هنا..." required></textarea>
+          <!-- Sent Emails Log -->
+          <div class="section-card">
+            <div class="section-header">
+              <div class="section-title"><span>📜</span> سجل الرسائل المرسلة وحالة التسليم (Delivery Logs)</div>
+              <button class="btn btn-secondary" style="font-size:11px; padding:5px 10px;" onclick="clearAdminEmailLogs()">مسح السجل</button>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>المستلم (To)</th>
+                    <th>العنوان (Subject)</th>
+                    <th>التوقيت</th>
+                    <th>حالة التسليم</th>
+                  </tr>
+                </thead>
+                <tbody id="emailLogsTableBody">
+                  <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا يوجد رسائل مرسلة في هذه الجلسة بعد.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:8px;">
-            <button type="submit" class="btn btn-primary" id="btnSendAdminEmail" style="padding:12px 24px; font-size:14px; font-weight:700;">
-              <span>🚀</span> إرسال الرسالة إلى الجيميل الآن
-            </button>
-            <button type="button" class="btn btn-secondary" onclick="openNativeMailClient()" style="padding:12px 20px; font-size:13px;">
-              <span>✉️</span> فتح في تطبيق Gmail المباشر
-            </button>
+          <!-- Supabase Gmail SMTP Setup Guide -->
+          <div class="section-card" style="border-color: rgba(0, 255, 136, 0.3);">
+            <div class="section-title" style="color:var(--accent);">
+              <span>⚙️</span> كيفية تفعيل إرسال كل رسائل النظام عبر حساب الجيميل الخاص بك (Gmail SMTP)
+            </div>
+            <div style="font-size:13px; color:var(--text-muted); line-height:1.7;">
+              لضمان وصول 100% من روابط الباسورد والتنبيهات الأمنية مباشرة إلى صندوق الوارد (Inbox) لجميع الأعضاء بدون توقف:
+              <ol style="margin: 10px 20px; display:flex; flex-direction:column; gap:6px;">
+                <li>افتح لوحة تحكم <strong>Supabase Dashboard</strong> -> ثم اختر مشروعك -> <strong>Authentication</strong> -> <strong>Email Settings</strong>.</li>
+                <li>فعّل خيار <strong>Enable Custom SMTP</strong>.</li>
+                <li>أدخل بيانات Gmail SMTP التالية:
+                  <ul style="margin: 4px 15px;">
+                    <li><strong>Sender Email:</strong> <code>ywsfw3778@gmail.com</code></li>
+                    <li><strong>Sender Name:</strong> <code>Lab Members Security</code></li>
+                    <li><strong>Host:</strong> <code>smtp.gmail.com</code> &nbsp;|&nbsp; <strong>Port:</strong> <code>587</code></li>
+                    <li><strong>Username:</strong> <code>ywsfw3778@gmail.com</code></li>
+                    <li><strong>Password:</strong> كلمة مرور التطبيقات (App Password) من إعدادات حساب Google الخاص بك.</li>
+                  </ul>
+                </li>
+              </ol>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
 
-      <!-- Sent Emails Log & Delivery Status -->
-      <div class="section-card">
-        <div class="section-header">
-          <div class="section-title"><span>📜</span> سجل الرسائل المرسلة وحالة التسليم (Delivery Logs)</div>
-          <button class="btn btn-secondary" style="font-size:11px; padding:5px 10px;" onclick="clearAdminEmailLogs()">مسح السجل</button>
+        <!-- Tab 5: Maintenance & DB Tools -->
+        <div class="tab-content" id="tab-maintenance">
+          <div class="section-card" style="border-color: rgba(255, 71, 87, 0.3);">
+            <div class="section-header">
+              <div class="section-title" style="color:var(--danger);">
+                <span>⚠️</span> منطقة الخطر والعمليات الحساسة (Danger Zone)
+              </div>
+            </div>
+            <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">
+              العمليات التالية تتطلب تأكيداً مباشراً وتؤثر بشكل فوري على جميع سجلات وقواعد البيانات الخاصة بالمستخدمين.
+            </p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
+              <button type="button" class="btn btn-danger" onclick="handlePurgeAllMessages()" style="padding:12px 20px;">
+                <span>🧹</span> تفريغ وحذف جميع رسائل الشات
+              </button>
+            </div>
+          </div>
         </div>
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>المستلم (To)</th>
-                <th>العنوان (Subject)</th>
-                <th>التوقيت</th>
-                <th>حالة التسليم</th>
-              </tr>
-            </thead>
-            <tbody id="emailLogsTableBody">
-              <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--muted);">لا يوجد رسائل مرسلة في هذه الجلسة بعد.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
 
-      <!-- Supabase Gmail SMTP Setup Guide -->
-      <div class="section-card" style="border-color: rgba(91, 106, 240, 0.3);">
-        <div class="section-title" style="color:var(--accent);">
-          <span>⚙️</span> كيفية تفعيل إرسال كل رسائل النظام عبر حساب الجيميل الخاص بك (Gmail SMTP)
-        </div>
-        <div style="font-size:13px; color:var(--muted); line-height:1.7;">
-          لضمان وصول 100% من روابط الباسورد والتنبيهات الأمنية مباشرة إلى صندوق الوارد (Inbox) لجميع الأعضاء بدون توقف:
-          <ol style="margin: 10px 20px; display:flex; flex-direction:column; gap:6px;">
-            <li>افتح لوحة تحكم <strong>Supabase Dashboard</strong> -> ثم اختر مشروعك -> <strong>Authentication</strong> -> <strong>Email Settings</strong>.</li>
-            <li>فعّل خيار <strong>Enable Custom SMTP</strong>.</li>
-            <li>أدخل بيانات Gmail SMTP التالية:
-              <ul style="margin: 4px 15px;">
-                <li><strong>Sender Email:</strong> <code>ywsfw3778@gmail.com</code></li>
-                <li><strong>Sender Name:</strong> <code>Lab Members Security</code></li>
-                <li><strong>Host:</strong> <code>smtp.gmail.com</code> &nbsp;|&nbsp; <strong>Port:</strong> <code>587</code></li>
-                <li><strong>Username:</strong> <code>ywsfw3778@gmail.com</code></li>
-                <li><strong>Password:</strong> كلمة مرور التطبيقات (App Password) من إعدادات حساب Google الخاص بك.</li>
-              </ul>
-            </li>
-          </ol>
-        </div>
-      </div>
+      </main>
     </div>
-
-  </main>
+  </div>
 
   <!-- Edit User Modal -->
   <div class="modal-overlay" id="editUserModal">
@@ -1123,16 +1425,16 @@
 
       <!-- Avatar Preview & Controls -->
       <div style="display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:4px;">
-        <div style="position:relative; width:84px; height:84px; border-radius:50%; border:2px solid var(--accent); background:var(--surface2); overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,0.3);">
+        <div style="position:relative; width:88px; height:88px; border-radius:50%; border:2px solid var(--accent); background:var(--surface-elevated); overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 20px var(--accent-glow);">
           <img id="editUserAvatarPreview" src="" style="width:100%; height:100%; object-fit:cover; display:none;" />
-          <span id="editUserAvatarPlaceholder" style="font-size:32px; font-weight:800; color:var(--accent);">U</span>
+          <span id="editUserAvatarPlaceholder" style="font-size:34px; font-weight:800; color:var(--accent);">U</span>
         </div>
         <div style="display:flex; gap:8px; width:100%; justify-content:center; flex-wrap:wrap;">
-          <label class="btn btn-secondary" style="font-size:11px; padding:7px 14px; cursor:pointer;">
+          <label class="btn btn-secondary" style="font-size:11px; padding:8px 14px; cursor:pointer;">
             <span>📁</span> رفع صورة من جهازك
             <input type="file" id="editUserAvatarFileInput" accept="image/*" style="display:none;" onchange="handleAvatarFileSelect(this)" />
           </label>
-          <button type="button" class="btn btn-danger" style="font-size:11px; padding:7px 14px;" onclick="removeUserAvatar()">
+          <button type="button" class="btn btn-danger" style="font-size:11px; padding:8px 14px;" onclick="removeUserAvatar()">
             <span>🗑️</span> إزالة الصورة
           </button>
         </div>
@@ -1621,20 +1923,24 @@
           success = true;
         } else {
           errMsg = rpcErr.message;
-          // 2. Direct profiles update fallback
-          const { error: profErr } = await sb.from('profiles').update({ is_admin: makeAdmin }).eq('id', id);
-          if (!profErr) {
-            success = true;
-          } else {
-            errMsg = profErr.message;
-          }
+          // Try user moderation / metadata fallback safely
+          try {
+            const { error: modErr } = await sb.from('admin_user_moderation').upsert({
+              user_id: id,
+              ban_reason: makeAdmin ? 'admin_promoted' : '',
+              updated_at: new Date().toISOString()
+            });
+            if (!modErr) {
+              // RPC is required for full auth metadata update
+            }
+          } catch(_ignore) {}
         }
 
         if (success) {
           alert(makeAdmin ? `تمت ترقية ${name || 'المستخدم'} إلى رتبة مشرف بنجاح! 👑` : `تمت إعادة ${name || 'المستخدم'} إلى رتبة عضو عادي.`);
           await loadUsers();
         } else {
-          alert('تعذر تعديل الرتبة: ' + (errMsg || 'يرجى تشغيل كود الصلاحيات في Supabase'));
+          alert('تعذر تعديل الرتبة: ' + (errMsg || '') + '\n\n💡 ملاحظة: لتفعيل ترقية المشرفين، يرجى تشغيل ملف (supabase_admin_functions.sql) في SQL Editor الخاص بـ Supabase.');
         }
       } catch (e) {
         alert('حدث خطأ أثناء تعديل الرتبة: ' + e.message);
@@ -2008,12 +2314,32 @@
       window.open(gmailWebUrl, '_blank');
     };
 
+    window.toggleMobileSidebar = function() {
+      const sidebar = document.getElementById('adminSidebar');
+      const overlay = document.getElementById('mobileOverlay');
+      if(sidebar && overlay) {
+        const isOpen = sidebar.classList.toggle('open');
+        overlay.classList.toggle('open', isOpen);
+      }
+    };
+
     // Tabs Switcher
     window.switchAdminTab = function(tabId) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-      document.getElementById('tab-' + tabId).classList.add('active');
+      
+      const activeBtns = document.querySelectorAll(`.tab-btn[onclick*="'${tabId}'"]`);
+      activeBtns.forEach(btn => btn.classList.add('active'));
+      
+      const targetTab = document.getElementById('tab-' + tabId);
+      if (targetTab) targetTab.classList.add('active');
+      
+      const sidebar = document.getElementById('adminSidebar');
+      const overlay = document.getElementById('mobileOverlay');
+      if (sidebar && sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+      }
     };
 
     window.loadAllAdminData = async function() {

@@ -2227,7 +2227,11 @@ body::after{content:'';position:fixed;inset:0;background:var(--crt);pointer-even
         <span id="chatMenuImageText">عرض الصورة</span>
         <img src="https://cdn.jsdelivr.net/npm/@lobehub/assets-emoji/assets/framed-picture.webp" alt="image" style="width:16px; height:16px; object-fit:contain;" />
       </button>
-      <button type="button" onclick="closeChatFromHeaderMenu()" style="color: var(--danger);">
+      <button type="button" onclick="openDeleteChatForActiveContact()" style="color: var(--danger);">
+        <span>حذف المحادثة</span>
+        <span style="font-size: 15px;">🗑️</span>
+      </button>
+      <button type="button" onclick="closeChatFromHeaderMenu()">
         <span>إغلاق المحادثة</span>
         <span style="font-size: 15px; font-weight: bold;">✕</span>
       </button>
@@ -5792,8 +5796,32 @@ window.handleContactTouchEnd = function(event) {
   }
 };
 
+window.openDeleteChatForActiveContact = function() {
+  closeChatHeaderMenu();
+  if (!activeContact) return;
+  pendingDeleteContactId = activeContact.id;
+  
+  const modal = document.getElementById('deleteChatModal');
+  const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
+  if (checkbox) checkbox.checked = false;
+  
+  const optionsDiv = document.querySelector('.delete-chat-options');
+  const currentUser = getCurrentUser();
+  if (optionsDiv) {
+    if (currentUser && isAdmin(currentUser)) {
+      optionsDiv.style.setProperty('display', 'flex', 'important');
+    } else {
+      optionsDiv.style.setProperty('display', 'none', 'important');
+    }
+  }
+  if (modal) modal.classList.add('open');
+};
+
 window.handleDeleteChatFromMenu = function(event) {
-  if (event) event.stopPropagation();
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
   const contactId = contactMenuState;
   window.closeContactContextMenu();
   if (!contactId) return;
@@ -5824,7 +5852,7 @@ window.closeDeleteChatModal = function() {
 };
 
 window.confirmDeleteChat = async function() {
-  const contactId = pendingDeleteContactId;
+  const contactId = pendingDeleteContactId || (activeContact ? activeContact.id : null);
   pendingDeleteContactId = null;
   window.closeDeleteChatModal();
   if (!contactId) return;
@@ -5836,109 +5864,75 @@ window.confirmDeleteChat = async function() {
   const checkbox = document.getElementById('deleteChatForEveryoneCheckbox');
   const forEveryone = checkbox && checkbox.checked && isAdmin(currentUser);
   
-  if (forEveryone) {
-    console.log(`[AdminDelete] Deleting all messages between ${currentUser.id} and ${contactId} for everyone`);
-    const identityIds = await getCurrentIdentityIds();
-    const ids = identityIds.length ? identityIds : [currentUser.id];
-    
-    // Get partner's linked identity IDs if they exist
-    const partner = contacts.find(x => x.id === contactId);
-    const partnerIds = partner ? await getIdentityIdsForEmail(partner.email || '', partner.id || '') : [contactId];
-    
-    try {
-      // Fetch all sent and received message IDs first to delete them by ID (primary key)
-      const [resSent, resRecv] = await Promise.all([
-        sbClient
-          .from('messages')
-          .select('id')
-          .in('sender_id', ids)
-          .in('receiver_id', partnerIds),
-        sbClient
-          .from('messages')
-          .select('id')
-          .in('sender_id', partnerIds)
-          .in('receiver_id', ids)
-      ]);
-      
-      const msgIds = [
-        ...(resSent.data || []).map(m => m.id),
-        ...(resRecv.data || []).map(m => m.id)
-      ];
-      
-      if (msgIds.length > 0) {
-        const { error: delErr } = await sbClient
-          .from('messages')
-          .delete()
-          .in('id', msgIds);
-          
-        if (delErr) {
-          console.warn('[AdminDelete] Error deleting by ID:', delErr.message);
-          alert(appLang === 'ar' ? 'حدث خطأ أثناء الحذف من السيرفر: ' + delErr.message : 'Error deleting from server: ' + delErr.message);
-        } else {
-          console.log(`[AdminDelete] Successfully deleted ${msgIds.length} messages by ID for everyone`);
-        }
-      } else {
-        console.log('[AdminDelete] No messages found to delete on server');
-      }
-    } catch (err) {
-      console.error('[AdminDelete] Catch block error:', err);
-    }
+  const identityIds = await getCurrentIdentityIds();
+  const ids = identityIds.length ? identityIds : [currentUser.id];
+  const partner = contacts.find(x => x.id === contactId);
+  const partnerIds = partner ? await getIdentityIdsForEmail(partner.email || '', partner.id || '') : [contactId];
+  
+  // 1. Delete all messages between the two users from database
+  try {
+    await Promise.allSettled([
+      sbClient.from('messages').delete().in('sender_id', ids).in('receiver_id', partnerIds),
+      sbClient.from('messages').delete().in('sender_id', partnerIds).in('receiver_id', ids)
+    ]);
+  } catch (err) {
+    console.warn('[DeleteChat] DB delete messages error:', err);
   }
-  
-  // Get latest message DB timestamp to prevent clock-drift issues
-  let deletedTime = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // Use 10m future placeholder so it hides immediately
-  
-  const msgs = conversations[contactId] || [];
-  if (msgs.length > 0) {
-    const lastMsg = msgs[msgs.length - 1];
-    const lastMsgTime = lastMsg.createdAt || lastMsg.created_at;
-    if (lastMsgTime && new Date(lastMsgTime).getTime() > new Date(deletedTime).getTime()) {
-      deletedTime = lastMsgTime;
-    }
-  }
-  
-  const c = contacts.find(x => x.id === contactId);
-  if (c && c._lastInboxAt) {
-    if (new Date(c._lastInboxAt).getTime() > new Date(deletedTime).getTime()) {
-      deletedTime = c._lastInboxAt;
-    }
-  }
-  
-  // Clear conversation cache
-  conversations[contactId] = [];
-  
-  // Clear preview and time in contacts locally
-  const cFound = contacts.find(x => x.id === contactId);
-  if (cFound) {
-    cFound.preview = '';
-    cFound.time = '';
-    cFound._lastInboxAt = '';
-  }
-  
-  // Save local storage hidden timestamp to hide all messages up to now (Delete for me and sync)
+
+  // 2. Hide and wipe locally with future timestamp
+  const deletedTime = new Date(Date.now() + 86400000).toISOString();
   localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + contactId, deletedTime);
   
-  // Insert sync delete message into database to sync across user's other devices
-  sbClient.from('messages').insert({
-    sender_id: currentUser.id,
-    receiver_id: contactId,
-    content: `[system_delete_chat_me]${deletedTime}`
-  }).then(({ error }) => {
-    if (error) console.warn('Failed to insert delete sync message:', error.message);
-  });
+  // Also insert sync delete placeholder
+  try {
+    await sbClient.from('messages').insert({
+      sender_id: currentUser.id,
+      receiver_id: contactId,
+      content: `[system_delete_chat_me]${deletedTime}`
+    });
+  } catch (_e) {}
+  
+  // Clear conversation cache
+  delete conversations[contactId];
+  conversations[contactId] = [];
+  
+  // Remove contact from sidebar list
+  const cIndex = contacts.findIndex(x => x.id === contactId);
+  if (cIndex !== -1) {
+    contacts.splice(cIndex, 1);
+  }
   
   // Clear active chat if it was the deleted one
   if (activeContact && activeContact.id === contactId) {
     activeContact = null;
     window.activeContactRef = null;
     localStorage.removeItem('lm-persistent-active-chat-id');
+    sessionStorage.removeItem('lm-persistent-active-chat-id');
+    if (isMobileView()) {
+      setMobileChatMode(false);
+      mobileSidebarOpen = true;
+    }
   }
   
   renderContacts();
   saveLocalChatState();
+  syncActiveHeader();
+  renderMessages();
+  
+  // Sync reload
   await loadInboxContacts();
   renderContacts();
   renderMessages();
+  
+  // Broadcast deletion to other tabs
+  try {
+    const channel = sbClient.channel('realtime-messages-sync');
+    channel.send({
+      type: 'broadcast',
+      event: 'chat-deleted',
+      payload: { userId: currentUser.id, partnerId: contactId, deletedAt: deletedTime }
+    });
+  } catch (_e) {}
 };
 
 function setProfileCover(imageUrl){

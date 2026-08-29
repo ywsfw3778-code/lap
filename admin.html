@@ -1923,20 +1923,24 @@
           success = true;
         } else {
           errMsg = rpcErr.message;
-          // 2. Direct profiles update fallback
-          const { error: profErr } = await sb.from('profiles').update({ is_admin: makeAdmin }).eq('id', id);
-          if (!profErr) {
-            success = true;
-          } else {
-            errMsg = profErr.message;
-          }
+          // Try user moderation / metadata fallback safely
+          try {
+            const { error: modErr } = await sb.from('admin_user_moderation').upsert({
+              user_id: id,
+              ban_reason: makeAdmin ? 'admin_promoted' : '',
+              updated_at: new Date().toISOString()
+            });
+            if (!modErr) {
+              // RPC is required for full auth metadata update
+            }
+          } catch(_ignore) {}
         }
 
         if (success) {
           alert(makeAdmin ? `تمت ترقية ${name || 'المستخدم'} إلى رتبة مشرف بنجاح! 👑` : `تمت إعادة ${name || 'المستخدم'} إلى رتبة عضو عادي.`);
           await loadUsers();
         } else {
-          alert('تعذر تعديل الرتبة: ' + (errMsg || 'يرجى تشغيل كود الصلاحيات في Supabase'));
+          alert('تعذر تعديل الرتبة: ' + (errMsg || '') + '\n\n💡 ملاحظة: لتفعيل ترقية المشرفين، يرجى تشغيل ملف (supabase_admin_functions.sql) في SQL Editor الخاص بـ Supabase.');
         }
       } catch (e) {
         alert('حدث خطأ أثناء تعديل الرتبة: ' + e.message);
