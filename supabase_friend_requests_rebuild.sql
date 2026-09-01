@@ -730,13 +730,13 @@ create policy "admin_message_blocks_insert_admin"
 on public.admin_message_blocks
 for insert
 to authenticated
-with check (auth.uid() = admin_id);
+with check (public.is_admin_caller() and auth.uid() = admin_id);
 
 create policy "admin_message_blocks_delete_admin"
 on public.admin_message_blocks
 for delete
 to authenticated
-using (auth.uid() = admin_id);
+using (public.is_admin_caller() and auth.uid() = admin_id);
 
 grant select on public.user_identities to authenticated;
 grant select, insert, update, delete on public.friend_requests to authenticated;
@@ -907,25 +907,33 @@ create policy "Public Access for avatars" on storage.objects
   for select using (bucket_id = 'avatars');
 
 create policy "Authenticated Upload for avatars" on storage.objects
-  for insert to authenticated with check (bucket_id = 'avatars');
+  for insert to authenticated
+  with check (bucket_id = 'avatars' and split_part(name, '/', 1) = auth.uid()::text);
 
 create policy "Authenticated Update for avatars" on storage.objects
-  for update to authenticated using (bucket_id = 'avatars') with check (bucket_id = 'avatars');
+  for update to authenticated
+  using (bucket_id = 'avatars' and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin_caller()))
+  with check (bucket_id = 'avatars' and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin_caller()));
 
 create policy "Authenticated Delete for avatars" on storage.objects
-  for delete to authenticated using (bucket_id = 'avatars');
+  for delete to authenticated
+  using (bucket_id = 'avatars' and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin_caller()));
 
 -- Create policies for 'voices' bucket (reused for chat media)
 create policy "Public Access for voices" on storage.objects
   for select using (bucket_id = 'voices');
 
 create policy "Authenticated Upload for voices" on storage.objects
-  for insert to authenticated with check (bucket_id = 'voices');
+  for insert to authenticated
+  with check (bucket_id = 'voices' and split_part(name, '/', 1) = auth.uid()::text);
 
 create policy "Authenticated Update for voices" on storage.objects
-  for update to authenticated using (bucket_id = 'voices') with check (bucket_id = 'voices');
+  for update to authenticated
+  using (bucket_id = 'voices' and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin_caller()))
+  with check (bucket_id = 'voices' and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin_caller()));
 
 create policy "Authenticated Delete for voices" on storage.objects
-  for delete to authenticated using (bucket_id = 'voices');
+  for delete to authenticated
+  using (bucket_id = 'voices' and (split_part(name, '/', 1) = auth.uid()::text or public.is_admin_caller()));
 
 

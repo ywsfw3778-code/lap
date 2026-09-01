@@ -38,5 +38,10 @@ git push
 أي `push` جديد على `main` = نشر تلقائي مباشر.
 
 ## ملاحظات مهمة
+- قبل نشر أي نسخة: شغّل `FULL_DATABASE_SETUP.sql` ثم
+  `supabase_friend_requests_rebuild.sql` ثم `SECURITY_HARDENING.sql` داخل
+  Supabase SQL Editor. الملف الأخير يقفل صلاحيات SQL وStorage بعد أي سكربت
+  إعداد قديم، لذلك يجب تشغيله أخيرا.
+- لا تضع `service_role` أو مفاتيح Supabase السرية أو ملفات `.env` داخل GitHub.
 - عندك حاليا Workflow قديم لـ GitHub Pages في `.github/workflows/deploy-pages.yml`.
 - لو هتعتمد Firebase فقط، يفضل تعطّل/تحذف Workflow Pages لتفادي نشر مزدوج.

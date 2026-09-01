@@ -23,6 +23,12 @@
         "type": 301
       }
     ],
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/chat-prototype_1.html"
+      }
+    ],
     "headers": [
       {
         "source": "**/*.html",

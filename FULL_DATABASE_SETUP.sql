@@ -1,6 +1,8 @@
 ﻿-- ==============================================================================
 -- 🚀 LAB MEMBERS - PRODUCTION-HARDENED DATABASE SETUP & SECURITY POLICIES
 -- ==============================================================================
+-- IMPORTANT: Run SECURITY_HARDENING.sql after this setup (and after the friend
+-- request rebuild) to apply the final routine and Storage permission lockdown.
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

@@ -1482,8 +1482,10 @@
         return null;
       }
       const user = session.user;
-      const email = String(user.email || '').trim().toLowerCase();
-      const isAdmin = email === 'ywsfw3778@gmail.com' || user.user_metadata?.is_admin === true || user.user_metadata?.role === 'admin';
+      const { data: isAdmin, error: roleError } = await sb.rpc('is_admin_caller');
+      if (roleError) {
+        console.warn('Could not verify the administrator role:', roleError.message);
+      }
       
       if (!isAdmin) {
         alert('عذراً، هذه الصفحة مخصصة لمدير المنصة فقط.');
@@ -1806,7 +1808,7 @@
           finalAvatarUrl = '';
         } else if (selectedAvatarFile) {
           const fileExt = selectedAvatarFile.name.split('.').pop() || 'png';
-          const fileName = `admin-avatar-${id}-${Date.now()}.${fileExt}`;
+          const fileName = `${id}/admin-avatar-${Date.now()}.${fileExt}`;
           const { data: uploadData, error: uploadErr } = await sb.storage
             .from('avatars')
             .upload(fileName, selectedAvatarFile, { upsert: true });

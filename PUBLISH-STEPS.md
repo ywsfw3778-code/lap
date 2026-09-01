@@ -42,5 +42,9 @@ git push
 أول ما `push` يخلص، GitHub ينشر النسخة الجديدة تلقائيا.
 
 ## ملاحظة مهمة
+- قبل أي نشر، نفّذ migrations قاعدة البيانات بالترتيب:
+  `FULL_DATABASE_SETUP.sql` ثم `supabase_friend_requests_rebuild.sql` ثم
+  `SECURITY_HARDENING.sql`. لا تعكس الترتيب لأن الملف الأخير يعيد تطبيق
+  سياسات الحماية.
 - "على طول" يعني بعد الـ push مباشرة (غالبا خلال دقيقة).
 - بدون Git/GitHub لا يوجد نشر تلقائي مستمر على الإنترنت.
