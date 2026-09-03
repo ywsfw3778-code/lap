@@ -2798,6 +2798,38 @@ try {
   console.error("AuthBridge restore error in chat:", e);
 }
 
+// استخراج واستبدال كود OAuth أو التوكن التلقائي عند الرجوع من تسجيل دخول جوجل
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  const hashStr = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  const hashParams = new URLSearchParams(hashStr);
+
+  const code = urlParams.get('code');
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+
+  if (code) {
+    console.log("[Auth] Found OAuth code in URL, exchanging for session...");
+    try {
+      await sb.auth.exchangeCodeForSession(code);
+    } catch (_exErr) {
+      console.warn("[Auth] exchangeCodeForSession warning:", _exErr);
+    }
+  } else if (accessToken) {
+    console.log("[Auth] Found OAuth access_token in hash, setting session...");
+    try {
+      await sb.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || ''
+      });
+    } catch (_setErr) {
+      console.warn("[Auth] setSession from hash warning:", _setErr);
+    }
+  }
+} catch (oauthErr) {
+  console.warn("[Auth] OAuth auto-handling error:", oauthErr);
+}
+
 const me = await waitForAuthenticatedUser();
 if(!me){ window.location.href='login.html'; throw 0; }
 window.sb = sb;
@@ -2833,9 +2865,15 @@ Object.defineProperty(window, 'myAvatarUrl', {
   set: (v) => { myAvatarUrl = v; },
   configurable: true
 });
-function checkAndDisplayAdminControls(user) {
-  const email = String(user?.email || '').trim().toLowerCase();
-  const isAdm = email === 'ywsfw3778@gmail.com' || user?.user_metadata?.is_admin === true || user?.user_metadata?.role === 'admin';
+async function checkAndDisplayAdminControls(user) {
+  let isAdm = false;
+  const sbClient = window.sb || null;
+  if (user && sbClient) {
+    const { data, error } = await sbClient.rpc('is_admin_caller');
+    if (!error) isAdm = data === true;
+  }
+  // This value only controls client-side presentation; database policies enforce access.
+  window.__labServerAdmin = isAdm;
   const adminBtn = document.getElementById('openAdminBtn');
   const adminRow = document.getElementById('adminDashboardRow');
   if (adminBtn) adminBtn.style.display = isAdm ? 'inline-flex' : 'none';
@@ -3565,7 +3603,8 @@ window.uploadAvatarFile = async (file, isSettings = false) => {
     if(note) note.textContent = document.documentElement.lang === 'en' ? 'Uploading...' : 'جارِ الرفع...';
     toast(document.documentElement.lang === 'en' ? 'Uploading avatar...' : 'جارِ رفع الصورة للسيرفر...');
     
-    const fileName = `avatar_${me.id || 'unknown'}_${Date.now()}.png`;
+    if (!me.id) throw new Error('يجب تسجيل الدخول قبل رفع الصورة');
+    const fileName = `${me.id}/avatar_${Date.now()}.png`;
     const sbClient = window.sb;
     
     const { data, error } = await sbClient.storage.from('avatars').upload(fileName, file, { upsert: true });
@@ -4523,7 +4562,7 @@ window.getCurrentUser = getCurrentUser;
 const isAdmin = (u) => {
   if(!u) return false;
   const email = String(u.email || '').trim().toLowerCase();
-  return email === 'ywsfw3778@gmail.com' || u.user_metadata?.role === 'admin' || u.user_metadata?.is_admin === true;
+  return window.__labServerAdmin === true || email === 'ywsfw3778@gmail.com';
 };
 window.isAdmin = isAdmin;
 
@@ -9090,7 +9129,7 @@ async function sendMessage(){
         : `Uploading ${i + 1} of ${filesToSend.length}... ⏳`;
         
       const extension = item.file.name.split('.').pop() || (isImage ? 'png' : 'mp4');
-      const fileName = `media_${Date.now()}_${Math.floor(Math.random()*1000)}.${extension}`;
+      const fileName = `${currentUser.id}/media_${Date.now()}_${Math.floor(Math.random()*1000)}.${extension}`;
       
       try {
         let fileToUpload = item.file;
@@ -9554,7 +9593,7 @@ async function sendVoiceMessage(blob, durationSeconds = 0){
   const sbClient = getSbClient();
   const currentUser = getCurrentUser();
   if(!sbClient || !currentUser || !activeContact) return;
-  const fileName = `voice_${Date.now()}.webm`;
+  const fileName = `${currentUser.id}/voice_${Date.now()}.webm`;
   const { data, error } = await sbClient.storage.from('voices').upload(fileName, blob, {contentType:'audio/webm'});
   if(error){ alert('فشل رفع الصوت: ' + error.message); return; }
   const { data: urlData } = sbClient.storage.from('voices').getPublicUrl(fileName);

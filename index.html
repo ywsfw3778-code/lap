@@ -2798,6 +2798,38 @@ try {
   console.error("AuthBridge restore error in chat:", e);
 }
 
+// استخراج واستبدال كود OAuth أو التوكن التلقائي عند الرجوع من تسجيل دخول جوجل
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  const hashStr = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  const hashParams = new URLSearchParams(hashStr);
+
+  const code = urlParams.get('code');
+  const accessToken = hashParams.get('access_token');
+  const refreshToken = hashParams.get('refresh_token');
+
+  if (code) {
+    console.log("[Auth] Found OAuth code in URL, exchanging for session...");
+    try {
+      await sb.auth.exchangeCodeForSession(code);
+    } catch (_exErr) {
+      console.warn("[Auth] exchangeCodeForSession warning:", _exErr);
+    }
+  } else if (accessToken) {
+    console.log("[Auth] Found OAuth access_token in hash, setting session...");
+    try {
+      await sb.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken || ''
+      });
+    } catch (_setErr) {
+      console.warn("[Auth] setSession from hash warning:", _setErr);
+    }
+  }
+} catch (oauthErr) {
+  console.warn("[Auth] OAuth auto-handling error:", oauthErr);
+}
+
 const me = await waitForAuthenticatedUser();
 if(!me){ window.location.href='login.html'; throw 0; }
 window.sb = sb;

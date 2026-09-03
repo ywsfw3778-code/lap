@@ -823,11 +823,14 @@ window.handleGoogle = async function(){
   let sb;
   try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
 
-  const redirectUrl = (window.AndroidBridge)
-    ? 'com.example.labmembers://login'
-    : window.location.origin + '/chat-prototype_1.html';
+  let redirectUrl = 'https://lap-15040.web.app/chat-prototype_1.html';
+  if (window.AndroidBridge) {
+    redirectUrl = 'com.example.labmembers://login';
+  } else if (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file:')) {
+    redirectUrl = window.location.origin + '/chat-prototype_1.html';
+  }
 
-  const { error } = await sb.auth.signInWithOAuth({
+  const { data, error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: redirectUrl,
@@ -837,9 +840,11 @@ window.handleGoogle = async function(){
       }
     }
   });
-  if(error){
+  if (error) {
     console.error('Google OAuth error:', error);
     showToast('❌ ' + error.message, 'error');
+  } else if (data?.url) {
+    window.location.href = data.url;
   }
 };
 
