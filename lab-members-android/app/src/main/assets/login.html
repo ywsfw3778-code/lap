@@ -825,13 +825,22 @@ window.handleGoogle = async function(){
 
   const redirectUrl = (window.AndroidBridge)
     ? 'com.example.labmembers://login'
-    : window.location.href.split('?')[0].split('#')[0].split('login.html')[0] + 'chat-prototype_1.html';
+    : window.location.origin + '/chat-prototype_1.html';
 
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: redirectUrl }
+    options: {
+      redirectTo: redirectUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'select_account'
+      }
+    }
   });
-  if(error){ showToast('❌ '+error.message,'error'); }
+  if(error){
+    console.error('Google OAuth error:', error);
+    showToast('❌ ' + error.message, 'error');
+  }
 };
 
 window.handleUpdatePassword = async function() {
@@ -957,6 +966,15 @@ window.handleUpdatePassword = async function() {
     }
 
     const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash);
+    
+    // Check for OAuth or Auth errors returned in URL
+    const oauthError = params.get('error_description') || params.get('error') || hashParams.get('error_description') || hashParams.get('error');
+    if (oauthError) {
+      console.warn('OAuth redirect error:', oauthError);
+      showToast('❌ خطأ في تسجيل الدخول بجوجل: ' + decodeURIComponent(oauthError.replace(/\+/g, ' ')), 'error');
+    }
+
     const logoutReturn = params.has('logout');
     let isRecovering = params.get('type') === 'recovery' || window.location.hash.includes('type=recovery') || window.location.hash.includes('recovery');
     

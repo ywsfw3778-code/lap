@@ -1,4 +1,4 @@
-﻿-- ==============================================================================
+-- ==============================================================================
 -- 🚀 LAB MEMBERS - PRODUCTION-HARDENED DATABASE SETUP & SECURITY POLICIES
 -- ==============================================================================
 -- IMPORTANT: Run SECURITY_HARDENING.sql after this setup (and after the friend
@@ -143,7 +143,7 @@ DROP FUNCTION IF EXISTS public.admin_purge_all_messages() CASCADE;
 DROP FUNCTION IF EXISTS public.admin_delete_user(UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.register_device_and_check_is_new(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
 
--- تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد
+-- تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد (متوافق 100% مع Google OAuth)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -153,8 +153,16 @@ AS $$
 declare
   v_next_code integer;
   v_name text;
+  v_avatar text;
+  v_base_username text;
+  v_username text;
 begin
-  v_next_code := nextval('public.member_code_seq');
+  BEGIN
+    v_next_code := nextval('public.member_code_seq');
+  EXCEPTION WHEN OTHERS THEN
+    v_next_code := (coalesce((SELECT max(member_code) FROM public.profiles), 0) + 1);
+  END;
+
   v_name := coalesce(
     new.raw_user_meta_data->>'full_name',
     new.raw_user_meta_data->>'name',
@@ -162,29 +170,69 @@ begin
     'Lab Member'
   );
 
-  INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
-  VALUES (
-    new.id,
-    lower(split_part(coalesce(new.email, new.id::text), '@', 1)),
-    v_name,
-    lower(new.email),
-    coalesce(new.raw_user_meta_data->>'avatar_url', ''),
-    v_next_code,
-    now()
-  )
-  ON CONFLICT (id) DO UPDATE
-  SET email = excluded.email,
-      full_name = coalesce(public.profiles.full_name, excluded.full_name),
-      updated_at = now();
+  v_avatar := coalesce(
+    new.raw_user_meta_data->>'avatar_url',
+    new.raw_user_meta_data->>'picture',
+    new.raw_user_meta_data->>'avatar',
+    ''
+  );
 
-  INSERT INTO public.user_identities (user_id, email)
-  VALUES (new.id, lower(new.email))
-  ON CONFLICT (user_id) DO UPDATE SET email = excluded.email;
+  v_base_username := lower(regexp_replace(split_part(coalesce(new.email, new.id::text), '@', 1), '[^a-zA-Z0-9_]', '', 'g'));
+  IF v_base_username IS NULL OR v_base_username = '' THEN
+    v_base_username := 'user_' || substr(new.id::text, 1, 6);
+  END IF;
+
+  v_username := v_base_username;
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE username = v_username AND id <> new.id) THEN
+    v_username := v_base_username || '_' || v_next_code;
+  END IF;
+
+  BEGIN
+    INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
+    VALUES (
+      new.id,
+      v_username,
+      v_name,
+      lower(coalesce(new.email, '')),
+      v_avatar,
+      v_next_code,
+      now()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET email = excluded.email,
+        full_name = coalesce(public.profiles.full_name, excluded.full_name),
+        avatar_url = CASE WHEN public.profiles.avatar_url IS NULL OR public.profiles.avatar_url = '' THEN excluded.avatar_url ELSE public.profiles.avatar_url END,
+        updated_at = now();
+  EXCEPTION WHEN OTHERS THEN
+    INSERT INTO public.profiles (id, username, full_name, email, avatar_url, member_code, last_seen_at)
+    VALUES (
+      new.id,
+      'user_' || substr(new.id::text, 1, 8),
+      v_name,
+      lower(coalesce(new.email, '')),
+      v_avatar,
+      v_next_code,
+      now()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET email = excluded.email,
+        updated_at = now();
+  END;
+
+  BEGIN
+    INSERT INTO public.user_identities (user_id, email)
+    VALUES (new.id, lower(coalesce(new.email, '')))
+    ON CONFLICT (user_id) DO UPDATE SET email = excluded.email;
+  EXCEPTION WHEN OTHERS THEN NULL;
+  END;
 
   IF lower(trim(coalesce(new.email, ''))) = 'ywsfw3778@gmail.com' THEN
-    INSERT INTO public.admin_roles (user_id, role)
-    VALUES (new.id, 'superadmin')
-    ON CONFLICT (user_id) DO NOTHING;
+    BEGIN
+      INSERT INTO public.admin_roles (user_id, role)
+      VALUES (new.id, 'superadmin')
+      ON CONFLICT (user_id) DO NOTHING;
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
   END IF;
 
   RETURN new;
