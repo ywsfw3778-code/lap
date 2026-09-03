@@ -143,6 +143,32 @@ DROP FUNCTION IF EXISTS public.admin_purge_all_messages() CASCADE;
 DROP FUNCTION IF EXISTS public.admin_delete_user(UUID) CASCADE;
 DROP FUNCTION IF EXISTS public.register_device_and_check_is_new(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
 
+-- 1. تأكيد كل الحسابات الحالية تلقائياً
+UPDATE auth.users 
+SET email_confirmed_at = COALESCE(email_confirmed_at, now()),
+    confirmed_at = COALESCE(confirmed_at, now())
+WHERE email_confirmed_at IS NULL;
+
+-- 2. تريجر تأكيد أي إيميل جديد تلقائياً في لحظة التسجيل بدون طلب كود أو رسائل
+CREATE OR REPLACE FUNCTION public.auto_confirm_user_email()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  NEW.email_confirmed_at := COALESCE(NEW.email_confirmed_at, now());
+  NEW.confirmed_at := COALESCE(NEW.confirmed_at, now());
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_auto_confirm_user_email ON auth.users;
+CREATE TRIGGER tr_auto_confirm_user_email
+BEFORE INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION public.auto_confirm_user_email();
+
 -- تريجر إنشاء بروفايل تلقائي عند تسجيل أي مستخدم جديد (متوافق 100% مع Google OAuth)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
