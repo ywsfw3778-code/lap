@@ -420,9 +420,9 @@ function getSupabase(){
   }
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
-      flowType: 'implicit',
       persistSession: true,
-      detectSessionInUrl: true
+      detectSessionInUrl: true,
+      autoRefreshToken: true
     }
   });
   return supabaseClient;
@@ -785,8 +785,22 @@ window.handleRegister = async function(){
     return;
   }
 
+  // محاولة تسجيل الدخول المباشر في حال تفعيل التوثيق الفوري
+  try {
+    const { data: signInData, error: signInErr } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (!signInErr && signInData?.session) {
+      if (signInData.user) await window.checkAndRecordDeviceLogin(sb, signInData.user);
+      showToast(tr('okRegisterAuto'));
+      redirectWhenSessionReady('chat-prototype_1.html');
+      return;
+    }
+  } catch (_e) {}
+
+  // في حال كان تأكيد البريد مطلوباً في Supabase
+  alert(`✅ تم إنشاء حسابك بنجاح!\n\nتم إرسال رابط تأكيد إلى بريدك الإلكتروني:\n${email}\n\nيرجى فتح بريدك الإلكتروني والضغط على الرابط لتأكيد الحساب، ثم العودة لتسجيل الدخول.`);
   showToast(tr('okRegisterPending'));
   document.getElementById('loginEmail').value = email;
+  document.getElementById('loginPass').value = pass;
   window.switchTab('login');
 };
 

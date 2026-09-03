@@ -2727,9 +2727,9 @@ const SB_KEY = 'sb_publishable_YFXi-x4HSyrfy_gnM5gLOQ_r3XkeNLj';
 const sb = createClient(SB_URL, SB_KEY, {
   db: { schema: 'public' },
   auth: {
-    flowType: 'implicit',
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    autoRefreshToken: true
   }
 });
 async function testFriendRequest() {
@@ -2798,40 +2798,74 @@ try {
   console.error("AuthBridge restore error in chat:", e);
 }
 
-// استخراج واستبدال كود OAuth أو التوكن التلقائي عند الرجوع من تسجيل دخول جوجل
-try {
-  const urlParams = new URLSearchParams(window.location.search);
-  const hashStr = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
-  const hashParams = new URLSearchParams(hashStr);
+// معالجة جلسة تسجيل دخول Google والتوكنات التلقائية
+let oauthLoadingNotice = null;
+const urlParams = new URLSearchParams(window.location.search);
+const hashStr = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+const hashParams = new URLSearchParams(hashStr);
 
-  const code = urlParams.get('code');
-  const accessToken = hashParams.get('access_token');
-  const refreshToken = hashParams.get('refresh_token');
-
-  if (code) {
-    console.log("[Auth] Found OAuth code in URL, exchanging for session...");
-    try {
-      await sb.auth.exchangeCodeForSession(code);
-    } catch (_exErr) {
-      console.warn("[Auth] exchangeCodeForSession warning:", _exErr);
-    }
-  } else if (accessToken) {
-    console.log("[Auth] Found OAuth access_token in hash, setting session...");
-    try {
-      await sb.auth.setSession({
-        access_token: accessToken,
-        refresh_token: refreshToken || ''
-      });
-    } catch (_setErr) {
-      console.warn("[Auth] setSession from hash warning:", _setErr);
-    }
-  }
-} catch (oauthErr) {
-  console.warn("[Auth] OAuth auto-handling error:", oauthErr);
+const oauthError = urlParams.get('error_description') || urlParams.get('error') || hashParams.get('error_description') || hashParams.get('error');
+if (oauthError) {
+  console.error('[Auth] OAuth error from provider:', oauthError);
+  window.location.href = 'login.html?error=' + encodeURIComponent(oauthError);
+  throw 0;
 }
 
-const me = await waitForAuthenticatedUser();
-if(!me){ window.location.href='login.html'; throw 0; }
+const oauthCode = urlParams.get('code');
+const oauthAccessToken = hashParams.get('access_token');
+const oauthRefreshToken = hashParams.get('refresh_token');
+
+if (oauthCode || oauthAccessToken) {
+  try {
+    oauthLoadingNotice = document.createElement('div');
+    oauthLoadingNotice.id = 'lab-auth-loading-notice';
+    oauthLoadingNotice.style.cssText = 'position:fixed;inset:0;background:#0b0f19;z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:inherit;text-align:center;padding:20px;';
+    oauthLoadingNotice.innerHTML = `
+      <div style="font-size:36px;margin-bottom:14px;">⏳</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:#38bdf8;">جاري تسجيل الدخول عبر Google...</div>
+      <div style="font-size:13px;color:#94a3b8;">يرجى الانتظار لحظات للتحقق وتجهيز المحادثات</div>
+    `;
+    document.body.appendChild(oauthLoadingNotice);
+  } catch (_e) {}
+
+  if (oauthAccessToken) {
+    try {
+      await sb.auth.setSession({
+        access_token: oauthAccessToken,
+        refresh_token: oauthRefreshToken || ''
+      });
+    } catch (_setErr) {
+      console.warn('[Auth] setSession warning:', _setErr);
+    }
+  } else if (oauthCode) {
+    try {
+      await sb.auth.exchangeCodeForSession(oauthCode);
+    } catch (_exErr) {
+      console.warn('[Auth] exchangeCode warning:', _exErr);
+    }
+  }
+}
+
+const me = await waitForAuthenticatedUser(oauthCode || oauthAccessToken ? 60 : 40, 150);
+
+if (oauthLoadingNotice && oauthLoadingNotice.parentNode) {
+  oauthLoadingNotice.parentNode.removeChild(oauthLoadingNotice);
+}
+
+if (!me) {
+  const redirectTarget = (oauthCode || oauthAccessToken)
+    ? 'login.html?error=' + encodeURIComponent('تعذر استكمال تسجيل الدخول عبر جوجل، يرجى إعادة المحاولة')
+    : 'login.html';
+  window.location.href = redirectTarget;
+  throw 0;
+}
+
+// تنظيف الـ URL من أكواد التوثيق الزائدة بعد النجاح
+if (window.location.search.includes('code=') || window.location.hash.includes('access_token=')) {
+  try {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } catch (_e) {}
+}
 window.sb = sb;
 window.me = me;
 window.memberCodeMap = {};
