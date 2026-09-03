@@ -8268,11 +8268,12 @@ async function loadInboxContacts(){
     if (activeContact) {
       const refreshedActive = contacts.find((x) => x.id === activeContact.id);
       if (refreshedActive) {
-        activeContact = refreshedActive;
-        window.activeContactRef = refreshedActive;
+        Object.assign(activeContact, refreshedActive);
+        window.activeContactRef = activeContact;
       } else {
-        activeContact = null;
-        window.activeContactRef = null;
+        // الحفاظ على المحادثة النشطة وعدم إغلاقها أو تصفيرها أبداً
+        contacts.unshift(activeContact);
+        window.activeContactRef = activeContact;
       }
     }
 
@@ -8280,9 +8281,6 @@ async function loadInboxContacts(){
       if (activeContact) {
         mobileSidebarOpen = false;
         setMobileChatMode(true);
-      } else {
-        mobileSidebarOpen = true;
-        setMobileChatMode(false);
       }
     }
 
@@ -8320,6 +8318,11 @@ async function loadInboxContacts(){
     const newIncomingRpcMessages = [];
     const rebuiltFromRpc = (inboxRpc.data || [])
       .filter((row) => {
+        // لو دي المحادثة المفتوحة حالياً، ممنوع إخفائها نهائياً
+        if (activeContact && activeContact.id === row.partner_id) {
+          return true;
+        }
+
         let deletedAt = localStorage.getItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id);
         
         // Extract deletedTime from system_delete_chat_me if it is the latest message
@@ -8329,15 +8332,16 @@ async function loadInboxContacts(){
             deletedAt = syncTime;
             localStorage.setItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id, syncTime);
           }
-        }
-
-        // Removed self-healing check to allow correct deletion with clock drift
-
-        if (row.last_content && String(row.last_content).startsWith('[system_delete_chat_me]')) {
           return false;
         }
-        if (deletedAt && row.last_created_at && new Date(row.last_created_at).getTime() <= new Date(deletedAt).getTime()) {
-          return false;
+
+        // لو في رسالة جديدة عادية أحدث من وقت الحذف، نظهر المحادثة فوراً ونمسح الحذف القديم
+        if (deletedAt && row.last_created_at) {
+          if (new Date(row.last_created_at).getTime() <= new Date(deletedAt).getTime()) {
+            return false;
+          } else {
+            localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + row.partner_id);
+          }
         }
         return true;
       })
@@ -8647,12 +8651,18 @@ async function selectContact(id, options = {}){
 
   // ... باقي الكود القديم يكمل عادي ...
   
+  // Clear any old deletion marker for this contact
+  try {
+    const cu = getCurrentUser();
+    if (cu && cu.id) localStorage.removeItem('lm-chat-deleted-at-' + cu.id + '-' + id);
+  } catch (_e) {}
+
   // الحماية السحرية: لو الشات مش موجود لسه، اصنعه كشات وهمي (Ghost) عشان يمسك الشاشة
   if(!found) {
      found = {
         id: id, name: 'جارِ التحميل...', username: '', email: '', init: '؟',
         color: 'var(--surface2)', text: 'var(--accent)', avatar: '', memberCode: '000',
-        lastSeenAt: '', online: false, preview: 'يتم استرجاع المحادثة...', time: '', unread: 0, _lastInboxAt: ''
+        lastSeenAt: '', online: false, preview: '', time: '', unread: 0, _lastInboxAt: ''
      };
      contacts.push(found);
      
@@ -9131,6 +9141,11 @@ async function sendMessage(){
   const targetContact = activeContact;
   const textToSend = txt;
   const filesToSend = [...pendingFiles];
+  
+  // إلغاء أي علامة حذف قديمة لهذه المحادثة فوراً لأن المستخدم بدأ يرسل فيها الآن
+  try {
+    localStorage.removeItem('lm-chat-deleted-at-' + currentUser.id + '-' + targetContact.id);
+  } catch (_e) {}
   
   // Clear input fields and pending files immediately to feel responsive
   inp.value = '';
