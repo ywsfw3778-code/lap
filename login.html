@@ -398,6 +398,16 @@
     <button class="submit-btn" onclick="handleUpdatePassword()" id="btnSaveNewPass">حفظ الباسورد الجديد والدخول 🔒</button>
   </div>
 
+  <!-- OTP Verification Form -->
+  <div id="otpForm" style="display:none;">
+    <div class="input-group">
+      <label class="input-label" id="lblOtpNotice">أدخل كود التحقق (6 أرقام) المرسل إلى بريدك</label>
+      <input class="input-field" type="text" placeholder="123456" id="otpCode" maxlength="8" style="text-align:center; letter-spacing:4px; font-size:22px; font-weight:700; font-family:'Share Tech Mono', monospace;">
+    </div>
+    <button class="submit-btn" onclick="handleVerifyOtp()" id="btnVerifyOtp">تأكيد ودخول للشات 🚀</button>
+    <div class="toggle-form" style="margin-top:14px;"><a onclick="switchTab('login')">← العودة لتسجيل الدخول</a></div>
+  </div>
+
   <div class="terms">
     بالدخول، أنت موافق على <a>شروط الاستخدام</a> و<a>سياسة الخصوصية</a>
   </div>
@@ -588,16 +598,18 @@ window.setLang = function(lang){
 window.switchTab = function(tab){
   const isRecovery = tab === 'recovery';
   const isForgot = tab === 'forgot';
+  const isOtp = tab === 'otp';
+  const hideHeaders = isRecovery || isForgot || isOtp;
   
   // Hide or show tabs header
   const tabsContainer = document.querySelector('.tabs');
-  if (tabsContainer) tabsContainer.style.display = (isRecovery || isForgot) ? 'none' : 'flex';
+  if (tabsContainer) tabsContainer.style.display = hideHeaders ? 'none' : 'flex';
   
   const googleBtn = document.getElementById('googleBtn');
-  if (googleBtn) googleBtn.style.display = (isRecovery || isForgot) ? 'none' : 'flex';
+  if (googleBtn) googleBtn.style.display = hideHeaders ? 'none' : 'flex';
   
   const divider = document.querySelector('.divider');
-  if (divider) divider.style.display = (isRecovery || isForgot) ? 'none' : 'flex';
+  if (divider) divider.style.display = hideHeaders ? 'none' : 'flex';
   
   const welcomeTitle = document.querySelector('.welcome-title');
   const welcomeSub = document.querySelector('.welcome-sub');
@@ -612,6 +624,9 @@ window.switchTab = function(tab){
     if (emailVal && document.getElementById('forgotEmail')) {
       document.getElementById('forgotEmail').value = emailVal;
     }
+  } else if (isOtp) {
+    if (welcomeTitle) welcomeTitle.textContent = currentLang === 'en' ? 'Verification Code 🔑' : 'تأكيد الحساب بالكود 🔑';
+    if (welcomeSub) welcomeSub.textContent = currentLang === 'en' ? 'Enter the 6-digit code sent to your email' : 'أدخل الكود المكون من 6 أرقام لتفعيل الحساب فوراً';
   } else {
     if (welcomeTitle) welcomeTitle.textContent = tr('welcomeTitle');
     if (welcomeSub) welcomeSub.textContent = tr('welcomeSub');
@@ -624,6 +639,7 @@ window.switchTab = function(tab){
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('forgotForm').style.display = tab === 'forgot' ? 'block' : 'none';
   document.getElementById('recoveryForm').style.display = tab === 'recovery' ? 'block' : 'none';
+  if (document.getElementById('otpForm')) document.getElementById('otpForm').style.display = tab === 'otp' ? 'block' : 'none';
 };
 
 // --- Device & Security Detection Module ---
@@ -796,12 +812,58 @@ window.handleRegister = async function(){
     }
   } catch (_e) {}
 
-  // في حال كان تأكيد البريد مطلوباً في Supabase
-  alert(`✅ تم إنشاء حسابك بنجاح!\n\nتم إرسال رابط تأكيد إلى بريدك الإلكتروني:\n${email}\n\nيرجى فتح بريدك الإلكتروني والضغط على الرابط لتأكيد الحساب، ثم العودة لتسجيل الدخول.`);
-  showToast(tr('okRegisterPending'));
-  document.getElementById('loginEmail').value = email;
-  document.getElementById('loginPass').value = pass;
-  window.switchTab('login');
+  // في حال كان تأكيد البريد مطلوباً في Supabase، نفتح خانة إدخال الكود فوراً
+  const otpNotice = document.getElementById('lblOtpNotice');
+  if (otpNotice) otpNotice.textContent = `أدخل كود التحقق (6 أرقام) المرسل إلى: ${email}`;
+  window.switchTab('otp');
+  showToast('📩 تم إرسال كود التحقق إلى بريدك الإلكتروني');
+};
+
+window.handleVerifyOtp = async function() {
+  const code = (document.getElementById('otpCode')?.value || '').trim();
+  const email = (document.getElementById('regEmail')?.value || document.getElementById('loginEmail')?.value || '').trim();
+  if (!code) {
+    showToast('يرجى كتابة كود التحقق', 'error');
+    return;
+  }
+  let sb;
+  try { sb = getSupabase(); } catch(e){ showToast(tr('errSdk'),'error'); return; }
+
+  const btn = document.getElementById('btnVerifyOtp');
+  if (btn) setLoading(btn, true);
+
+  // 1. Try signup token type
+  const { data, error } = await sb.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'signup'
+  });
+
+  if (!error && data?.session) {
+    if (btn) setLoading(btn, false);
+    if (data.user) await window.checkAndRecordDeviceLogin(sb, data.user);
+    showToast('✅ تم تأكيد الحساب بنجاح! جاري تحويلك للشات...');
+    redirectWhenSessionReady('chat-prototype_1.html');
+    return;
+  }
+
+  // 2. Try email token type as fallback
+  const { data: data2, error: error2 } = await sb.auth.verifyOtp({
+    email,
+    token: code,
+    type: 'email'
+  });
+
+  if (btn) setLoading(btn, false);
+  if (!error2 && data2?.session) {
+    if (data2.user) await window.checkAndRecordDeviceLogin(sb, data2.user);
+    showToast('✅ تم تأكيد الحساب بنجاح! جاري تحويلك للشات...');
+    redirectWhenSessionReady('chat-prototype_1.html');
+    return;
+  }
+
+  const msg = (error || error2)?.message || 'كود غير صحيح، تأكد من نسخه بدقة من بريدك';
+  showToast('❌ ' + msg, 'error');
 };
 
 window.handleSendPasswordReset = async function(){
